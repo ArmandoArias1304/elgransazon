@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>El Sabor - Dashboard</title>
+    <link crossorigin="" href="https://fonts.gstatic.com/" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#38e07b",
+              "primary-dark": "#2bc866",
+              "background-light": "#f8faf9",
+              "background-dark": "#0f1713",
+            },
+            fontFamily: {
+              display: ["Work Sans"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+              lg: "0.75rem",
+              xl: "1rem",
+              "2xl": "1.5rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
+      rel="stylesheet"
+    />
+    <!-- Sistema de Temas (Modo Claro/Oscuro) -->
+    <div th:replace="~{fragments/theme :: themeResources}"></div>
+    <!-- Sidebar Styles Fragment -->
+    <div th:replace="~{fragments/sidebar :: sidebarStyles}"></div>
+    <style>
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      .animate-slide-in {
+        animation: slideIn 0.5s ease-out forwards;
+      }
+
+      .animate-pulse-slow {
+        animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      .stat-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgba(56, 224, 123, 0.1),
+          0 10px 10px -5px rgba(56, 224, 123, 0.04);
+      }
+
+      .progress-bar {
+        transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .glass-effect {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .shadow-glow {
+        box-shadow: 0 0 20px rgba(56, 224, 123, 0.15);
+      }
+    </style>
+  </head>
+
+  <body
+    class="bg-gradient-to-br from-background-light to-gray-50 dark:from-background-dark dark:to-gray-900 font-display text-gray-800 dark:text-gray-200 overflow-hidden"
+  >
+    <!-- Menu Controls Fragment -->
+    <div th:replace="~{fragments/sidebar :: menuControls}"></div>
+
+    <div class="flex min-h-screen h-screen overflow-hidden">
+      <!-- SIDEBAR - Using Fragment -->
+      <div
+        th:replace="~{fragments/sidebar :: sidebar(activeMenu='dashboard')}"
+      ></div>
+
+      <main class="flex-1 overflow-y-auto h-screen">
+        <div class="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">
+          <header
+            class="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+          >
+            <div>
+              <h2
+                class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1"
+              >
+                Dashboard Principal
+              </h2>
+              <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+                Bienvenido de vuelta, aquí está tu resumen del día
+              </p>
+            </div>
+            <div class="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+              <div
+                class="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-900 rounded-xl shadow-md flex-1 sm:flex-none"
+              >
+                <div
+                  class="w-2 h-2 bg-primary rounded-full animate-pulse-slow"
+                ></div>
+                <p
+                  class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 font-medium"
+                >
+                  En vivo
+                </p>
+              </div>
+              <button
+                class="w-10 h-10 bg-white dark:bg-gray-900 rounded-xl shadow-md flex items-center justify-center hover:shadow-lg transition-shadow"
+              >
+                <span class="material-symbols-outlined text-primary">sync</span>
+              </button>
+            </div>
+          </header>
+
+          <section
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8"
+          >
+            <!-- Ventas Totales -->
+            <div
+              class="stat-card bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800"
+            >
+              <div class="flex justify-between items-start mb-3 sm:mb-4">
+                <div
+                  class="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-xl flex items-center justify-center"
+                >
+                  <span
+                    class="material-symbols-outlined text-primary text-xl sm:text-2xl"
+                    >payments</span
+                  >
+                </div>
+                <div
+                  th:classappend="${stats.salesIncreased} ? 'bg-green-500/10' : 'bg-red-500/10'"
+                  class="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full"
+                >
+                  <span
+                    th:classappend="${stats.salesIncreased} ? 'text-green-500' : 'text-red-500'"
+                    class="material-symbols-outlined text-sm"
+                    th:text="${stats.salesIncreased} ? 'arrow_upward' : 'arrow_downward'"
+                  ></span>
+                  <span
+                    th:classappend="${stats.salesIncreased} ? 'text-green-500' : 'text-red-500'"
+                    class="font-semibold text-xs"
+                    th:text="${stats.salesChangePercentage != null ? '+' + #numbers.formatDecimal(stats.salesChangePercentage, 1, 0) + '%' : '+0%'}"
+                  ></span>
+                </div>
+              </div>
+              <div>
+                <p
+                  class="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1"
+                >
+                  Ventas Totales
+                </p>
+                <p
+                  class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white"
+                  th:text="${stats.todaySales != null ? '$' + #numbers.formatDecimal(stats.todaySales, 1, 2) : '$0.00'}"
+                >
+                  $3,150
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  vs ayer
+                </p>
+              </div>
+            </div>
+
+            <!-- Órdenes -->
+            <div
+              class="stat-card bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800"
+            >
+              <div class="flex justify-between items-start mb-3 sm:mb-4">
+                <div
+                  class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/10 rounded-xl flex items-center justify-center"
+                >
+                  <span
+                    class="material-symbols-outlined text-blue-500 text-xl sm:text-2xl"
+                    >shopping_cart</span
+                  >
+                </div>
+                <div
+                  th:classappend="${stats.ordersIncreased} ? 'bg-green-500/10' : 'bg-red-500/10'"
+                  class="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full"
+                >
+                  <span
+                    th:classappend="${stats.ordersIncreased} ? 'text-green-500' : 'text-red-500'"
+                    class="material-symbols-outlined text-sm"
+                    th:text="${stats.ordersIncreased} ? 'arrow_upward' : 'arrow_downward'"
+                  ></span>
+                  <span
+                    th:classappend="${stats.ordersIncreased} ? 'text-green-500' : 'text-red-500'"
+                    class="font-semibold text-xs"
+                    th:text="${stats.ordersChangePercentage != null ? '+' + #numbers.formatDecimal(stats.ordersChangePercentage, 1, 0) + '%' : '+0%'}"
+                  ></span>
+                </div>
+              </div>
+              <div>
+                <p
+                  class="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1"
+                >
+                  Órdenes
+                </p>
+                <p
+                  class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white"
+                  th:text="${stats.todayOrders != null ? stats.todayOrders : 0}"
+                >
+                  152
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  vs ayer
+                </p>
+              </div>
+            </div>
+
+            <!-- Clientes -->
+            <div
+              class="stat-card bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800"
+            >
+              <div class="flex justify-between items-start mb-3 sm:mb-4">
+                <div
+                  class="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/10 rounded-xl flex items-center justify-center"
+                >
+                  <span
+                    class="material-symbols-outlined text-purple-500 text-xl sm:text-2xl"
+                    >person</span
+                  >
+                </div>
+                <div
+                  th:classappend="${stats.customersIncreased} ? 'bg-green-500/10' : 'bg-red-500/10'"
+                  class="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full"
+                >
+                  <span
+                    th:classappend="${stats.customersIncreased} ? 'text-green-500' : 'text-red-500'"
+                    class="material-symbols-outlined text-sm"
+                    th:text="${stats.customersIncreased} ? 'arrow_upward' : 'arrow_downward'"
+                  ></span>
+                  <span
+                    th:classappend="${stats.customersIncreased} ? 'text-green-500' : 'text-red-500'"
+                    class="font-semibold text-xs"
+                    th:text="${stats.customersChangePercentage != null ? '+' + #numbers.formatDecimal(stats.customersChangePercentage, 1, 0) + '%' : '+0%'}"
+                  ></span>
+                </div>
+              </div>
+              <div>
+                <p
+                  class="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1"
+                >
+                  Clientes
+                </p>
+                <p
+                  class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white"
+                  th:text="${stats.todayCustomers != null ? stats.todayCustomers : 0}"
+                >
+                  89
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  vs ayer
+                </p>
+              </div>
+            </div>
+
+            <!-- Ingresos Totales (Histórico) -->
+            <div
+              class="stat-card bg-gradient-to-br from-primary to-primary-dark p-4 sm:p-6 rounded-2xl shadow-lg shadow-primary/30 text-white"
+            >
+              <div class="flex justify-between items-start mb-3 sm:mb-4">
+                <div
+                  class="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 rounded-xl flex items-center justify-center"
+                >
+                  <span
+                    class="material-symbols-outlined text-white text-xl sm:text-2xl"
+                    >account_balance</span
+                  >
+                </div>
+                <div
+                  class="flex items-center gap-1 px-2 sm:px-3 py-1 bg-white/20 rounded-full"
+                >
+                  <span class="material-symbols-outlined text-white text-sm"
+                    >trending_up</span
+                  >
+                </div>
+              </div>
+              <div>
+                <p class="text-xs sm:text-sm font-medium text-white/80 mb-1">
+                  Ingresos Totales
+                </p>
+                <p
+                  class="text-2xl sm:text-3xl font-bold text-white"
+                  th:text="${stats.totalHistoricalRevenue != null ? '$' + #numbers.formatDecimal(stats.totalHistoricalRevenue, 1, 2) : '$0.00'}"
+                >
+                  $4,500
+                </p>
+                <p class="text-xs text-white/70 mt-1">Desde el inicio</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div class="lg:col-span-2">
+              <div
+                class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-4 sm:p-6"
+              >
+                <div
+                  class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3"
+                >
+                  <div>
+                    <h3
+                      class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white"
+                    >
+                      Platos Más Populares
+                    </h3>
+                    <p
+                      class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1"
+                    >
+                      Ranking de ventas de hoy
+                    </p>
+                  </div>
+                  <select
+                    id="popularItemsFilter"
+                    class="w-full sm:w-auto px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-800 border-none rounded-xl text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-medium focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="today">Hoy</option>
+                    <option value="week">Esta semana</option>
+                    <option value="month">Este mes</option>
+                  </select>
+                </div>
+
+                <div id="popularItemsContainer" class="space-y-4 sm:space-y-5">
+                  <!-- Loop through popular items from database -->
+                  <div
+                    th:each="item, iterStat : ${stats.popularItems}"
+                    class="flex items-center gap-3 sm:gap-4"
+                  >
+                    <div
+                      th:class="'w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ' + ${item.badgeGradient} + ' rounded-xl flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0'"
+                      th:classappend="${item.rank == 1} ? 'shadow-primary/30' : (${item.rank == 2} ? 'shadow-blue-500/30' : (${item.rank == 3} ? 'shadow-purple-500/30' : 'shadow-orange-500/30'))"
+                    >
+                      <span th:text="${item.rank}">1</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <p
+                        class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-200 mb-2"
+                        th:text="${item.itemName}"
+                      >
+                        Nombre del plato
+                      </p>
+                      <div
+                        class="relative w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2.5 sm:h-3 overflow-hidden"
+                      >
+                        <div
+                          th:class="'progress-bar absolute top-0 left-0 h-full rounded-full ' + (${item.rank == 1} ? 'bg-gradient-to-r from-primary to-primary-dark shadow-glow' : (${item.rank == 2} ? 'bg-gradient-to-r from-blue-400 to-blue-600' : (${item.rank == 3} ? 'bg-gradient-to-r from-purple-400 to-purple-600' : 'bg-gradient-to-r from-orange-400 to-orange-600')))"
+                          th:style="'width: ' + ${item.percentage} + '%'"
+                        ></div>
+                      </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                      <p
+                        th:class="'text-xl sm:text-2xl font-bold text-' + ${item.color}"
+                        th:text="${item.orderCount}"
+                      >
+                        0
+                      </p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        órdenes
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Show message if no popular items -->
+                  <div
+                    th:if="${#lists.isEmpty(stats.popularItems)}"
+                    class="flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+                  >
+                    <span
+                      class="material-symbols-outlined text-gray-400 text-5xl mb-3"
+                      >restaurant_menu</span
+                    >
+                    <p
+                      class="text-sm text-gray-500 dark:text-gray-400 text-center"
+                    >
+                      No hay órdenes registradas aún
+                    </p>
+                    <p
+                      class="text-xs text-gray-400 dark:text-gray-500 text-center mt-1"
+                    >
+                      Los platos más populares aparecerán aquí
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4 sm:space-y-6">
+              <div
+                class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-4 sm:p-6"
+              >
+                <div class="flex items-center justify-between mb-4">
+                  <h3
+                    class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white"
+                  >
+                    Inventario
+                  </h3>
+                  <div
+                    class="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-xl flex items-center justify-center"
+                  >
+                    <span
+                      class="material-symbols-outlined text-primary text-lg sm:text-xl"
+                      >inventory_2</span
+                    >
+                  </div>
+                </div>
+
+                <div class="space-y-2.5 sm:space-y-3">
+                  <!-- Display inventory alerts from database (max 5) -->
+
+                  <!-- Red alert - Out of stock -->
+                  <div
+                    th:each="alert, iterStat : ${stats.inventoryAlerts}"
+                    th:if="${iterStat.index < 5 and alert.status == 'out-of-stock'}"
+                    class="flex justify-between items-center p-2.5 sm:p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800"
+                  >
+                    <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <span
+                        class="material-symbols-outlined text-red-600 dark:text-red-500 text-lg sm:text-xl flex-shrink-0"
+                        >error</span
+                      >
+                      <p
+                        class="font-medium text-sm sm:text-base text-gray-800 dark:text-gray-200 truncate"
+                        th:text="${alert.ingredientName}"
+                      >
+                        Ingredient Name
+                      </p>
+                    </div>
+                    <span
+                      class="text-red-600 dark:text-red-500 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2"
+                      >Agotado</span
+                    >
+                  </div>
+
+                  <!-- Yellow alert - Low stock -->
+                  <div
+                    th:each="alert, iterStat : ${stats.inventoryAlerts}"
+                    th:if="${iterStat.index < 5 and alert.status == 'low-stock'}"
+                    class="flex justify-between items-center p-2.5 sm:p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800"
+                  >
+                    <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <span
+                        class="material-symbols-outlined text-yellow-600 dark:text-yellow-500 text-lg sm:text-xl flex-shrink-0"
+                        >warning</span
+                      >
+                      <p
+                        class="font-medium text-sm sm:text-base text-gray-800 dark:text-gray-200 truncate"
+                        th:text="${alert.ingredientName}"
+                      >
+                        Ingredient Name
+                      </p>
+                    </div>
+                    <span
+                      class="text-yellow-600 dark:text-yellow-500 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2"
+                      >Bajo stock</span
+                    >
+                  </div>
+
+                  <!-- Green alert - Healthy stock -->
+                  <div
+                    th:each="alert, iterStat : ${stats.inventoryAlerts}"
+                    th:if="${iterStat.index < 5 and alert.status == 'healthy'}"
+                    class="flex justify-between items-center p-2.5 sm:p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800"
+                  >
+                    <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <span
+                        class="material-symbols-outlined text-green-600 dark:text-green-500 text-lg sm:text-xl flex-shrink-0"
+                        >check_circle</span
+                      >
+                      <p
+                        class="font-medium text-sm sm:text-base text-gray-800 dark:text-gray-200 truncate"
+                        th:text="${alert.ingredientName}"
+                      >
+                        Ingredient Name
+                      </p>
+                    </div>
+                    <span
+                      class="text-green-600 dark:text-green-500 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2"
+                      >En stock</span
+                    >
+                  </div>
+
+                  <!-- Show message if no alerts -->
+                  <div
+                    th:if="${#lists.isEmpty(stats.inventoryAlerts)}"
+                    class="flex justify-center items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+                  >
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      No hay alertas de inventario
+                    </p>
+                  </div>
+                </div>
+
+                <a
+                  class="flex items-center justify-center gap-2 mt-4 py-2 text-primary hover:text-primary-dark font-semibold text-xs sm:text-sm transition-colors"
+                  th:href="@{/admin/ingredients}"
+                >
+                  Ver inventario completo
+                  <span class="material-symbols-outlined text-sm"
+                    >arrow_forward</span
+                  >
+                </a>
+              </div>
+
+              <div
+                class="bg-gradient-to-br from-primary to-primary-dark rounded-2xl shadow-lg shadow-primary/30 p-4 sm:p-6 text-white"
+              >
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-lg sm:text-xl font-bold">
+                    Empleados Activos
+                  </h3>
+                  <div
+                    class="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-xl flex items-center justify-center"
+                  >
+                    <span class="material-symbols-outlined text-lg sm:text-xl"
+                      >group</span
+                    >
+                  </div>
+                </div>
+
+                <div class="flex items-end justify-between mb-4">
+                  <div>
+                    <p class="text-xs sm:text-sm text-white/80 mb-1">
+                      Total en turno
+                    </p>
+                    <p
+                      class="text-3xl sm:text-4xl font-bold"
+                      th:text="${stats.activeEmployees != null ? stats.activeEmployees : 0}"
+                    >
+                      8
+                    </p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xs sm:text-sm text-white/80">Capacidad</p>
+                    <p
+                      class="text-lg sm:text-xl font-semibold"
+                      th:text="${stats.capacityPercentage != null ? #numbers.formatDecimal(stats.capacityPercentage, 1, 0) + '%' : '0%'}"
+                    >
+                      80%
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex -space-x-2 sm:-space-x-3 mb-4">
+                  <div
+                    th:each="initials, iterStat : ${stats.employeeInitials}"
+                    th:class="'w-10 h-10 sm:w-12 sm:h-12 rounded-full ring-2 sm:ring-4 ring-primary flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-lg ' + (${iterStat.index == 0} ? 'bg-gradient-to-br from-blue-400 to-blue-600' : (${iterStat.index == 1} ? 'bg-gradient-to-br from-purple-400 to-purple-600' : (${iterStat.index == 2} ? 'bg-gradient-to-br from-pink-400 to-pink-600' : 'bg-gradient-to-br from-orange-400 to-orange-600')))"
+                    th:text="${initials}"
+                  >
+                    JD
+                  </div>
+                  <button
+                    th:if="${stats.activeEmployees > 4}"
+                    class="w-10 h-10 sm:w-12 sm:h-12 rounded-full ring-2 sm:ring-4 ring-primary bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold text-xs sm:text-sm transition-colors"
+                    th:text="'+' + (${stats.activeEmployees} - 4)"
+                  >
+                    +4
+                  </button>
+                </div>
+
+                <a
+                  th:href="@{/admin/employees}"
+                  class="w-full py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold text-xs sm:text-sm transition-colors block text-center"
+                >
+                  Ver todos los empleados
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Sidebar Scripts Fragment -->
+    <div th:replace="~{fragments/sidebar :: sidebarScripts}"></div>
+
+    <!-- Popular Items Filter Script -->
+    <script th:inline="javascript">
+      /*<![CDATA[*/
+      document.addEventListener("DOMContentLoaded", function () {
+        const filterSelect = document.getElementById("popularItemsFilter");
+        const container = document.getElementById("popularItemsContainer");
+
+        // Initial data from Thymeleaf
+        const initialItems = /*[[${stats.popularItems}]]*/ [];
+
+        // Render initial items
+        renderPopularItems(initialItems);
+
+        // Add change event listener
+        filterSelect.addEventListener("change", function () {
+          const period = this.value;
+          fetchPopularItems(period);
+        });
+
+        function fetchPopularItems(period) {
+          // Show loading state
+          container.innerHTML = `
+            <div class="flex items-center justify-center p-8">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          `;
+
+          // Fetch data from server
+          fetch("/admin/dashboard/popular-items?period=" + period)
+            .then((response) => response.json())
+            .then((data) => {
+              renderPopularItems(data);
+            })
+            .catch((error) => {
+              console.error("Error fetching popular items:", error);
+              container.innerHTML = `
+                <div class="flex items-center justify-center p-8 text-red-500">
+                  <p>Error al cargar los datos</p>
+                </div>
+              `;
+            });
+        }
+
+        function renderPopularItems(items) {
+          if (!items || items.length === 0) {
+            container.innerHTML = `
+              <div class="flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                <span class="material-symbols-outlined text-gray-400 text-5xl mb-3">restaurant_menu</span>
+                <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
+                  No hay órdenes registradas para este período
+                </p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 text-center mt-1">
+                  Los platos más populares aparecerán aquí
+                </p>
+              </div>
+            `;
+            return;
+          }
+
+          const colors = [
+            "primary",
+            "blue-500",
+            "purple-500",
+            "orange-500",
+            "pink-500",
+            "indigo-500",
+            "teal-500",
+            "amber-500",
+            "rose-500",
+            "cyan-500",
+          ];
+          const gradients = [
+            "from-primary to-primary-dark",
+            "from-blue-400 to-blue-600",
+            "from-purple-400 to-purple-600",
+            "from-orange-400 to-orange-600",
+            "from-pink-400 to-pink-600",
+            "from-indigo-400 to-indigo-600",
+            "from-teal-400 to-teal-600",
+            "from-amber-400 to-amber-600",
+            "from-rose-400 to-rose-600",
+            "from-cyan-400 to-cyan-600",
+          ];
+          const shadows = [
+            "shadow-primary/30",
+            "shadow-blue-500/30",
+            "shadow-purple-500/30",
+            "shadow-orange-500/30",
+            "shadow-pink-500/30",
+            "shadow-indigo-500/30",
+            "shadow-teal-500/30",
+            "shadow-amber-500/30",
+            "shadow-rose-500/30",
+            "shadow-cyan-500/30",
+          ];
+
+          let html = "";
+          items.forEach((item, index) => {
+            const rank = item.rank;
+            const colorIndex = (rank - 1) % colors.length;
+            const color = colors[colorIndex];
+            const gradient = gradients[colorIndex];
+            const shadow = shadows[colorIndex];
+
+            // Define progress gradient based on rank
+            const progressGradients = [
+              "bg-gradient-to-r from-primary to-primary-dark shadow-glow",
+              "bg-gradient-to-r from-blue-400 to-blue-600",
+              "bg-gradient-to-r from-purple-400 to-purple-600",
+              "bg-gradient-to-r from-orange-400 to-orange-600",
+              "bg-gradient-to-r from-pink-400 to-pink-600",
+              "bg-gradient-to-r from-indigo-400 to-indigo-600",
+              "bg-gradient-to-r from-teal-400 to-teal-600",
+              "bg-gradient-to-r from-amber-400 to-amber-600",
+              "bg-gradient-to-r from-rose-400 to-rose-600",
+              "bg-gradient-to-r from-cyan-400 to-cyan-600",
+            ];
+            const progressGradient = progressGradients[colorIndex];
+
+            html += `
+              <div class="flex items-center gap-3 sm:gap-4">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${gradient} ${shadow} rounded-xl flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
+                  <span>${rank}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold text-sm sm:text-base text-gray-800 dark:text-gray-200 mb-2">
+                    ${item.itemName}
+                  </p>
+                  <div class="relative w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2.5 sm:h-3 overflow-hidden">
+                    <div class="progress-bar absolute top-0 left-0 h-full rounded-full ${progressGradient}" style="width: ${item.percentage}%"></div>
+                  </div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <p class="text-xl sm:text-2xl font-bold text-${color}">
+                    ${item.orderCount}
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">
+                    órdenes
+                  </p>
+                </div>
+              </div>
+            `;
+          });
+
+          container.innerHTML = html;
+        }
+      });
+      /*]]>*/
+    </script>
+
+    <!-- Script del Sistema de Temas -->
+    <div th:replace="~{fragments/theme :: themeScript}"></div>
+  </body>
+</html>

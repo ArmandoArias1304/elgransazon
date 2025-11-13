@@ -4135,26 +4135,40 @@
             <div class="testimonios-container">
               <div class="testimonios-wrapper">
                 <div class="testimonios-track" id="testimoniosTrack">
-                  
                   <!-- Dynamic Reviews from Database -->
-                  <div th:each="review : ${acceptedReviews}" class="testimonio-card">
+                  <div
+                    th:each="review : ${acceptedReviews}"
+                    class="testimonio-card"
+                  >
                     <div class="testimonio-header">
                       <div class="testimonio-avatar">
-                        <span th:text="${#strings.substring(review.customer.fullName, 0, 2).toUpperCase()}">CL</span>
+                        <span
+                          th:text="${#strings.substring(review.customer.fullName, 0, 2).toUpperCase()}"
+                          >CL</span
+                        >
                       </div>
                       <div class="testimonio-info">
                         <h4 th:text="${review.customer.fullName}">Cliente</h4>
                         <div class="testimonio-estrellas">
-                          <i th:each="i : ${#numbers.sequence(1, review.rating)}" class="fas fa-star"></i>
-                          <i th:each="i : ${#numbers.sequence(review.rating + 1, 5)}" class="far fa-star"></i>
+                          <i
+                            th:each="i : ${#numbers.sequence(1, review.rating)}"
+                            class="fas fa-star"
+                          ></i>
+                          <i
+                            th:each="i : ${#numbers.sequence(review.rating + 1, 5)}"
+                            class="far fa-star"
+                          ></i>
                         </div>
                       </div>
                     </div>
-                    <p class="testimonio-texto" th:text="'&quot;' + ${review.comment} + '&quot;'">
+                    <p
+                      class="testimonio-texto"
+                      th:text="'&quot;' + ${review.comment} + '&quot;'"
+                    >
                       "Comentario del cliente"
                     </p>
                   </div>
-                  
+
                   <!-- Fallback: Static testimonials if no reviews -->
                   <th:block th:if="${#lists.isEmpty(acceptedReviews)}">
                     <!-- Testimonio 1 -->
@@ -4175,9 +4189,9 @@
                         </div>
                       </div>
                       <p class="testimonio-texto">
-                        "¡Excelente servicio! La comida es deliciosa y el ambiente
-                        muy acogedor. Sin duda volveré con mi familia. El sabor
-                        casero es incomparable."
+                        "¡Excelente servicio! La comida es deliciosa y el
+                        ambiente muy acogedor. Sin duda volveré con mi familia.
+                        El sabor casero es incomparable."
                       </p>
                     </div>
 
@@ -4199,8 +4213,9 @@
                         </div>
                       </div>
                       <p class="testimonio-texto">
-                        "Los platillos están preparados con mucho amor. Se nota la
-                        calidad de los ingredientes frescos. Recomendado 100%."
+                        "Los platillos están preparados con mucho amor. Se nota
+                        la calidad de los ingredientes frescos. Recomendado
+                        100%."
                       </p>
                     </div>
 
@@ -4247,10 +4262,12 @@
                       </div>
                       <p class="testimonio-texto">
                         "Gran variedad de platillos. Mi favorito es el plato
-                        especial de la casa. El chef realmente sabe lo que hace."
+                        especial de la casa. El chef realmente sabe lo que
+                        hace."
                       </p>
                     </div>
-                  </th:block>                  <!-- Testimonio 5 -->
+                  </th:block>
+                  <!-- Testimonio 5 -->
                   <div class="testimonio-card">
                     <div class="testimonio-header">
                       <div class="testimonio-avatar">

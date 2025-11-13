@@ -241,7 +241,7 @@
                         type="button"
                         th:each="method, iterStat : ${enabledPaymentMethods}"
                         th:data-method="${method}"
-                        th:class="${iterStat.index == 0} ? 'payment-method-btn active flex flex-col items-center justify-center gap-2 rounded-xl p-4' : 'payment-method-btn flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-gray-600'"
+                        th:class="${order.paymentMethod != null && order.paymentMethod == method} ? 'payment-method-btn active flex flex-col items-center justify-center gap-2 rounded-xl p-4' : 'payment-method-btn flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-gray-600'"
                         onclick="selectPaymentMethod(this)"
                       >
                         <span class="material-symbols-outlined text-3xl">
@@ -264,7 +264,7 @@
                       type="hidden"
                       name="paymentMethod"
                       id="paymentMethodInput"
-                      th:value="${enabledPaymentMethods.size() > 0} ? ${enabledPaymentMethods[0]} : ''"
+                      th:value="${order.paymentMethod != null} ? ${order.paymentMethod} : (${enabledPaymentMethods.size() > 0} ? ${enabledPaymentMethods[0]} : '')"
                     />
                   </div>
 
@@ -799,13 +799,15 @@
           const tip = parseFloat(document.getElementById("tip").value) || 0;
           const totalWithTip = orderTotal + tip;
 
-          // Get payment method name
+          // Get payment method name (extract only text, ignore icon)
           const paymentMethodBtn = document.querySelector(
             ".payment-method-btn.active"
           );
-          const paymentMethodName = paymentMethodBtn
-            ? paymentMethodBtn.textContent.trim()
-            : "No seleccionado";
+          let paymentMethodName = "No seleccionado";
+          if (paymentMethodBtn) {
+            const textSpan = paymentMethodBtn.querySelector('span.font-semibold');
+            paymentMethodName = textSpan ? textSpan.textContent.trim() : paymentMethodBtn.textContent.trim();
+          }
 
           Swal.fire({
             title: "¿Confirmar pago?",

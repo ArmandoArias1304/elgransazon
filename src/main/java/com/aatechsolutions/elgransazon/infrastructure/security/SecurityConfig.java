@@ -27,6 +27,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final CustomAuthenticationSuccessHandler authenticationSuccessHandler;
+    private final CustomAuthenticationFailureHandler authenticationFailureHandler;
     private final UserValidationFilter userValidationFilter;
 
     /**
@@ -80,7 +81,7 @@ public class SecurityConfig {
                         .usernameParameter("username")
                         .passwordParameter("password")
                         .successHandler(authenticationSuccessHandler)
-                        .failureUrl("/login?error=true")
+                        .failureHandler(authenticationFailureHandler)
                         .permitAll()
                 )
                 .logout(logout -> logout

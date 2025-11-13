@@ -30,16 +30,19 @@ public class CashierPaymentController {
     private final SystemConfigurationService systemConfigurationService;
     private final OrderRepository orderRepository;
     private final EmployeeService employeeService;
+    private final TicketPdfService ticketPdfService;
 
     public CashierPaymentController(
             @Qualifier("cashierOrderService") CashierOrderServiceImpl cashierOrderService,
             SystemConfigurationService systemConfigurationService,
             OrderRepository orderRepository,
-            EmployeeService employeeService) {
+            EmployeeService employeeService,
+            TicketPdfService ticketPdfService) {
         this.cashierOrderService = cashierOrderService;
         this.systemConfigurationService = systemConfigurationService;
         this.orderRepository = orderRepository;
         this.employeeService = employeeService;
+        this.ticketPdfService = ticketPdfService;
     }
 
     /**
@@ -105,7 +108,8 @@ public class CashierPaymentController {
             @RequestParam PaymentMethodType paymentMethod,
             @RequestParam(required = false, defaultValue = "0") BigDecimal tip,
             Authentication authentication,
-            RedirectAttributes redirectAttributes) {
+            RedirectAttributes redirectAttributes,
+            jakarta.servlet.http.HttpSession session) {
         
         String username = authentication.getName();
         log.info("Cashier {} processing payment for order ID: {}", username, orderId);
@@ -160,9 +164,21 @@ public class CashierPaymentController {
             // Reload order to get updated values
             order = cashierOrderService.findByIdWithDetails(orderId).orElse(order);
             
+            // Generate PDF ticket
+            try {
+                byte[] pdfBytes = ticketPdfService.generateTicket(order);
+                session.setAttribute("ticketPdf", pdfBytes);
+                session.setAttribute("ticketFilename", "ticket_" + order.getOrderNumber() + ".pdf");
+                log.info("PDF ticket generated and stored in session");
+            } catch (Exception e) {
+                log.error("Error generating PDF ticket: {}", e.getMessage(), e);
+                // Continue even if PDF generation fails
+            }
+            
             redirectAttributes.addFlashAttribute("successMessage",
                     "Pago procesado exitosamente para el pedido " + order.getOrderNumber() + 
                     ". Total pagado: " + order.getFormattedTotalWithTip());
+            redirectAttributes.addFlashAttribute("downloadTicket", true);
             
             return "redirect:/cashier/orders";
 
@@ -176,5 +192,31 @@ public class CashierPaymentController {
             redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar el pago: " + e.getMessage());
             return "redirect:/cashier/payments/form/" + orderId;
         }
+    }
+
+    /**
+     * Download PDF ticket from session
+     */
+    @GetMapping("/download-ticket")
+    public org.springframework.http.ResponseEntity<byte[]> downloadTicket(
+            jakarta.servlet.http.HttpSession session) {
+        
+        byte[] pdfBytes = (byte[]) session.getAttribute("ticketPdf");
+        String filename = (String) session.getAttribute("ticketFilename");
+        
+        if (pdfBytes == null || filename == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+        
+        // Clear session attributes
+        session.removeAttribute("ticketPdf");
+        session.removeAttribute("ticketFilename");
+        
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+        
+        return new org.springframework.http.ResponseEntity<>(pdfBytes, headers, org.springframework.http.HttpStatus.OK);
     }
 }

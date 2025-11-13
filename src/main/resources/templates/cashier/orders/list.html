@@ -1188,6 +1188,17 @@
           minimumFractionDigits: 0,
         }).format(amount);
       }
+
+      // Auto-download ticket PDF after payment
+      document.addEventListener("DOMContentLoaded", function () {
+        const downloadTicket = /*[[${downloadTicket}]]*/ false;
+        if (downloadTicket) {
+          // Trigger download after a short delay
+          setTimeout(function () {
+            window.location.href = "/cashier/payments/download-ticket";
+          }, 500);
+        }
+      });
     </script>
 
     <!-- Script del Sistema de Temas -->

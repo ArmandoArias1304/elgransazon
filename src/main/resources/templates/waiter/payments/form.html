@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -736,8 +736,11 @@
           );
           let paymentMethodName = "No seleccionado";
           if (paymentMethodBtn) {
-            const textSpan = paymentMethodBtn.querySelector('span.font-semibold');
-            paymentMethodName = textSpan ? textSpan.textContent.trim() : paymentMethodBtn.textContent.trim();
+            const textSpan =
+              paymentMethodBtn.querySelector("span.font-semibold");
+            paymentMethodName = textSpan
+              ? textSpan.textContent.trim()
+              : paymentMethodBtn.textContent.trim();
           }
 
           Swal.fire({
@@ -783,7 +786,7 @@
         calculateTotalWithTip();
       });
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

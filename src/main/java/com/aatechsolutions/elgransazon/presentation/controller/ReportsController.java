@@ -1,9 +1,13 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.OrderService;
+import com.aatechsolutions.elgransazon.application.service.ReportPdfService;
 import com.aatechsolutions.elgransazon.domain.entity.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -28,10 +32,14 @@ import java.util.stream.Collectors;
 public class ReportsController {
 
     private final OrderService orderService;
+    private final ReportPdfService reportPdfService;
 
     // Constructor manual para inyectar adminOrderService específicamente
-    public ReportsController(@Qualifier("adminOrderService") OrderService orderService) {
+    public ReportsController(
+            @Qualifier("adminOrderService") OrderService orderService,
+            ReportPdfService reportPdfService) {
         this.orderService = orderService;
+        this.reportPdfService = reportPdfService;
     }
 
     /**
@@ -252,4 +260,154 @@ public class ReportsController {
             .limit(limit)
             .collect(Collectors.toList());
     }
+
+    // ========== PDF Download Endpoints ==========
+
+    /**
+     * Download Executive Report PDF
+     */
+    @GetMapping("/download/executive")
+    public ResponseEntity<byte[]> downloadExecutivePdf(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        
+        log.info("Generating Executive PDF Report - startDate: {}, endDate: {}", startDate, endDate);
+
+        try {
+            // Get all PAID orders
+            List<Order> paidOrders = orderService.findByStatus(OrderStatus.PAID);
+            
+            // Apply date filter
+            if (startDate != null && !startDate.isEmpty()) {
+                paidOrders = filterByDateRange(paidOrders, startDate, endDate);
+            }
+
+            // Calculate statistics
+            BigDecimal totalSales = calculateTotalSales(paidOrders);
+            long totalOrders = paidOrders.size();
+            Map<String, BigDecimal> salesByCategory = calculateSalesByCategory(paidOrders);
+            Map<String, BigDecimal> salesByEmployee = calculateSalesByEmployee(paidOrders);
+            Map<String, Long> ordersByPaymentMethod = calculateOrdersByPaymentMethod(paidOrders);
+            List<Map<String, Object>> topSellingItems = calculateTopSellingItems(paidOrders, 10);
+
+            // Generate PDF
+            byte[] pdfBytes = reportPdfService.generateExecutiveReport(
+                paidOrders, startDate, endDate, totalSales, totalOrders,
+                salesByCategory, salesByEmployee, ordersByPaymentMethod, topSellingItems
+            );
+
+            // Prepare response
+            String filename = "Reporte_Ejecutivo_" + getCurrentDateForFilename() + ".pdf";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+
+        } catch (Exception e) {
+            log.error("Error generating Executive PDF report", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Download Products Report PDF
+     */
+    @GetMapping("/download/products")
+    public ResponseEntity<byte[]> downloadProductsPdf(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        
+        log.info("Generating Products PDF Report - startDate: {}, endDate: {}", startDate, endDate);
+
+        try {
+            // Get all PAID orders
+            List<Order> paidOrders = orderService.findByStatus(OrderStatus.PAID);
+            
+            // Apply date filter
+            if (startDate != null && !startDate.isEmpty()) {
+                paidOrders = filterByDateRange(paidOrders, startDate, endDate);
+            }
+
+            // Calculate top selling items
+            List<Map<String, Object>> topSellingItems = calculateTopSellingItems(paidOrders, 50);
+
+            // Generate PDF
+            byte[] pdfBytes = reportPdfService.generateProductsReport(
+                paidOrders, startDate, endDate, topSellingItems
+            );
+
+            // Prepare response
+            String filename = "Reporte_Productos_" + getCurrentDateForFilename() + ".pdf";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+
+        } catch (Exception e) {
+            log.error("Error generating Products PDF report", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Download Employees Report PDF
+     */
+    @GetMapping("/download/employees")
+    public ResponseEntity<byte[]> downloadEmployeesPdf(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        
+        log.info("Generating Employees PDF Report - startDate: {}, endDate: {}", startDate, endDate);
+
+        try {
+            // Get all PAID orders
+            List<Order> paidOrders = orderService.findByStatus(OrderStatus.PAID);
+            
+            // Apply date filter
+            if (startDate != null && !startDate.isEmpty()) {
+                paidOrders = filterByDateRange(paidOrders, startDate, endDate);
+            }
+
+            // Calculate statistics
+            BigDecimal totalSales = calculateTotalSales(paidOrders);
+            Map<String, BigDecimal> salesByEmployee = calculateSalesByEmployee(paidOrders);
+
+            // Generate PDF
+            byte[] pdfBytes = reportPdfService.generateEmployeesReport(
+                paidOrders, startDate, endDate, salesByEmployee, totalSales
+            );
+
+            // Prepare response
+            String filename = "Reporte_Empleados_" + getCurrentDateForFilename() + ".pdf";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+
+        } catch (Exception e) {
+            log.error("Error generating Employees PDF report", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Get current date formatted for filename
+     */
+    private String getCurrentDateForFilename() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+        return LocalDateTime.now().format(formatter);
+    }
 }
+

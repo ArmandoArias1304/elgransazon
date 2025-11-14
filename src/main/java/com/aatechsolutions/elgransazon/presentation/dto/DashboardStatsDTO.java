@@ -112,6 +112,34 @@ public class DashboardStatsDTO {
      */
     private List<InventoryAlertDTO> inventoryAlerts;
 
+    // ========== Sales by Hour ==========
+    
+    /**
+     * Hourly sales distribution for today
+     */
+    private List<HourlySalesDTO> hourlySales;
+
+    // ========== Table Status ==========
+    
+    /**
+     * Real-time table status
+     */
+    private TableStatusDTO tableStatus;
+
+    // ========== Pending Orders ==========
+    
+    /**
+     * Orders pending completion
+     */
+    private PendingOrdersDTO pendingOrders;
+
+    // ========== Today's Reservations ==========
+    
+    /**
+     * Upcoming reservations for today
+     */
+    private List<ReservationDTO> todayReservations;
+
     /**
      * DTO for inventory alerts
      */
@@ -190,5 +218,65 @@ public class DashboardStatsDTO {
          * Color gradient for the rank badge
          */
         private String badgeGradient;
+    }
+
+    /**
+     * DTO for hourly sales data
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class HourlySalesDTO {
+        private Integer hour;
+        private BigDecimal sales;
+        private Long orderCount;
+    }
+
+    /**
+     * DTO for table status summary
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class TableStatusDTO {
+        private Integer totalTables;
+        private Integer available;
+        private Integer occupied;
+        private Integer reserved;
+        private Integer outOfService;
+    }
+
+    /**
+     * DTO for pending orders summary
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class PendingOrdersDTO {
+        private Long pending;
+        private Long inPreparation;
+        private Long ready;
+        private Long onTheWay;
+        private Double avgPreparationTime; // in minutes
+    }
+
+    /**
+     * DTO for reservation information
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ReservationDTO {
+        private Long reservationId;
+        private String customerName;
+        private String time;
+        private Integer partySize;
+        private String tableNumber;
+        private String status;
+        private String statusColor;
     }
 }

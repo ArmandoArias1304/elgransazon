@@ -1,15 +1,9 @@
 package com.aatechsolutions.elgransazon.application.service;
 
-import com.aatechsolutions.elgransazon.domain.entity.Order;
-import com.aatechsolutions.elgransazon.domain.entity.OrderDetail;
-import com.aatechsolutions.elgransazon.domain.entity.OrderStatus;
-import com.aatechsolutions.elgransazon.domain.entity.Ingredient;
-import com.aatechsolutions.elgransazon.domain.repository.EmployeeRepository;
-import com.aatechsolutions.elgransazon.domain.repository.OrderRepository;
-import com.aatechsolutions.elgransazon.domain.repository.IngredientRepository;
+import com.aatechsolutions.elgransazon.domain.entity.*;
+import com.aatechsolutions.elgransazon.domain.repository.*;
 import com.aatechsolutions.elgransazon.presentation.dto.DashboardStatsDTO;
-import com.aatechsolutions.elgransazon.presentation.dto.DashboardStatsDTO.PopularItemDTO;
-import com.aatechsolutions.elgransazon.presentation.dto.DashboardStatsDTO.InventoryAlertDTO;
+import com.aatechsolutions.elgransazon.presentation.dto.DashboardStatsDTO.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +14,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -36,6 +32,8 @@ public class DashboardServiceImpl implements DashboardService {
     private final OrderRepository orderRepository;
     private final EmployeeRepository employeeRepository;
     private final IngredientRepository ingredientRepository;
+    private final RestaurantTableRepository tableRepository;
+    private final ReservationRepository reservationRepository;
 
     @Override
     public DashboardStatsDTO getDashboardStats() {
@@ -104,6 +102,18 @@ public class DashboardServiceImpl implements DashboardService {
         // Get inventory alerts (out of stock, low stock)
         List<InventoryAlertDTO> inventoryAlerts = getInventoryAlerts();
 
+        // Get hourly sales for today
+        List<HourlySalesDTO> hourlySales = getHourlySales(todayOrders);
+
+        // Get table status
+        TableStatusDTO tableStatus = getTableStatus();
+
+        // Get pending orders summary
+        PendingOrdersDTO pendingOrders = getPendingOrders();
+
+        // Get today's reservations
+        List<ReservationDTO> todayReservations = getTodayReservations();
+
         return DashboardStatsDTO.builder()
             .todaySales(todaySales)
             .salesChangePercentage(Math.abs(salesChangePercentage))
@@ -121,6 +131,10 @@ public class DashboardServiceImpl implements DashboardService {
             .capacityPercentage(capacityPercentage)
             .employeeInitials(employeeInitials)
             .inventoryAlerts(inventoryAlerts)
+            .hourlySales(hourlySales)
+            .tableStatus(tableStatus)
+            .pendingOrders(pendingOrders)
+            .todayReservations(todayReservations)
             .build();
     }
 
@@ -328,6 +342,175 @@ public class DashboardServiceImpl implements DashboardService {
         }
         
         return alerts;
+    }
+
+    private List<HourlySalesDTO> getHourlySales(List<Order> todayOrders) {
+        Map<Integer, HourlySalesDTO> hourlySalesMap = new java.util.LinkedHashMap<>();
+        
+        // Initialize all hours (0-23) with zero values
+        for (int hour = 0; hour < 24; hour++) {
+            hourlySalesMap.put(hour, new HourlySalesDTO(hour, BigDecimal.ZERO, 0L));
+        }
+        
+        // Process only PAID orders
+        todayOrders.stream()
+            .filter(order -> order.getStatus() == OrderStatus.PAID)
+            .forEach(order -> {
+                LocalDateTime orderDate = order.getUpdatedAt() != null ? order.getUpdatedAt() : order.getCreatedAt();
+                int hour = orderDate.getHour();
+                
+                HourlySalesDTO currentData = hourlySalesMap.get(hour);
+                hourlySalesMap.put(hour, new HourlySalesDTO(
+                    hour,
+                    currentData.getSales().add(order.getTotal()),
+                    currentData.getOrderCount() + 1
+                ));
+            });
+        
+        return new ArrayList<>(hourlySalesMap.values());
+    }
+
+    private TableStatusDTO getTableStatus() {
+        List<RestaurantTable> allTables = tableRepository.findAll();
+        
+        int totalTables = allTables.size();
+        long available = allTables.stream()
+            .filter(table -> table.getStatus() == TableStatus.AVAILABLE)
+            .count();
+        long occupied = allTables.stream()
+            .filter(table -> table.getStatus() == TableStatus.OCCUPIED)
+            .count();
+        long reserved = allTables.stream()
+            .filter(table -> table.getStatus() == TableStatus.RESERVED)
+            .count();
+        long outOfService = allTables.stream()
+            .filter(table -> table.getStatus() == TableStatus.OUT_OF_SERVICE)
+            .count();
+        
+        return new TableStatusDTO(
+            totalTables,
+            (int) available,
+            (int) occupied,
+            (int) reserved,
+            (int) outOfService
+        );
+    }
+
+    private PendingOrdersDTO getPendingOrders() {
+        LocalDateTime today = LocalDate.now().atStartOfDay();
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Get all active orders for today
+        List<Order> activeOrders = orderRepository.findByDateRange(today, now);
+        
+        long pending = activeOrders.stream()
+            .filter(order -> order.getStatus() == OrderStatus.PENDING)
+            .count();
+        long inPreparation = activeOrders.stream()
+            .filter(order -> order.getStatus() == OrderStatus.IN_PREPARATION)
+            .count();
+        long ready = activeOrders.stream()
+            .filter(order -> order.getStatus() == OrderStatus.READY)
+            .count();
+        long onTheWay = activeOrders.stream()
+            .filter(order -> order.getStatus() == OrderStatus.ON_THE_WAY)
+            .count();
+        
+        // Calculate average preparation time for completed orders today
+        List<Order> completedOrders = activeOrders.stream()
+            .filter(order -> order.getStatus() == OrderStatus.PAID && order.getUpdatedAt() != null)
+            .collect(Collectors.toList());
+        
+        double avgPreparationTime = 0.0;
+        if (!completedOrders.isEmpty()) {
+            long totalMinutes = completedOrders.stream()
+                .mapToLong(order -> Duration.between(order.getCreatedAt(), order.getUpdatedAt()).toMinutes())
+                .sum();
+            avgPreparationTime = (double) totalMinutes / completedOrders.size();
+        }
+        
+        return new PendingOrdersDTO(
+            pending,
+            inPreparation,
+            ready,
+            onTheWay,
+            avgPreparationTime
+        );
+    }
+
+    private List<ReservationDTO> getTodayReservations() {
+        LocalDate today = LocalDate.now();
+        LocalTime now = LocalTime.now();
+        
+        // Get all reservations for today
+        List<Reservation> todayReservations = reservationRepository.findByReservationDateOrderByReservationTimeAsc(today);
+        
+        // Filter active reservations (not cancelled or no-show)
+        List<Reservation> activeReservations = todayReservations.stream()
+            .filter(reservation -> {
+                return reservation.getStatus() != ReservationStatus.CANCELLED &&
+                       reservation.getStatus() != ReservationStatus.NO_SHOW;
+            })
+            .collect(Collectors.toList());
+        
+        // If no active reservations at all, return empty list
+        if (activeReservations.isEmpty()) {
+            return List.of();
+        }
+        
+        // Try to get upcoming reservations (next 4 hours)
+        LocalTime endTime = now.plusHours(4);
+        List<Reservation> upcomingReservations = activeReservations.stream()
+            .filter(reservation -> {
+                LocalTime resTime = reservation.getReservationTime();
+                return resTime.isAfter(now) && resTime.isBefore(endTime);
+            })
+            .collect(Collectors.toList());
+        
+        // If no upcoming reservations, show all active reservations for today
+        List<Reservation> reservationsToShow = upcomingReservations.isEmpty() 
+            ? activeReservations 
+            : upcomingReservations;
+        
+        // Map to DTO
+        return reservationsToShow.stream()
+            .sorted(Comparator.comparing(Reservation::getReservationTime))
+            .limit(6) // Show max 6 reservations
+            .map(reservation -> {
+                String status = formatReservationStatus(reservation.getStatus());
+                String statusColor = getReservationStatusColor(reservation.getStatus());
+                String tableNumber = reservation.getRestaurantTable() != null ? 
+                    String.valueOf(reservation.getRestaurantTable().getTableNumber()) : "Por asignar";
+                
+                return new ReservationDTO(
+                    reservation.getId(),
+                    reservation.getCustomerName(),
+                    reservation.getReservationTime().format(DateTimeFormatter.ofPattern("HH:mm")),
+                    reservation.getNumberOfGuests(),
+                    tableNumber,
+                    status,
+                    statusColor
+                );
+            })
+            .collect(Collectors.toList());
+    }
+
+    private String formatReservationStatus(ReservationStatus status) {
+        switch (status) {
+            case RESERVED: return "Confirmada";
+            case OCCUPIED: return "En mesa";
+            case COMPLETED: return "Completada";
+            default: return status.name();
+        }
+    }
+
+    private String getReservationStatusColor(ReservationStatus status) {
+        switch (status) {
+            case RESERVED: return "bg-blue-100 text-blue-800";
+            case OCCUPIED: return "bg-green-100 text-green-800";
+            case COMPLETED: return "bg-gray-100 text-gray-800";
+            default: return "bg-gray-100 text-gray-800";
+        }
     }
     
     @Override

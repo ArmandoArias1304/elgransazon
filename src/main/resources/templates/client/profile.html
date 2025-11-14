@@ -380,6 +380,58 @@
         </form>
       </div>
 
+      <!-- APPEARANCE SECTION (Theme Toggle) -->
+      <div
+        class="mt-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl overflow-hidden"
+      >
+        <!-- Theme Header -->
+        <div
+          class="px-6 py-4 bg-gradient-to-r from-purple-500 to-purple-600 flex items-center gap-3"
+        >
+          <span class="material-symbols-outlined text-white text-3xl">
+            palette
+          </span>
+          <h2 class="text-2xl font-bold text-white">Apariencia</h2>
+        </div>
+
+        <!-- Theme Body -->
+        <div class="p-6">
+          <div
+            class="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800"
+          >
+            <div class="flex items-center gap-3">
+              <span
+                class="material-symbols-outlined text-2xl text-gray-700 dark:text-gray-300"
+                id="profile-theme-icon"
+              >
+                light_mode
+              </span>
+              <div>
+                <p class="font-semibold text-gray-900 dark:text-white">
+                  Modo de Visualización
+                </p>
+                <p
+                  class="text-sm text-gray-600 dark:text-gray-400"
+                  id="profile-theme-description"
+                >
+                  Cambia entre modo claro y oscuro
+                </p>
+              </div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="profile-theme-switch"
+                class="sr-only peer"
+              />
+              <div
+                class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 dark:peer-focus:ring-primary/40 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-primary"
+              ></div>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <!-- Account Info -->
       <div
         class="mt-6 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4"
@@ -405,6 +457,49 @@
 
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
+
+    <!-- Script para el switch de tema en perfil -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const themeSwitch = document.getElementById("profile-theme-switch");
+        const themeIcon = document.getElementById("profile-theme-icon");
+        const themeDescription = document.getElementById(
+          "profile-theme-description"
+        );
+
+        // Leer tema actual de localStorage
+        const currentTheme =
+          localStorage.getItem("elgransazon-theme") || "light";
+
+        // Configurar estado inicial del switch
+        if (currentTheme === "dark") {
+          themeSwitch.checked = true;
+          themeIcon.textContent = "dark_mode";
+          themeDescription.textContent = "Modo oscuro activado";
+        } else {
+          themeSwitch.checked = false;
+          themeIcon.textContent = "light_mode";
+          themeDescription.textContent = "Cambia entre modo claro y oscuro";
+        }
+
+        // Manejar cambio de tema
+        themeSwitch.addEventListener("change", function () {
+          if (this.checked) {
+            // Activar modo oscuro
+            document.documentElement.classList.add("dark");
+            localStorage.setItem("elgransazon-theme", "dark");
+            themeIcon.textContent = "dark_mode";
+            themeDescription.textContent = "Modo oscuro activado";
+          } else {
+            // Activar modo claro
+            document.documentElement.classList.remove("dark");
+            localStorage.setItem("elgransazon-theme", "light");
+            themeIcon.textContent = "light_mode";
+            themeDescription.textContent = "Cambia entre modo claro y oscuro";
+          }
+        });
+      });
+    </script>
 
     <script th:inline="javascript">
       // Show SweetAlert on success or error

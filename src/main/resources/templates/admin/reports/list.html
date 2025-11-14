@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script>
@@ -143,18 +143,25 @@
               <div
                 class="p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-900/10 border border-blue-200 dark:border-blue-800 shadow-lg"
               >
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span class="material-symbols-outlined text-blue-600">picture_as_pdf</span>
+                <h3
+                  class="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"
+                >
+                  <span class="material-symbols-outlined text-blue-600"
+                    >picture_as_pdf</span
+                  >
                   Descargar Reportes en PDF
                 </h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Selecciona el rango de fechas y descarga reportes profesionales en formato PDF
+                  Selecciona el rango de fechas y descarga reportes
+                  profesionales en formato PDF
                 </p>
-                
+
                 <!-- Date Range for PDF -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >
                       Desde
                     </label>
                     <input
@@ -164,7 +171,9 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label
+                      class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >
                       Hasta
                     </label>
                     <input
@@ -174,26 +183,30 @@
                     />
                   </div>
                 </div>
-                
+
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <!-- Executive Report -->
                   <button
                     onclick="downloadPdf('executive')"
                     class="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all shadow-md"
                   >
-                    <span class="material-symbols-outlined text-lg">summarize</span>
+                    <span class="material-symbols-outlined text-lg"
+                      >summarize</span
+                    >
                     <span class="text-sm">Reporte Ejecutivo</span>
                   </button>
-                  
+
                   <!-- Products Report -->
                   <button
                     onclick="downloadPdf('products')"
                     class="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transition-all shadow-md"
                   >
-                    <span class="material-symbols-outlined text-lg">inventory_2</span>
+                    <span class="material-symbols-outlined text-lg"
+                      >inventory_2</span
+                    >
                     <span class="text-sm">Reporte Productos</span>
                   </button>
-                  
+
                   <!-- Employees Report -->
                   <button
                     onclick="downloadPdf('employees')"
@@ -517,29 +530,29 @@
 
       function downloadPdf(reportType) {
         // Get PDF-specific date values
-        const startDate = document.getElementById('pdfStartDate').value;
-        const endDate = document.getElementById('pdfEndDate').value;
-        
+        const startDate = document.getElementById("pdfStartDate").value;
+        const endDate = document.getElementById("pdfEndDate").value;
+
         // Build URL with query parameters
         let url = `/admin/reports/download/${reportType}`;
         const params = new URLSearchParams();
-        
+
         if (startDate) {
-          params.append('startDate', startDate);
+          params.append("startDate", startDate);
         }
         if (endDate) {
-          params.append('endDate', endDate);
+          params.append("endDate", endDate);
         }
-        
+
         if (params.toString()) {
-          url += '?' + params.toString();
+          url += "?" + params.toString();
         }
-        
+
         // Open in new tab to download
-        window.open(url, '_blank');
+        window.open(url, "_blank");
       }
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

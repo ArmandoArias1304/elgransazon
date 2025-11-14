@@ -2,11 +2,13 @@ package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.BusinessHoursService;
 import com.aatechsolutions.elgransazon.application.service.PromotionService;
+import com.aatechsolutions.elgransazon.application.service.ReviewService;
 import com.aatechsolutions.elgransazon.application.service.SocialNetworkService;
 import com.aatechsolutions.elgransazon.domain.entity.BusinessHours;
 import com.aatechsolutions.elgransazon.domain.entity.DayOfWeek;
 import com.aatechsolutions.elgransazon.domain.entity.Promotion;
 import com.aatechsolutions.elgransazon.domain.entity.PromotionType;
+import com.aatechsolutions.elgransazon.domain.entity.Review;
 import com.aatechsolutions.elgransazon.domain.entity.SocialNetwork;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ public class HomeController {
     private final BusinessHoursService businessHoursService;
     private final SocialNetworkService socialNetworkService;
     private final PromotionService promotionService;
+    private final ReviewService reviewService;
 
     /**
      * Display home/landing page with system configuration data
@@ -92,6 +95,10 @@ public class HomeController {
         model.addAttribute("promoCombo", promoCombo);
         model.addAttribute("promoPercent", promoPercent);
         model.addAttribute("promoFixed", promoFixed);
+        
+        // Load approved reviews for testimonials section
+        List<Review> approvedReviews = reviewService.getApprovedReviews();
+        model.addAttribute("approvedReviews", approvedReviews);
         
         return "home/landing";
     }

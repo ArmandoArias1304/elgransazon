@@ -37,6 +37,7 @@ public class ClientController {
     private final SystemConfigurationService systemConfigurationService;
     private final CustomerService customerService;
     private final PromotionService promotionService;
+    private final ReviewService reviewService;
     private final PasswordEncoder passwordEncoder;
 
     public ClientController(
@@ -46,6 +47,7 @@ public class ClientController {
             SystemConfigurationService systemConfigurationService,
             CustomerService customerService,
             PromotionService promotionService,
+            ReviewService reviewService,
             PasswordEncoder passwordEncoder) {
         this.orderService = orderService;
         this.itemMenuService = itemMenuService;
@@ -53,6 +55,7 @@ public class ClientController {
         this.systemConfigurationService = systemConfigurationService;
         this.customerService = customerService;
         this.promotionService = promotionService;
+        this.reviewService = reviewService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -761,6 +764,80 @@ public class ClientController {
             log.error("Error loading customer profile", e);
             model.addAttribute("errorMessage", "Error al cargar perfil: " + e.getMessage());
             return "error";
+        }
+    }
+
+    /**
+     * Show customer review form
+     */
+    @GetMapping("/review")
+    public String showReviewForm(Authentication authentication, Model model) {
+        log.debug("Customer {} accessing review form", authentication.getName());
+        
+        try {
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            // Check if customer already has a review
+            Optional<Review> existingReview = reviewService.getReviewByCustomer(customer);
+            
+            model.addAttribute("customer", customer);
+            model.addAttribute("existingReview", existingReview.orElse(null));
+            model.addAttribute("hasReview", existingReview.isPresent());
+            
+            return "client/review";
+            
+        } catch (Exception e) {
+            log.error("Error loading review form", e);
+            model.addAttribute("errorMessage", "Error al cargar formulario: " + e.getMessage());
+            return "error";
+        }
+    }
+
+    /**
+     * Submit or update customer review
+     */
+    @PostMapping("/review")
+    public String submitReview(
+            @RequestParam Integer rating,
+            @RequestParam String comment,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+        
+        log.info("Customer {} submitting review", authentication.getName());
+        
+        try {
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            // Validate input
+            if (rating == null || rating < 1 || rating > 5) {
+                redirectAttributes.addFlashAttribute("errorMessage", "La calificación debe estar entre 1 y 5 estrellas");
+                return "redirect:/client/review";
+            }
+            
+            if (comment == null || comment.trim().length() < 10) {
+                redirectAttributes.addFlashAttribute("errorMessage", "El comentario debe tener al menos 10 caracteres");
+                return "redirect:/client/review";
+            }
+            
+            if (comment.trim().length() > 500) {
+                redirectAttributes.addFlashAttribute("errorMessage", "El comentario no puede exceder 500 caracteres");
+                return "redirect:/client/review";
+            }
+            
+            // Create or update review
+            reviewService.createOrUpdateReview(customer, rating, comment.trim());
+            
+            redirectAttributes.addFlashAttribute("successMessage", 
+                    "¡Gracias por tu reseña! Está pendiente de aprobación y aparecerá en la página pronto.");
+            
+            return "redirect:/client/dashboard";
+            
+        } catch (Exception e) {
+            log.error("Error submitting review", e);
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al enviar reseña: " + e.getMessage());
+            return "redirect:/client/review";
         }
     }
 

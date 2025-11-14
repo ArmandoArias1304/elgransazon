@@ -2301,15 +2301,19 @@
       }
 
       .testimonio-card {
-        min-width: calc(33.333% - 20px);
+        min-width: 350px;
+        max-width: 350px;
+        width: 350px;
+        height: 280px;
         background: white;
         border-radius: 20px;
-        padding: 40px 30px;
+        padding: 30px 25px;
         box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 15px;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+        flex-shrink: 0;
       }
 
       .testimonio-card:hover {
@@ -2324,8 +2328,8 @@
       }
 
       .testimonio-avatar {
-        width: 60px;
-        height: 60px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         background: linear-gradient(135deg, #38e07b 0%, #2bc96a 100%);
         display: flex;
@@ -2336,13 +2340,13 @@
       }
 
       .testimonio-avatar span {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
         font-weight: bold;
         color: white;
       }
 
       .testimonio-info h4 {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         font-weight: bold;
         color: #2d2d2d;
         margin: 0;
@@ -2360,10 +2364,16 @@
       }
 
       .testimonio-texto {
-        font-size: 1rem;
+        font-size: 0.95rem;
         color: #555;
-        line-height: 1.7;
+        line-height: 1.6;
         font-style: italic;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        flex: 1;
       }
 
       .testimonio-nav {
@@ -2430,7 +2440,10 @@
 
       @media (max-width: 992px) {
         .testimonio-card {
-          min-width: calc(50% - 15px);
+          min-width: 320px;
+          max-width: 320px;
+          width: 320px;
+          height: 280px;
         }
 
         .testimonios-title {
@@ -2440,9 +2453,10 @@
 
       @media (max-width: 768px) {
         .testimonio-card {
-          min-width: 100%;
-          max-height: 280px;
-          min-height: 280px;
+          min-width: 300px;
+          max-width: 300px;
+          width: 300px;
+          height: 280px;
           padding: 25px 20px;
         }
 
@@ -4137,7 +4151,7 @@
                 <div class="testimonios-track" id="testimoniosTrack">
                   <!-- Dynamic Reviews from Database -->
                   <div
-                    th:each="review : ${acceptedReviews}"
+                    th:each="review : ${approvedReviews}"
                     class="testimonio-card"
                   >
                     <div class="testimonio-header">
@@ -4150,14 +4164,18 @@
                       <div class="testimonio-info">
                         <h4 th:text="${review.customer.fullName}">Cliente</h4>
                         <div class="testimonio-estrellas">
+                          <!-- Estrellas llenas -->
                           <i
                             th:each="i : ${#numbers.sequence(1, review.rating)}"
                             class="fas fa-star"
                           ></i>
-                          <i
-                            th:each="i : ${#numbers.sequence(review.rating + 1, 5)}"
-                            class="far fa-star"
-                          ></i>
+                          <!-- Estrellas vacías -->
+                          <th:block th:if="${review.rating < 5}">
+                            <i
+                              th:each="i : ${#numbers.sequence(1, 5 - review.rating)}"
+                              class="far fa-star"
+                            ></i>
+                          </th:block>
                         </div>
                       </div>
                     </div>
@@ -4169,148 +4187,15 @@
                     </p>
                   </div>
 
-                  <!-- Fallback: Static testimonials if no reviews -->
-                  <th:block th:if="${#lists.isEmpty(acceptedReviews)}">
-                    <!-- Testimonio 1 -->
-                    <div class="testimonio-card">
-                      <div class="testimonio-header">
-                        <div class="testimonio-avatar">
-                          <span>MG</span>
-                        </div>
-                        <div class="testimonio-info">
-                          <h4>María González</h4>
-                          <div class="testimonio-estrellas">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                          </div>
-                        </div>
-                      </div>
-                      <p class="testimonio-texto">
-                        "¡Excelente servicio! La comida es deliciosa y el
-                        ambiente muy acogedor. Sin duda volveré con mi familia.
-                        El sabor casero es incomparable."
-                      </p>
-                    </div>
-
-                    <!-- Testimonio 2 -->
-                    <div class="testimonio-card">
-                      <div class="testimonio-header">
-                        <div class="testimonio-avatar">
-                          <span>CR</span>
-                        </div>
-                        <div class="testimonio-info">
-                          <h4>Carlos Rodríguez</h4>
-                          <div class="testimonio-estrellas">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                          </div>
-                        </div>
-                      </div>
-                      <p class="testimonio-texto">
-                        "Los platillos están preparados con mucho amor. Se nota
-                        la calidad de los ingredientes frescos. Recomendado
-                        100%."
-                      </p>
-                    </div>
-
-                    <!-- Testimonio 3 -->
-                    <div class="testimonio-card">
-                      <div class="testimonio-header">
-                        <div class="testimonio-avatar">
-                          <span>LP</span>
-                        </div>
-                        <div class="testimonio-info">
-                          <h4>Laura Pérez</h4>
-                          <div class="testimonio-estrellas">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                          </div>
-                        </div>
-                      </div>
-                      <p class="testimonio-texto">
-                        "Me encanta este lugar. La atención al cliente es
-                        excepcional y los precios son muy justos para la calidad
-                        que ofrecen."
-                      </p>
-                    </div>
-
-                    <!-- Testimonio 4 -->
-                    <div class="testimonio-card">
-                      <div class="testimonio-header">
-                        <div class="testimonio-avatar">
-                          <span>JM</span>
-                        </div>
-                        <div class="testimonio-info">
-                          <h4>José Martínez</h4>
-                          <div class="testimonio-estrellas">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star-half-alt"></i>
-                          </div>
-                        </div>
-                      </div>
-                      <p class="testimonio-texto">
-                        "Gran variedad de platillos. Mi favorito es el plato
-                        especial de la casa. El chef realmente sabe lo que
-                        hace."
-                      </p>
-                    </div>
-                  </th:block>
-                  <!-- Testimonio 5 -->
-                  <div class="testimonio-card">
-                    <div class="testimonio-header">
-                      <div class="testimonio-avatar">
-                        <span>AS</span>
-                      </div>
-                      <div class="testimonio-info">
-                        <h4>Ana Silva</h4>
-                        <div class="testimonio-estrellas">
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                        </div>
-                      </div>
-                    </div>
-                    <p class="testimonio-texto">
-                      "Perfecto para reuniones familiares. El ambiente es cálido
-                      y la comida siempre fresca. ¡Mis hijos también lo aman!"
-                    </p>
-                  </div>
-
-                  <!-- Testimonio 6 -->
-                  <div class="testimonio-card">
-                    <div class="testimonio-header">
-                      <div class="testimonio-avatar">
-                        <span>DR</span>
-                      </div>
-                      <div class="testimonio-info">
-                        <h4>Diego Ramírez</h4>
-                        <div class="testimonio-estrellas">
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                          <i class="fas fa-star"></i>
-                        </div>
-                      </div>
-                    </div>
-                    <p class="testimonio-texto">
-                      "Delivery rápido y la comida llega caliente. Es mi opción
-                      favorita para pedir a domicilio. Nunca me han
-                      decepcionado."
+                  <!-- Mensaje cuando no hay reseñas -->
+                  <div
+                    th:if="${#lists.isEmpty(approvedReviews)}"
+                    class="testimonio-card"
+                    style="text-align: center; padding: 3rem"
+                  >
+                    <p style="color: #666; font-size: 1.1rem">
+                      Aún no hay reseñas aprobadas. ¡Sé el primero en compartir
+                      tu experiencia!
                     </p>
                   </div>
                 </div>
@@ -4336,7 +4221,7 @@
               <!-- Primera copia de los logos -->
               <div class="logo-loop-track">
                 <div class="logo-item">
-                  <img src="images/logo.png" alt="El Buen Sazón" />
+                  <img src="images/LogoNombre.png" alt="El Buen Sazón" />
                 </div>
                 <div class="logo-item">
                   <img
@@ -4384,7 +4269,7 @@
               <!-- Segunda copia para el loop infinito -->
               <div class="logo-loop-track">
                 <div class="logo-item">
-                  <img src="images/logo.png" alt="El Buen Sazón" />
+                  <img src="images/LogoNombre.png" alt="El Buen Sazón" />
                 </div>
                 <div class="logo-item">
                   <img

@@ -52,17 +52,14 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
                 .anyMatch(auth -> auth.getAuthority().equals(Role.CLIENT));
         
         // Get the login URL to validate if user is using correct login page
-        String loginUrl = request.getRequestURI();
         String referer = request.getHeader("Referer");
         
-        log.debug("Login URL: {}, Referer: {}", loginUrl, referer);
+        log.debug("Referer: {}", referer);
         
         // Validate: Customer trying to login via employee login
         if (isCustomer && (referer != null && !referer.contains("/client/login"))) {
             log.warn("Customer {} attempted to login via employee login page", username);
-            // Invalidate the session
             request.getSession().invalidate();
-            // Redirect to employee login with error
             response.sendRedirect("/login?error=clientAttempt");
             return;
         }
@@ -70,14 +67,12 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
         // Validate: Employee trying to login via client login
         if (!isCustomer && (referer != null && referer.contains("/client/login"))) {
             log.warn("Employee {} attempted to login via client login page", username);
-            // Invalidate the session
             request.getSession().invalidate();
-            // Redirect to client login with error
             response.sendRedirect("/client/login?error=employeeAttempt");
             return;
         }
         
-        // Validate: Customer email verification
+        // Validate: Customer email verification (async to not block login redirect)
         if (isCustomer) {
             try {
                 Customer customer = customerService.findByUsernameOrEmail(username)
@@ -90,10 +85,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
                     // Try to send verification email (respects the token logic)
                     boolean emailSent = emailVerificationService.createOrReuseToken(customer);
                     
-                    // Invalidate the session
                     request.getSession().invalidate();
                     
-                    // Redirect to client login with error
                     if (emailSent) {
                         response.sendRedirect("/client/login?error=emailNotVerified&emailSent=true");
                     } else {
@@ -101,30 +94,43 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
                     }
                     return;
                 }
+                
+                // Update last access asynchronously (don't wait for it)
+                updateLastAccessAsync(username, true);
+                
             } catch (Exception e) {
                 log.error("Error checking email verification for customer {}", username, e);
                 // Continue with normal flow if check fails
             }
-        }
-        
-        // Update last access timestamp
-        try {
-            if (isCustomer) {
-                customerService.updateLastAccess(username);
-                log.debug("Updated last access for customer {}", username);
-            } else {
-                employeeService.updateLastAccess(username);
-                log.debug("Updated last access for employee {}", username);
-            }
-        } catch (Exception e) {
-            log.error("Error updating last access for user {}", username, e);
-            // Don't fail login if last access update fails
+        } else {
+            // Update last access asynchronously for employees
+            updateLastAccessAsync(username, false);
         }
         
         String targetUrl = determineTargetUrl(authentication);
         log.debug("Redirecting user {} to {}", username, targetUrl);
         
         response.sendRedirect(targetUrl);
+    }
+    
+    /**
+     * Update last access timestamp asynchronously to avoid blocking login
+     */
+    private void updateLastAccessAsync(String username, boolean isCustomer) {
+        // Run in a separate thread to not block the response
+        new Thread(() -> {
+            try {
+                if (isCustomer) {
+                    customerService.updateLastAccess(username);
+                    log.debug("Updated last access for customer {}", username);
+                } else {
+                    employeeService.updateLastAccess(username);
+                    log.debug("Updated last access for employee {}", username);
+                }
+            } catch (Exception e) {
+                log.error("Error updating last access for user {}", username, e);
+            }
+        }).start();
     }
 
     /**

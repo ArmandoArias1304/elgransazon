@@ -89,14 +89,33 @@ public class UserValidationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Don't filter login pages, static resources, logout, and registration
+        // Don't filter login pages, static resources, WebSocket, logout, and registration
         return path.startsWith("/login") || 
                path.startsWith("/client/login") ||
                path.startsWith("/client/register") ||
+               path.startsWith("/client/verify-email") ||
                path.startsWith("/css/") || 
                path.startsWith("/js/") || 
                path.startsWith("/images/") ||
+               path.startsWith("/fonts/") ||
+               path.startsWith("/webjars/") ||
+               path.startsWith("/favicon.ico") ||
+               path.startsWith("/ws") ||  // WebSocket
+               path.startsWith("/topic/") ||  // STOMP topics
+               path.startsWith("/sounds/") ||  // Notification sounds
                path.equals("/logout") ||
-               path.equals("/perform_login");
+               path.equals("/perform_login") ||
+               path.endsWith(".css") ||
+               path.endsWith(".js") ||
+               path.endsWith(".map") ||
+               path.endsWith(".png") ||
+               path.endsWith(".jpg") ||
+               path.endsWith(".jpeg") ||
+               path.endsWith(".svg") ||
+               path.endsWith(".ico") ||
+               path.endsWith(".woff") ||
+               path.endsWith(".woff2") ||
+               path.endsWith(".ttf") ||
+               path.endsWith(".mp3");
     }
 }

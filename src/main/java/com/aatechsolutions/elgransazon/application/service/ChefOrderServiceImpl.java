@@ -167,27 +167,23 @@ public class ChefOrderServiceImpl implements OrderService {
     public List<Order> findAll() {
         // Chef ONLY sees orders that contain at least ONE item requiring preparation
         // Orders with ONLY items that don't require preparation (like sodas) are filtered out
-        // Use findAllWithDetails to ensure OrderDetails and ItemMenu are loaded
-        log.info("🔍 Chef findAll() - Loading orders with details for filtering");
-        List<Order> allOrders = orderRepository.findAllWithDetails();
-        log.info("🔍 Total orders in DB: {}", allOrders.size());
+        // NOW OPTIMIZED: Filter at database level instead of loading all orders
+        log.info("🔍 Chef findAll() - Loading orders with preparation items (DB-level filter)");
+        List<Order> ordersWithPreparation = orderRepository.findOrdersWithPreparationItems();
+        log.info("🔍 Orders visible to chef: {}", ordersWithPreparation.size());
         
-        // IMPORTANT: Do NOT filter items here, only filter which ORDERS are visible
-        // The filtering of items will be done in the VIEW layer (Thymeleaf template)
-        // This prevents accidentally deleting items from the database
-        List<Order> filteredOrders = allOrders.stream()
-            .filter(this::hasItemsRequiringPreparation)
-            .collect(Collectors.toList());
-        
-        log.info("🔍 Orders visible to chef (after filtering): {}", filteredOrders.size());
-        return filteredOrders;
+        return ordersWithPreparation;
     }
 
     /**
      * Check if an order has at least one item that requires chef preparation
      * @param order The order to check
      * @return true if at least one item requires preparation, false otherwise
+     * 
+     * DEPRECATED: Now filtering is done at database level via findOrdersWithPreparationItems()
+     * Keeping this method for reference or if needed for other use cases
      */
+    @Deprecated
     private boolean hasItemsRequiringPreparation(Order order) {
         if (order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
             log.debug("Order {} has no details", order.getIdOrder());

@@ -69,4 +69,14 @@ public class AdminController {
         log.debug("Fetching popular items for period: {}", period);
         return dashboardService.getPopularItemsByPeriod(period);
     }
+    
+    /**
+     * Get dashboard statistics - REST endpoint for real-time updates
+     */
+    @GetMapping("/dashboard/stats")
+    @ResponseBody
+    public DashboardStatsDTO getDashboardStats() {
+        log.debug("Fetching dashboard stats via REST");
+        return dashboardService.getDashboardStats();
+    }
 }

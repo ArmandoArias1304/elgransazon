@@ -416,6 +416,7 @@
                   </tr>
                   <tr
                     th:each="order : ${orders}"
+                    th:data-order-id="${order.idOrder}"
                     class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                   >
                     <!-- Order Number -->
@@ -509,7 +510,7 @@
                     <!-- Status -->
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span
-                        class="px-3 py-1 text-xs rounded-full font-medium"
+                        class="status-badge px-3 py-1 text-xs rounded-full font-medium"
                         th:classappend="${order.status.name() == 'PENDING'} ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 
                                                      (${order.status.name() == 'IN_PREPARATION'} ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' : 
                                                      (${order.status.name() == 'READY'} ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
@@ -874,6 +875,360 @@
           currency: "COP",
           minimumFractionDigits: 0,
         }).format(amount);
+      }
+    </script>
+
+    <!-- WebSocket for Real-time Updates -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+      let statsUpdateTimeout = null;
+      let pendingStatsUpdate = false;
+      const STATS_UPDATE_DELAY = 2000; // 2 seconds
+
+      // Reconnection control
+      let reconnectAttempts = 0;
+      let maxReconnectAttempts = 10;
+      let reconnectDelay = 1000; // Start with 1 second
+      let maxReconnectDelay = 30000; // Max 30 seconds
+      let isIntentionalDisconnect = false;
+
+      function connectWaiterOrdersWebSocket() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+          console.warn(
+            "⛔ WAITER: Máximo de intentos de reconexión alcanzado. Deteniendo..."
+          );
+          return;
+        }
+
+        console.log(`🔄 WAITER: Intento de conexión #${reconnectAttempts + 1}`);
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("✅ WAITER: WebSocket Conectado Exitosamente");
+            console.log("📡 WAITER: Frame de conexión:", frame);
+
+            stompClient.subscribe(
+              "/topic/admin/kitchen",
+              function (notification) {
+                console.log(
+                  "🔔 WAITER: Notificación RAW recibida:",
+                  notification
+                );
+                const message = JSON.parse(notification.body);
+                console.log("📦 WAITER: Mensaje parseado:", message);
+                console.log("🆔 WAITER: Order ID:", message.orderId);
+                console.log("📊 WAITER: Tipo:", message.type);
+                console.log("🏷️ WAITER: Nuevo Estado:", message.newStatus);
+                handleOrderUpdate(message);
+              }
+            );
+            console.log("👂 WAITER: Suscrito a /topic/admin/kitchen");
+          },
+          function (error) {
+            console.error("❌ WAITER: Error de WebSocket:", error);
+            setTimeout(connectWaiterOrdersWebSocket, 5000);
+          }
+        );
+      }
+
+      function handleOrderUpdate(notification) {
+        console.log(
+          "🔧 WAITER: Iniciando handleOrderUpdate con:",
+          notification
+        );
+        const orderId = notification.orderId;
+        const newStatus = notification.status || notification.newStatus; // FIX: el mensaje usa 'status', no 'newStatus'
+
+        console.log("🔍 WAITER: Buscando fila con data-order-id:", orderId);
+        console.log("🎯 WAITER: Estado extraído:", newStatus);
+
+        // Update specific order row badge immediately
+        const orderRow = document.querySelector(
+          `tr[data-order-id="${orderId}"]`
+        );
+        console.log("🎯 WAITER: Fila encontrada:", orderRow);
+
+        if (orderRow && newStatus) {
+          const badge = orderRow.querySelector(".status-badge");
+          console.log("🏷️ WAITER: Badge encontrado:", badge);
+          console.log(
+            "🔄 WAITER: Badge actual className:",
+            badge ? badge.className : "N/A"
+          );
+          console.log(
+            "📝 WAITER: Badge actual text:",
+            badge ? badge.textContent : "N/A"
+          );
+
+          if (badge) {
+            console.log("⚡ WAITER: Actualizando badge a estado:", newStatus);
+            updateStatusBadge(badge, newStatus);
+            console.log(
+              "✅ WAITER: Badge actualizado - Nueva className:",
+              badge.className
+            );
+            console.log(
+              "✅ WAITER: Badge actualizado - Nuevo text:",
+              badge.textContent
+            );
+
+            // Flash animation
+            orderRow.classList.add("bg-primary/5");
+            console.log("💫 WAITER: Animación flash iniciada");
+            setTimeout(() => {
+              orderRow.classList.remove("bg-primary/5");
+              console.log("💫 WAITER: Animación flash completada");
+            }, 1500);
+          } else {
+            console.warn("⚠️ WAITER: No se encontró badge en la fila");
+          }
+        } else {
+          if (!orderRow) {
+            console.warn(
+              "⚠️ WAITER: No se encontró fila para Order ID:",
+              orderId
+            );
+            console.log("📋 WAITER: Todas las filas en la tabla:");
+            document.querySelectorAll("tr[data-order-id]").forEach((row) => {
+              console.log("  - Row ID:", row.getAttribute("data-order-id"));
+            });
+          }
+          if (!newStatus) {
+            console.warn("⚠️ WAITER: newStatus es null o undefined");
+          }
+        }
+
+        // Debounce stats update
+        console.log(
+          "📊 WAITER: Programando actualización de estadísticas (debounce 2s)"
+        );
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+          console.log("⏱️ WAITER: Timeout anterior cancelado");
+        }
+
+        pendingStatsUpdate = true;
+
+        statsUpdateTimeout = setTimeout(() => {
+          if (pendingStatsUpdate) {
+            console.log("📈 WAITER: Ejecutando actualización de estadísticas");
+            pendingStatsUpdate = false;
+            updateOrderStatsFromServer();
+          }
+        }, STATS_UPDATE_DELAY);
+      }
+
+      function updateStatusBadge(badge, status) {
+        console.log("🎨 WAITER: updateStatusBadge llamado con estado:", status);
+        console.log(
+          "🎨 WAITER: Badge antes:",
+          badge.className,
+          "|",
+          badge.textContent
+        );
+
+        // Remove all previous classes and set base classes
+        badge.className =
+          "status-badge px-3 py-1 text-xs rounded-full font-medium";
+
+        // Add new status-specific classes and text
+        switch (status) {
+          case "PENDING":
+            badge.className +=
+              " bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+            badge.textContent = "Pendiente";
+            console.log("🟡 WAITER: Estado actualizado a PENDING");
+            break;
+          case "IN_PREPARATION":
+            badge.className +=
+              " bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
+            badge.textContent = "En Preparación";
+            console.log("🟠 WAITER: Estado actualizado a IN_PREPARATION");
+            break;
+          case "READY":
+            badge.className +=
+              " bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+            badge.textContent = "Listo";
+            console.log("🔵 WAITER: Estado actualizado a READY");
+            break;
+          case "ON_THE_WAY":
+            badge.className +=
+              " bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
+            badge.textContent = "En Camino";
+            console.log("🟣 WAITER: Estado actualizado a ON_THE_WAY");
+            break;
+          case "DELIVERED":
+            badge.className +=
+              " bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+            badge.textContent = "Entregado";
+            console.log("🟢 WAITER: Estado actualizado a DELIVERED");
+            break;
+          case "PAID":
+            badge.className += " bg-primary/20 text-primary";
+            badge.textContent = "Pagado";
+            console.log("💚 WAITER: Estado actualizado a PAID");
+
+            // Play payment success sound
+            playPaymentSound();
+            console.log("🔊 WAITER: Reproduciendo sonido de pago exitoso");
+            break;
+          case "CANCELLED":
+            badge.className +=
+              " bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+            badge.textContent = "Cancelado";
+            console.log("🔴 WAITER: Estado actualizado a CANCELLED");
+            break;
+          default:
+            console.warn("⚠️ WAITER: Estado desconocido:", status);
+        }
+
+        console.log(
+          "🎨 WAITER: Badge después:",
+          badge.className,
+          "|",
+          badge.textContent
+        );
+      }
+
+      function updateOrderStatsFromServer() {
+        console.log("🌐 WAITER: Fetching stats desde /waiter/orders/stats");
+        fetch("/waiter/orders/stats")
+          .then((response) => {
+            console.log("📡 WAITER: Response recibido:", response.status);
+            return response.json();
+          })
+          .then((data) => {
+            console.log("📊 WAITER: Stats data:", data);
+            updateOrderStats(data);
+          })
+          .catch((error) => {
+            console.error("❌ WAITER: Error fetching stats:", error);
+          });
+      }
+
+      function updateOrderStats(stats) {
+        console.log("📈 WAITER: Actualizando estadísticas con:", stats);
+        let updatedCount = 0;
+
+        // Update stats cards - using exact class selectors matching the HTML structure
+        const todayCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-blue-500"
+        );
+        console.log("🔍 WAITER: todayCountEl:", todayCountEl);
+        if (todayCountEl && stats.todayCount != null) {
+          console.log("📝 WAITER: Actualizando todayCount:", stats.todayCount);
+          todayCountEl.textContent = stats.todayCount;
+          updatedCount++;
+        }
+
+        const todayRevenueSpan = document.querySelector(
+          ".text-3xl.font-bold.text-primary span"
+        );
+        console.log("🔍 WAITER: todayRevenueSpan:", todayRevenueSpan);
+        if (todayRevenueSpan && stats.todayRevenue != null) {
+          console.log(
+            "💰 WAITER: Actualizando todayRevenue:",
+            stats.todayRevenue
+          );
+          todayRevenueSpan.textContent = stats.todayRevenue.toFixed(2);
+          updatedCount++;
+        }
+
+        const pendingCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-yellow-500"
+        );
+        console.log("🔍 WAITER: pendingCountEl:", pendingCountEl);
+        if (pendingCountEl && stats.pendingCount != null) {
+          console.log(
+            "🟡 WAITER: Actualizando pendingCount:",
+            stats.pendingCount
+          );
+          pendingCountEl.textContent = stats.pendingCount;
+          updatedCount++;
+        }
+
+        const inPreparationCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-orange-500"
+        );
+        console.log("🔍 WAITER: inPreparationCountEl:", inPreparationCountEl);
+        if (inPreparationCountEl && stats.inPreparationCount != null) {
+          console.log(
+            "🟠 WAITER: Actualizando inPreparationCount:",
+            stats.inPreparationCount
+          );
+          inPreparationCountEl.textContent = stats.inPreparationCount;
+          updatedCount++;
+        }
+
+        const activeCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-purple-500"
+        );
+        console.log("🔍 WAITER: activeCountEl:", activeCountEl);
+        if (activeCountEl && stats.activeCount != null) {
+          console.log(
+            "🟣 WAITER: Actualizando activeCount:",
+            stats.activeCount
+          );
+          activeCountEl.textContent = stats.activeCount;
+          updatedCount++;
+        }
+
+        console.log(
+          "✅ WAITER: Stats actualizadas -",
+          updatedCount,
+          "campos cambiados"
+        );
+      }
+
+      // Connect on page load
+      window.addEventListener("DOMContentLoaded", connectWaiterOrdersWebSocket);
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        console.log("👋 WAITER: Página cerrándose, desconectando WebSocket...");
+        isIntentionalDisconnect = true;
+
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+        }
+        if (stompClient && stompClient.connected) {
+          stompClient.disconnect();
+        }
+      });
+
+      // Function to play payment success sound
+      function playPaymentSound() {
+        try {
+          const audio = new Audio("/sounds/payment.mp3");
+          audio.volume = 0.6;
+
+          console.log("🔊 Attempting to play payment sound...");
+
+          audio
+            .play()
+            .then(() => {
+              console.log("✅ Payment sound played successfully");
+            })
+            .catch((error) => {
+              console.warn(
+                "⚠️ Payment sound playback prevented:",
+                error.message
+              );
+            });
+
+          audio.onerror = function (e) {
+            console.error("❌ Payment audio file not found:", e);
+            console.log("📁 Make sure payment.mp3 exists in /static/sounds/");
+          };
+        } catch (e) {
+          console.error("❌ Error creating payment audio:", e);
+        }
       }
     </script>
 

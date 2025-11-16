@@ -845,10 +845,57 @@
             },
           }).then((result) => {
             if (result.isConfirmed) {
-              this.submit();
+              console.log("💰 Cashier - Playing payment success sound");
+
+              // Play sound and wait for it to finish before submitting
+              playPaymentSound(() => {
+                this.submit();
+              });
             }
           });
         });
+
+      // Play payment success sound and execute callback when finished
+      function playPaymentSound(onComplete) {
+        try {
+          const audio = new Audio("/sounds/payment.mp3");
+          audio.volume = 0.6;
+
+          console.log("🔊 Attempting to play payment sound...");
+
+          // When sound finishes playing, execute callback
+          audio.addEventListener("ended", function () {
+            console.log("✅ Payment sound finished playing");
+            if (onComplete) onComplete();
+          });
+
+          // If sound fails to play, still execute callback after short delay
+          audio.addEventListener("error", function (e) {
+            console.error("❌ Payment audio file not found:", e);
+            console.log("📁 Make sure payment.mp3 exists in /static/sounds/");
+            setTimeout(() => {
+              if (onComplete) onComplete();
+            }, 100);
+          });
+
+          audio
+            .play()
+            .then(() => {
+              console.log("▶️ Payment sound started playing...");
+            })
+            .catch((error) => {
+              console.warn("⚠️ Payment sound prevented:", error.message);
+              // Still execute callback if sound fails
+              setTimeout(() => {
+                if (onComplete) onComplete();
+              }, 100);
+            });
+        } catch (e) {
+          console.error("❌ Error creating payment audio:", e);
+          // Execute callback even if error occurs
+          if (onComplete) onComplete();
+        }
+      }
 
       // Initialize on page load
       document.addEventListener("DOMContentLoaded", function () {

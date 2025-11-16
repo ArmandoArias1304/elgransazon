@@ -799,6 +799,7 @@
                     Pendientes
                   </p>
                   <p
+                    id="pending-orders-count"
                     class="text-2xl font-bold text-yellow-600 dark:text-yellow-500"
                     th:text="${stats.pendingOrders != null ? stats.pendingOrders.pending : 0}"
                   >
@@ -815,6 +816,7 @@
                     En preparación
                   </p>
                   <p
+                    id="in-preparation-orders-count"
                     class="text-2xl font-bold text-orange-600 dark:text-orange-500"
                     th:text="${stats.pendingOrders != null ? stats.pendingOrders.inPreparation : 0}"
                   >
@@ -831,6 +833,7 @@
                     Listos
                   </p>
                   <p
+                    id="ready-orders-count"
                     class="text-2xl font-bold text-green-600 dark:text-green-500"
                     th:text="${stats.pendingOrders != null ? stats.pendingOrders.ready : 0}"
                   >
@@ -847,6 +850,7 @@
                     En camino
                   </p>
                   <p
+                    id="on-the-way-orders-count"
                     class="text-2xl font-bold text-blue-600 dark:text-blue-500"
                     th:text="${stats.pendingOrders != null ? stats.pendingOrders.onTheWay : 0}"
                   >
@@ -868,6 +872,7 @@
                   </div>
                   <p class="text-lg font-bold text-gray-900 dark:text-white">
                     <span
+                      id="avg-preparation-time"
                       th:text="${stats.pendingOrders != null ? #numbers.formatDecimal(stats.pendingOrders.avgPreparationTime, 1, 0) : 0}"
                       >0</span
                     >
@@ -1269,6 +1274,225 @@
         }
       });
       /*]]>*/
+    </script>
+
+    <!-- WebSocket for Real-time Updates -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+      let updateTimeout = null;
+      let pendingUpdate = false;
+      const UPDATE_DELAY = 3000; // Wait 3 seconds before updating
+
+      // Reconnection control
+      let reconnectAttempts = 0;
+      let maxReconnectAttempts = 10;
+      let reconnectDelay = 1000;
+      let maxReconnectDelay = 30000;
+      let isIntentionalDisconnect = false;
+
+      function connectAdminDashboardWebSocket() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+          console.warn(
+            "⛔ ADMIN: Máximo de intentos de reconexión alcanzado. Deteniendo..."
+          );
+          return;
+        }
+
+        console.log(
+          `🔄 ADMIN Dashboard: Intento de conexión #${reconnectAttempts + 1}`
+        );
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null; // Disable console logging
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("✅ Admin Dashboard WebSocket Connected");
+            reconnectAttempts = 0;
+            reconnectDelay = 1000;
+
+            // Subscribe to admin kitchen channel for order updates
+            stompClient.subscribe("/topic/admin/kitchen", function (message) {
+              const notification = JSON.parse(message.body);
+              console.log(
+                "📦 Notification received - Type:",
+                notification.notificationType
+              );
+              handleDashboardOrderUpdate(notification);
+            });
+          },
+          function (error) {
+            if (isIntentionalDisconnect) {
+              console.log("👋 ADMIN Dashboard: Desconexión intencional");
+              return;
+            }
+
+            reconnectAttempts++;
+            console.error(
+              `❌ ADMIN Dashboard: WebSocket Error (${reconnectAttempts}/${maxReconnectAttempts}):`,
+              error
+            );
+
+            if (reconnectAttempts < maxReconnectAttempts) {
+              const delay = Math.min(
+                reconnectDelay * Math.pow(2, reconnectAttempts - 1),
+                maxReconnectDelay
+              );
+              console.log(
+                `⏱️ ADMIN Dashboard: Reintentando en ${delay / 1000}s...`
+              );
+              setTimeout(connectAdminDashboardWebSocket, delay);
+            }
+          }
+        );
+      }
+
+      function handleDashboardOrderUpdate(notification) {
+        // Debounce: Cancel previous timeout and set new one
+        if (updateTimeout) {
+          clearTimeout(updateTimeout);
+          console.log("⏳ Debouncing update...");
+        }
+
+        pendingUpdate = true;
+
+        // Only update after 3 seconds of no new notifications
+        updateTimeout = setTimeout(() => {
+          if (pendingUpdate) {
+            console.log("🔄 Updating dashboard stats (debounced)...");
+            pendingUpdate = false;
+            fetchAndUpdateStats();
+          }
+        }, UPDATE_DELAY);
+      }
+
+      function fetchAndUpdateStats() {
+        fetch("/admin/dashboard/stats")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Stats fetch failed: " + response.status);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            console.log("📊 Stats received, updating UI...");
+            updateDashboardStats(data);
+          })
+          .catch((error) => console.error("❌ Error updating stats:", error));
+      }
+
+      function updateDashboardStats(stats) {
+        let updatedCount = 0;
+
+        // Update Today's Sales
+        const todaySalesEl = document.querySelector(
+          '[th\\:text*="todaySales"]'
+        );
+        if (todaySalesEl && stats.todaySales != null) {
+          todaySalesEl.textContent = "$" + stats.todaySales.toFixed(2);
+          updatedCount++;
+        }
+
+        // Update Today's Orders
+        const todayOrdersEl = document.querySelector(
+          '[th\\:text*="todayOrders"]'
+        );
+        if (todayOrdersEl && stats.todayOrders != null) {
+          todayOrdersEl.textContent = stats.todayOrders;
+          updatedCount++;
+        }
+
+        // Update Today's Customers
+        const todayCustomersEl = document.querySelector(
+          '[th\\:text*="todayCustomers"]'
+        );
+        if (todayCustomersEl && stats.todayCustomers != null) {
+          todayCustomersEl.textContent = stats.todayCustomers;
+          updatedCount++;
+        }
+
+        // Update Total Revenue
+        const totalRevenueEl = document.querySelector(
+          '[th\\:text*="totalHistoricalRevenue"]'
+        );
+        if (totalRevenueEl && stats.totalHistoricalRevenue != null) {
+          totalRevenueEl.textContent =
+            "$" + stats.totalHistoricalRevenue.toFixed(2);
+          updatedCount++;
+        }
+
+        // Update Pending Orders Section using IDs
+        if (stats.pendingOrders) {
+          // Pending
+          const pendingEl = document.getElementById("pending-orders-count");
+          if (pendingEl && stats.pendingOrders.pending != null) {
+            pendingEl.textContent = stats.pendingOrders.pending;
+            updatedCount++;
+          }
+
+          // In Preparation
+          const inPrepEl = document.getElementById(
+            "in-preparation-orders-count"
+          );
+          if (inPrepEl && stats.pendingOrders.inPreparation != null) {
+            inPrepEl.textContent = stats.pendingOrders.inPreparation;
+            updatedCount++;
+          }
+
+          // Ready
+          const readyEl = document.getElementById("ready-orders-count");
+          if (readyEl && stats.pendingOrders.ready != null) {
+            readyEl.textContent = stats.pendingOrders.ready;
+            updatedCount++;
+          }
+
+          // On The Way
+          const onTheWayEl = document.getElementById("on-the-way-orders-count");
+          if (onTheWayEl && stats.pendingOrders.onTheWay != null) {
+            onTheWayEl.textContent = stats.pendingOrders.onTheWay;
+            updatedCount++;
+          }
+
+          // Average Preparation Time
+          const avgTimeEl = document.getElementById("avg-preparation-time");
+          if (avgTimeEl && stats.pendingOrders.avgPreparationTime != null) {
+            avgTimeEl.textContent = Math.round(
+              stats.pendingOrders.avgPreparationTime
+            );
+            updatedCount++;
+          }
+        }
+
+        // Add subtle visual feedback only if something was updated
+        if (updatedCount > 0) {
+          document.body.classList.add("bg-primary/5");
+          setTimeout(() => {
+            document.body.classList.remove("bg-primary/5");
+          }, 500);
+          console.log("✅ Dashboard updated -", updatedCount, "fields changed");
+        }
+      }
+
+      // Connect on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        connectAdminDashboardWebSocket();
+      });
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        console.log("👋 ADMIN Dashboard: Página cerrándose...");
+        isIntentionalDisconnect = true;
+
+        if (updateTimeout) {
+          clearTimeout(updateTimeout);
+        }
+        if (stompClient !== null && stompClient.connected) {
+          stompClient.disconnect();
+        }
+      });
     </script>
 
     <!-- Script del Sistema de Temas -->

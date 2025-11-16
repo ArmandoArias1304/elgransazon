@@ -419,6 +419,7 @@
                   </tr>
                   <tr
                     th:each="order : ${orders}"
+                    th:data-order-id="${order.idOrder}"
                     class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                   >
                     <!-- Order Number -->
@@ -502,7 +503,7 @@
                     <!-- Status -->
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span
-                        class="px-3 py-1 text-xs rounded-full font-medium"
+                        class="status-badge px-3 py-1 text-xs rounded-full font-medium transition-all duration-300"
                         th:classappend="${order.status.name() == 'PENDING'} ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 
                                                      (${order.status.name() == 'IN_PREPARATION'} ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' : 
                                                      (${order.status.name() == 'READY'} ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
@@ -1231,6 +1232,284 @@
           setTimeout(function () {
             window.location.href = "/admin/payments/download-ticket";
           }, 500);
+        }
+      });
+    </script>
+
+    <!-- WebSocket for Real-time Updates -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+      let statsUpdateTimeout = null;
+      let pendingStatsUpdate = false;
+      const STATS_UPDATE_DELAY = 2000; // Wait 2 seconds before updating stats
+
+      // Reconnection control
+      let reconnectAttempts = 0;
+      let maxReconnectAttempts = 10;
+      let reconnectDelay = 1000;
+      let maxReconnectDelay = 30000;
+      let isIntentionalDisconnect = false;
+
+      function connectAdminOrdersWebSocket() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+          console.warn("⛔ ADMIN Orders: Máximo de intentos alcanzado");
+          return;
+        }
+
+        console.log(`🔄 ADMIN Orders: Intento #${reconnectAttempts + 1}`);
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null; // Disable console logging
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("✅ Orders List WebSocket Connected");
+            reconnectAttempts = 0;
+            reconnectDelay = 1000;
+
+            // Subscribe to admin kitchen channel for order updates
+            stompClient.subscribe("/topic/admin/kitchen", function (message) {
+              const notification = JSON.parse(message.body);
+              console.log(
+                "📦 Order notification - Type:",
+                notification.notificationType,
+                "ID:",
+                notification.orderId
+              );
+              handleOrderListUpdate(notification);
+            });
+          },
+          function (error) {
+            if (isIntentionalDisconnect) {
+              console.log("👋 ADMIN Orders: Desconexión intencional");
+              return;
+            }
+
+            reconnectAttempts++;
+            console.error(
+              `❌ ADMIN Orders: Error (${reconnectAttempts}/${maxReconnectAttempts}):`,
+              error
+            );
+
+            if (reconnectAttempts < maxReconnectAttempts) {
+              const delay = Math.min(
+                reconnectDelay * Math.pow(2, reconnectAttempts - 1),
+                maxReconnectDelay
+              );
+              console.log(
+                `⏱️ ADMIN Orders: Reintentando en ${delay / 1000}s...`
+              );
+              setTimeout(connectAdminOrdersWebSocket, delay);
+            }
+          }
+        );
+      }
+
+      function handleOrderListUpdate(notification) {
+        const orderId = notification.orderId;
+        const newStatus = notification.status;
+
+        // Immediately update the specific order row (no delay)
+        const orderRow = document.querySelector(
+          `tr[data-order-id="${orderId}"]`
+        );
+
+        if (orderRow) {
+          const statusBadge = orderRow.querySelector(".status-badge");
+          if (statusBadge) {
+            updateStatusBadge(statusBadge, newStatus);
+            console.log("🔄 Updated order", orderId, "status to", newStatus);
+          }
+
+          // Add subtle flash animation
+          orderRow.classList.add("bg-primary/5");
+          setTimeout(() => {
+            orderRow.classList.remove("bg-primary/5");
+          }, 1500);
+        }
+
+        // Debounce stats update to avoid excessive requests
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+        }
+
+        pendingStatsUpdate = true;
+
+        statsUpdateTimeout = setTimeout(() => {
+          if (pendingStatsUpdate) {
+            console.log("📊 Updating stats (debounced)...");
+            pendingStatsUpdate = false;
+            updateOrderStatsFromServer();
+          }
+        }, STATS_UPDATE_DELAY);
+      }
+
+      function updateOrderStatsFromServer() {
+        fetch("/admin/orders/stats")
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Stats fetch failed: " + response.status);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            updateOrderStats(data);
+          })
+          .catch((error) => console.error("❌ Error updating stats:", error));
+      }
+
+      function updateStatusBadge(badge, status) {
+        // Remove all status classes
+        badge.className =
+          "status-badge px-3 py-1 text-xs rounded-full font-medium transition-all duration-300";
+
+        // Add new status classes and text
+        switch (status) {
+          case "PENDING":
+            badge.classList.add(
+              "bg-yellow-100",
+              "text-yellow-800",
+              "dark:bg-yellow-900/30",
+              "dark:text-yellow-400"
+            );
+            badge.textContent = "Pendiente";
+            break;
+          case "IN_PREPARATION":
+            badge.classList.add(
+              "bg-orange-100",
+              "text-orange-800",
+              "dark:bg-orange-900/30",
+              "dark:text-orange-400"
+            );
+            badge.textContent = "En Preparación";
+            break;
+          case "READY":
+            badge.classList.add(
+              "bg-blue-100",
+              "text-blue-800",
+              "dark:bg-blue-900/30",
+              "dark:text-blue-400"
+            );
+            badge.textContent = "Listo";
+            break;
+          case "ON_THE_WAY":
+            badge.classList.add(
+              "bg-purple-100",
+              "text-purple-800",
+              "dark:bg-purple-900/30",
+              "dark:text-purple-400"
+            );
+            badge.textContent = "En Camino";
+            break;
+          case "DELIVERED":
+            badge.classList.add(
+              "bg-green-100",
+              "text-green-800",
+              "dark:bg-green-900/30",
+              "dark:text-green-400"
+            );
+            badge.textContent = "Entregado";
+            break;
+          case "PAID":
+            badge.classList.add("bg-primary/20", "text-primary");
+            badge.textContent = "Pagado";
+            break;
+          case "CANCELLED":
+            badge.classList.add(
+              "bg-red-100",
+              "text-red-800",
+              "dark:bg-red-900/30",
+              "dark:text-red-400"
+            );
+            badge.textContent = "Cancelado";
+            break;
+          default:
+            badge.classList.add(
+              "bg-gray-100",
+              "text-gray-800",
+              "dark:bg-gray-900/30",
+              "dark:text-gray-400"
+            );
+            badge.textContent = status;
+        }
+      }
+
+      function updateOrderStats(stats) {
+        let updatedCount = 0;
+
+        // Update Today's Orders count
+        const todayCountEl = document.querySelector(
+          '[th\\:text*="todayCount"]'
+        );
+        if (todayCountEl && stats.todayCount != null) {
+          todayCountEl.textContent = stats.todayCount;
+          updatedCount++;
+        }
+
+        // Update Today's Revenue
+        const todayRevenueEl = document.querySelector(
+          '[th\\:text*="todayRevenue"]'
+        );
+        if (todayRevenueEl && stats.todayRevenue != null) {
+          const formatted = new Intl.NumberFormat("es-CO", {
+            style: "currency",
+            currency: "COP",
+            minimumFractionDigits: 0,
+          }).format(stats.todayRevenue);
+          todayRevenueEl.textContent = formatted;
+          updatedCount++;
+        }
+
+        // Update Pending count
+        const pendingCountEl = document.querySelector(
+          '[th\\:text*="pendingCount"]'
+        );
+        if (pendingCountEl && stats.pendingCount != null) {
+          pendingCountEl.textContent = stats.pendingCount;
+          updatedCount++;
+        }
+
+        // Update In Preparation count
+        const inPrepCountEl = document.querySelector(
+          '[th\\:text*="inPreparationCount"]'
+        );
+        if (inPrepCountEl && stats.inPreparationCount != null) {
+          inPrepCountEl.textContent = stats.inPreparationCount;
+          updatedCount++;
+        }
+
+        // Update Active count
+        const activeCountEl = document.querySelector(
+          '[th\\:text*="activeCount"]'
+        );
+        if (activeCountEl && stats.activeCount != null) {
+          activeCountEl.textContent = stats.activeCount;
+          updatedCount++;
+        }
+
+        if (updatedCount > 0) {
+          console.log("✅ Stats updated -", updatedCount, "fields changed");
+        }
+      }
+
+      // Connect on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        connectAdminOrdersWebSocket();
+      });
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        console.log("👋 ADMIN Orders: Página cerrándose...");
+        isIntentionalDisconnect = true;
+
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+        }
+        if (stompClient !== null && stompClient.connected) {
+          stompClient.disconnect();
         }
       });
     </script>

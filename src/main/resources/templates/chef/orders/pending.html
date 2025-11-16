@@ -602,6 +602,270 @@
       });
     </script>
 
+    <!-- WebSocket Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+      let reconnectAttempts = 0;
+      const MAX_RECONNECT_ATTEMPTS = 5;
+      const RECONNECT_DELAY = 3000;
+
+      function connectWebSocket() {
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+
+        // Disable debug logging
+        stompClient.debug = null;
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("✅ WebSocket Connected");
+            reconnectAttempts = 0;
+            updateConnectionStatus(true);
+
+            // Subscribe to chef orders channel (handles all notifications)
+            stompClient.subscribe("/topic/chef/orders", function (message) {
+              console.log(
+                "🔌 [PENDING] Raw WebSocket message received:",
+                message.body
+              );
+              const notification = JSON.parse(message.body);
+              console.log("🔌 [PENDING] Parsed notification:", notification);
+              handleOrderNotification(notification);
+            });
+
+            // Subscribe to kitchen stats
+            stompClient.subscribe("/topic/kitchen/stats", function (message) {
+              const stats = JSON.parse(message.body);
+              updateKitchenStats(stats);
+            });
+          },
+          function (error) {
+            console.error("WebSocket Error: ", error);
+            updateConnectionStatus(false);
+            attemptReconnect();
+          }
+        );
+
+        socket.onclose = function () {
+          console.log("WebSocket Disconnected");
+          updateConnectionStatus(false);
+          attemptReconnect();
+        };
+      }
+
+      function attemptReconnect() {
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          console.log(
+            `Reconnecting... Attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`
+          );
+          setTimeout(connectWebSocket, RECONNECT_DELAY);
+        } else {
+          console.error("Max reconnection attempts reached");
+          showNotification(
+            "Conexión perdida",
+            "No se pudo reconectar al servidor. Por favor recarga la página.",
+            "error"
+          );
+        }
+      }
+
+      function updateConnectionStatus(connected) {
+        // Add a connection status indicator if needed
+        const statusIndicator = document.getElementById("ws-status");
+        if (statusIndicator) {
+          statusIndicator.className = connected ? "connected" : "disconnected";
+          statusIndicator.title = connected ? "Conectado" : "Desconectado";
+        }
+      }
+
+      function handleOrderNotification(notification) {
+        console.log("📬 [PENDING] Notification received:", notification);
+        console.log(
+          "📬 [PENDING] Notification type:",
+          notification.notificationType
+        );
+        console.log("📬 [PENDING] Order number:", notification.orderNumber);
+
+        let title = "Actualización";
+        let icon = "info";
+        let message = notification.message || "Cambio en pedido";
+
+        // Determine notification type and customize display
+        if (notification.notificationType === "NEW_ORDER") {
+          console.log("🆕 [PENDING] Processing NEW_ORDER");
+          title = "🔔 Nuevo Pedido";
+          message = `Pedido #${notification.orderNumber} - ${notification.orderType} - ${notification.itemCount} items - Total: $${notification.total}`;
+          icon = "info";
+
+          // ALWAYS play sound for new orders
+          console.log("🔊 Chef Pending - Playing sound for new order");
+          playNotificationSound();
+
+          // Request browser notification
+          requestBrowserNotification(
+            "Nuevo Pedido",
+            `Pedido #${notification.orderNumber} - ${notification.itemCount} items`
+          );
+        } else if (notification.notificationType === "ITEMS_ADDED") {
+          console.log("➕ [PENDING] Processing ITEMS_ADDED");
+          console.log("➕ [PENDING] Will play sound and reload page");
+
+          title = "➕ Items Agregados";
+          message = `Pedido #${notification.orderNumber} - Se agregaron nuevos items a la orden`;
+          icon = "info";
+
+          // Play sound when items are added to existing order
+          console.log("🔊 Chef Pending - Playing sound for items added");
+          playNotificationSound();
+        } else if (notification.notificationType === "STATUS_CHANGE") {
+          title =
+            "📊 " +
+            (notification.status === "CANCELLED"
+              ? "Pedido Cancelado"
+              : "Estado Actualizado");
+          message = `Pedido #${notification.orderNumber} - ${notification.message}`;
+          icon = notification.status === "CANCELLED" ? "warning" : "success";
+
+          // NO sound for regular status changes
+        }
+
+        // Show notification
+        showNotification(title, message, icon);
+
+        // Reload for NEW_ORDER and ITEMS_ADDED
+        // This ensures orders with new items appear in pending view
+        if (
+          notification.notificationType === "NEW_ORDER" ||
+          notification.notificationType === "ITEMS_ADDED"
+        ) {
+          console.log(
+            "🔄 [PENDING] Will reload page in 1.5 seconds for:",
+            notification.notificationType
+          );
+          setTimeout(() => {
+            console.log("🔄 [PENDING] RELOADING NOW!");
+            window.location.reload();
+          }, 1500);
+        } else {
+          console.log(
+            "⏭️ [PENDING] No reload - notification type:",
+            notification.notificationType
+          );
+        }
+      }
+
+      function handleNewOrderNotification(notification) {
+        // Legacy function - now handled by handleOrderNotification
+        handleOrderNotification(notification);
+      }
+
+      function handleStatusChangeNotification(notification) {
+        console.log("Order Status Changed:", notification);
+
+        // Show notification for status changes and item additions
+        if (notification.message) {
+          showNotification("📊 Actualización", notification.message, "info");
+          // NO sound for status changes - only for NEW_ORDER and ITEMS_ADDED
+        }
+
+        // NO automatic reload - changeOrderStatus() already handles page reload
+        // This prevents infinite reload loop when accepting orders
+      }
+
+      function updateKitchenStats(stats) {
+        console.log("Kitchen Stats Updated:", stats);
+        // Update stats in UI if they exist
+        const pendingCountEl = document.getElementById("pending-count");
+        const inPrepCountEl = document.getElementById("inprep-count");
+
+        if (pendingCountEl) pendingCountEl.textContent = stats.pendingCount;
+        if (inPrepCountEl) inPrepCountEl.textContent = stats.inPreparationCount;
+      }
+
+      function showNotification(title, message, type) {
+        Swal.fire({
+          icon: type,
+          title: title,
+          text: message,
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 5000,
+          timerProgressBar: true,
+        });
+      }
+
+      function playNotificationSound() {
+        try {
+          const audio = new Audio("/sounds/notification.mp3");
+          audio.volume = 0.5;
+
+          // Log attempt
+          console.log("🔊 Attempting to play notification sound...");
+
+          audio
+            .play()
+            .then(() => {
+              console.log("✅ Sound played successfully");
+            })
+            .catch((error) => {
+              console.warn("⚠️ Sound playback prevented:", error.message);
+              console.log(
+                "💡 User interaction may be required to enable sound"
+              );
+            });
+
+          // Handle audio errors
+          audio.onerror = function (e) {
+            console.error("❌ Audio file not found or failed to load:", e);
+            console.log(
+              "📁 Make sure notification.mp3 exists in /static/sounds/"
+            );
+          };
+        } catch (e) {
+          console.error("❌ Error creating audio:", e);
+        }
+      }
+
+      function requestBrowserNotification(title, body) {
+        if (!("Notification" in window)) {
+          return;
+        }
+
+        if (Notification.permission === "granted") {
+          new Notification(title, { body: body, icon: "/images/logo.png" });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(function (permission) {
+            if (permission === "granted") {
+              new Notification(title, { body: body, icon: "/images/logo.png" });
+            }
+          });
+        }
+      }
+
+      // Initialize WebSocket on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        // Request notification permission
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
+
+        // Connect to WebSocket
+        connectWebSocket();
+      });
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        if (stompClient !== null) {
+          stompClient.disconnect();
+        }
+      });
+    </script>
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

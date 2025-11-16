@@ -39,6 +39,7 @@ public class OrderController {
     private final CategoryService categoryService;
     private final com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository;
     private final PromotionService promotionService;
+    private final WebSocketNotificationService wsNotificationService;
 
     /**
      * Constructor with dependency injection
@@ -57,7 +58,8 @@ public class OrderController {
             SystemConfigurationService systemConfigurationService,
             CategoryService categoryService,
             com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository,
-            PromotionService promotionService) {
+            PromotionService promotionService,
+            WebSocketNotificationService wsNotificationService) {
         
         this.orderServices = Map.of(
             "admin", adminOrderService,
@@ -74,6 +76,7 @@ public class OrderController {
         this.categoryService = categoryService;
         this.orderRepository = orderRepository;
         this.promotionService = promotionService;
+        this.wsNotificationService = wsNotificationService;
     }
 
     /**
@@ -582,6 +585,15 @@ public class OrderController {
             Order updated = orderRepository.save(order);
 
             log.info("Items added successfully to order: {}", updated.getOrderNumber());
+            
+            // Send WebSocket notification for items added to existing order
+            try {
+                wsNotificationService.notifyItemsAdded(updated, newOrderDetails.size());
+            } catch (Exception e) {
+                log.error("Failed to send WebSocket notification for items added to order: {}", 
+                    updated.getOrderNumber(), e);
+            }
+            
             redirectAttributes.addFlashAttribute("successMessage",
                     "Se agregaron " + newOrderDetails.size() + " items al pedido " + updated.getOrderNumber());
             
@@ -1962,6 +1974,27 @@ public class OrderController {
 
         return "ℹ️ Revisar devolución de stock manualmente";
     }
+    
+    /**
+     * Get order statistics - REST endpoint for real-time updates
+     */
+    @GetMapping("/stats")
+    @ResponseBody
+    public Map<String, Object> getOrderStats(@PathVariable String role, Authentication authentication) {
+        validateRole(role, authentication);
+        OrderService orderService = getOrderService(role);
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("todayCount", orderService.countTodaysOrders());
+        stats.put("todayRevenue", orderService.getTodaysRevenue());
+        stats.put("pendingCount", orderService.countByStatus(OrderStatus.PENDING));
+        stats.put("inPreparationCount", orderService.countByStatus(OrderStatus.IN_PREPARATION));
+        stats.put("activeCount", orderService.findActiveOrders().size());
+        
+        return stats;
+    }
 }
+
+
 
 

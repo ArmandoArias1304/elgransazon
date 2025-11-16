@@ -152,6 +152,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findAllWithDetails();
 
     /**
+     * Find orders that have at least ONE item requiring preparation (Chef view)
+     * This query filters at database level instead of loading all orders
+     */
+    @Query("SELECT DISTINCT o FROM Order o " +
+           "JOIN FETCH o.orderDetails od " +
+           "JOIN FETCH od.itemMenu im " +
+           "WHERE im.requiresPreparation = true " +
+           "ORDER BY o.createdAt DESC")
+    List<Order> findOrdersWithPreparationItems();
+
+    /**
      * Find all orders by customer ID
      */
     @Query("SELECT o FROM Order o WHERE o.customer.idCustomer = :customerId ORDER BY o.createdAt DESC")

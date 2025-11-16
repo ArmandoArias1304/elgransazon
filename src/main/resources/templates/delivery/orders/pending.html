@@ -584,10 +584,128 @@
           });
         });
 
-        // Auto-refresh every 30 seconds
-        setInterval(function () {
-          window.location.reload();
-        }, 30000);
+        // Remove auto-refresh since WebSocket handles real-time updates
+        // setInterval(function () {
+        //   window.location.reload();
+        // }, 30000);
+      });
+    </script>
+
+    <!-- WebSocket for Real-time Updates -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+
+      function connectDeliveryOrdersWebSocket() {
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("✅ Delivery Orders WebSocket Connected");
+
+            stompClient.subscribe(
+              "/topic/admin/kitchen",
+              function (notification) {
+                const message = JSON.parse(notification.body);
+                console.log(
+                  "📦 Notification:",
+                  message.type,
+                  "Order ID:",
+                  message.orderId
+                );
+                handleOrderUpdate(message);
+              }
+            );
+          },
+          function (error) {
+            console.error("❌ WebSocket Error:", error);
+            setTimeout(connectDeliveryOrdersWebSocket, 5000);
+          }
+        );
+      }
+
+      function handleOrderUpdate(notification) {
+        const orderId = notification.orderId;
+        const newStatus = notification.newStatus;
+
+        // Update specific order card badge
+        const orderCard = document.querySelector(
+          `[data-order-id="${orderId}"]`
+        );
+        if (orderCard && newStatus) {
+          const badge = orderCard.querySelector(".status-badge");
+          if (badge) {
+            updateStatusBadge(badge, newStatus);
+
+            // Update card border and overlay based on status
+            updateCardAppearance(orderCard, newStatus);
+
+            // Flash animation
+            orderCard.style.transform = "scale(1.02)";
+            setTimeout(() => {
+              orderCard.style.transform = "scale(1)";
+            }, 300);
+          }
+        }
+      }
+
+      function updateStatusBadge(badge, status) {
+        // Remove all status classes
+        badge.className = "status-badge";
+
+        // Add new status class and text
+        switch (status) {
+          case "READY":
+            badge.classList.add("ready");
+            badge.innerHTML =
+              '<span class="material-symbols-outlined">check_circle</span> Listo para entregar';
+            break;
+          case "ON_THE_WAY":
+            badge.classList.add("on-the-way");
+            badge.innerHTML =
+              '<span class="material-symbols-outlined">local_shipping</span> En camino';
+            break;
+          case "DELIVERED":
+            badge.classList.add("delivered");
+            badge.innerHTML =
+              '<span class="material-symbols-outlined">done_all</span> Entregado';
+            break;
+        }
+      }
+
+      function updateCardAppearance(card, status) {
+        // Remove all status classes
+        card.classList.remove("ready", "on-the-way", "delivered");
+
+        // Add new status class
+        switch (status) {
+          case "READY":
+            card.classList.add("ready");
+            break;
+          case "ON_THE_WAY":
+            card.classList.add("on-the-way");
+            break;
+          case "DELIVERED":
+            card.classList.add("delivered");
+            break;
+        }
+      }
+
+      // Connect on page load
+      window.addEventListener(
+        "DOMContentLoaded",
+        connectDeliveryOrdersWebSocket
+      );
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        if (stompClient) {
+          stompClient.disconnect();
+        }
       });
     </script>
 

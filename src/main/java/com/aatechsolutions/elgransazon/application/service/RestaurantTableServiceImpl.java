@@ -277,27 +277,35 @@ public class RestaurantTableServiceImpl implements RestaurantTableService {
         // If there's a next reservation, validate there's enough time
         if (nextReservationOpt.isPresent()) {
             Reservation nextReservation = nextReservationOpt.get();
+            LocalDate nextReservationDate = nextReservation.getReservationDate();
             LocalTime nextReservationTime = nextReservation.getReservationTime();
             LocalTime estimatedEndTime = now.plusMinutes(avgConsumptionMinutes);
             
-            // Check if estimated end time is after next reservation time
-            if (estimatedEndTime.isAfter(nextReservationTime)) {
-                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-                String error = String.format(
-                    "No hay tiempo suficiente antes de la próxima reservación. " +
-                    "Próxima reservación: %s. Tiempo estimado de consumo: %d minutos. " +
-                    "Hora actual: %s. Hora estimada de finalización: %s.",
-                    nextReservationTime.format(timeFormatter),
-                    avgConsumptionMinutes,
-                    now.format(timeFormatter),
-                    estimatedEndTime.format(timeFormatter)
-                );
-                log.error(error);
-                throw new IllegalStateException(error);
+            // Only validate time if reservation is TODAY
+            // If reservation is tomorrow or later, we can always occupy (no time conflict)
+            if (nextReservationDate.equals(today)) {
+                // Check if estimated end time is after next reservation time
+                if (estimatedEndTime.isAfter(nextReservationTime)) {
+                    DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+                    String error = String.format(
+                        "No hay tiempo suficiente antes de la próxima reservación. " +
+                        "Próxima reservación: %s. Tiempo estimado de consumo: %d minutos. " +
+                        "Hora actual: %s. Hora estimada de finalización: %s.",
+                        nextReservationTime.format(timeFormatter),
+                        avgConsumptionMinutes,
+                        now.format(timeFormatter),
+                        estimatedEndTime.format(timeFormatter)
+                    );
+                    log.error(error);
+                    throw new IllegalStateException(error);
+                }
+                
+                log.info("Next reservation TODAY at {} - Estimated end time: {} - Validation passed", 
+                        nextReservationTime, estimatedEndTime);
+            } else {
+                log.info("Next reservation is on {} (not today) - Can occupy without time restriction", 
+                        nextReservationDate);
             }
-            
-            log.info("Next reservation at {} - Estimated end time: {} - Validation passed", 
-                    nextReservationTime, estimatedEndTime);
         }
 
         // Mark as occupied
@@ -347,13 +355,22 @@ public class RestaurantTableServiceImpl implements RestaurantTableService {
 
         if (nextReservationOpt.isPresent()) {
             Reservation nextReservation = nextReservationOpt.get();
+            LocalDate nextReservationDate = nextReservation.getReservationDate();
             LocalTime nextReservationTime = nextReservation.getReservationTime();
+            
+            // Calculate estimated end time for current occupation
             LocalTime estimatedEndTime = now.plusMinutes(avgConsumptionMinutes);
-            if (estimatedEndTime.isAfter(nextReservationTime)) {
-                log.debug("Table {} cannot be occupied because estimated end time {} is after next reservation {}",
-                        id, estimatedEndTime, nextReservationTime);
-                return false;
+            
+            // If reservation is today, check if there's enough time
+            if (nextReservationDate.equals(today)) {
+                if (estimatedEndTime.isAfter(nextReservationTime)) {
+                    log.debug("Table {} cannot be occupied because estimated end time {} is after next reservation {} (same day)",
+                            id, estimatedEndTime, nextReservationTime);
+                    return false;
+                }
             }
+            // If reservation is tomorrow or later, we can occupy (today's use won't conflict)
+            // No need to check - there's enough time
         }
 
         log.debug("Table {} can be occupied now", id);

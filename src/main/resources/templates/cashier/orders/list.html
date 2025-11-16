@@ -416,6 +416,7 @@
                   </tr>
                   <tr
                     th:each="order : ${myOrders}"
+                    th:data-order-id="${order.idOrder}"
                     class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                   >
                     <!-- Order Number -->
@@ -496,7 +497,7 @@
                     <!-- Status -->
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span
-                        class="px-3 py-1 text-xs rounded-full font-medium"
+                        class="status-badge px-3 py-1 text-xs rounded-full font-medium"
                         th:classappend="${order.status.name() == 'PENDING'} ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : 
                                                      (${order.status.name() == 'IN_PREPARATION'} ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' : 
                                                      (${order.status.name() == 'READY'} ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
@@ -540,9 +541,9 @@
                           <i class="fas fa-edit"></i>
                         </a>
 
-                        <!-- Change Status (CASHIER: READY or DELIVERED only) -->
+                        <!-- Change Status (not CANCELLED or PAID) -->
                         <button
-                          th:if="${order.status.name() == 'READY' || order.status.name() == 'DELIVERED'}"
+                          th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID'}"
                           class="btn-change-status p-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-all"
                           th:data-order-id="${order.idOrder}"
                           th:data-order-number="${order.orderNumber}"
@@ -663,6 +664,7 @@
                   </tr>
                   <tr
                     th:each="order : ${unpaidOrders}"
+                    th:data-order-id="${order.idOrder}"
                     class="border-b border-gray-200 dark:border-gray-800 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 transition-colors"
                   >
                     <!-- Order Number -->
@@ -718,15 +720,15 @@
                     <!-- Status -->
                     <td class="px-6 py-4 whitespace-nowrap">
                       <span
-                        class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full"
+                        class="status-badge inline-flex items-center gap-1 px-3 py-1 text-xs font-medium rounded-full"
                         th:classappend="${order.status.name() == 'PENDING' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
                                       order.status.name() == 'IN_PREPARATION' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' :
                                       order.status.name() == 'READY' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
                                       order.status.name() == 'DELIVERED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
                                       order.status.name() == 'PAID' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                       'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'}"
+                        th:text="${order.status.displayName}"
                       >
-                        <span th:text="${order.status.displayName}"></span>
                       </span>
                     </td>
 
@@ -741,6 +743,19 @@
                         >
                           <i class="fas fa-eye"></i>
                         </a>
+
+                        <!-- Change Status (not CANCELLED or PAID) -->
+                        <button
+                          th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID'}"
+                          class="btn-change-status p-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-all"
+                          th:data-order-id="${order.idOrder}"
+                          th:data-order-number="${order.orderNumber}"
+                          th:data-order-status="${order.status.name()}"
+                          th:data-payment-method="${order.paymentMethod.name()}"
+                          title="Cambiar estado"
+                        >
+                          <i class="fas fa-exchange-alt"></i>
+                        </button>
 
                         <!-- Collect Payment (only for DELIVERED status) -->
                         <a
@@ -1199,6 +1214,360 @@
           }, 500);
         }
       });
+    </script>
+
+    <!-- WebSocket for Real-time Updates -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+      let statsUpdateTimeout = null;
+      let pendingStatsUpdate = false;
+      const STATS_UPDATE_DELAY = 2000; // 2 seconds
+
+      // Reconnection control
+      let reconnectAttempts = 0;
+      let maxReconnectAttempts = 10;
+      let reconnectDelay = 1000; // Start with 1 second
+      let maxReconnectDelay = 30000; // Max 30 seconds
+      let isIntentionalDisconnect = false;
+
+      function connectCashierOrdersWebSocket() {
+        if (reconnectAttempts >= maxReconnectAttempts) {
+          console.warn(
+            "⛔ CASHIER: Máximo de intentos de reconexión alcanzado. Deteniendo..."
+          );
+          return;
+        }
+
+        console.log(
+          `🔄 CASHIER: Intento de conexión #${reconnectAttempts + 1}`
+        );
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("✅ CASHIER: WebSocket Conectado Exitosamente");
+            // Reset reconnection attempts on successful connection
+            reconnectAttempts = 0;
+            reconnectDelay = 1000;
+
+            stompClient.subscribe(
+              "/topic/admin/kitchen",
+              function (notification) {
+                const message = JSON.parse(notification.body);
+                console.log(
+                  "📦 CASHIER: Notification:",
+                  message.type,
+                  "Order ID:",
+                  message.orderId
+                );
+                handleOrderUpdate(message);
+              }
+            );
+          },
+          function (error) {
+            if (isIntentionalDisconnect) {
+              console.log("👋 CASHIER: Desconexión intencional, no reconectar");
+              return;
+            }
+
+            reconnectAttempts++;
+            console.error(
+              `❌ CASHIER: WebSocket Error (intento ${reconnectAttempts}/${maxReconnectAttempts}):`,
+              error
+            );
+
+            if (reconnectAttempts < maxReconnectAttempts) {
+              // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
+              const delay = Math.min(
+                reconnectDelay * Math.pow(2, reconnectAttempts - 1),
+                maxReconnectDelay
+              );
+              console.log(
+                `⏱️ CASHIER: Reintentando conexión en ${delay / 1000}s...`
+              );
+              setTimeout(connectCashierOrdersWebSocket, delay);
+            } else {
+              console.error(
+                "⛔ CASHIER: Máximo de reintentos alcanzado. WebSocket deshabilitado."
+              );
+            }
+          }
+        );
+      }
+
+      function handleOrderUpdate(notification) {
+        console.log(
+          "🔧 CASHIER: Iniciando handleOrderUpdate con:",
+          notification
+        );
+        const orderId = notification.orderId;
+        const newStatus = notification.status || notification.newStatus; // FIX: usar 'status'
+
+        console.log("🆔 CASHIER: Order ID:", orderId);
+        console.log("🎯 CASHIER: Estado extraído:", newStatus);
+
+        // Update specific order row badge immediately (buscar en ambas tablas)
+        const orderRow = document.querySelector(
+          `tr[data-order-id="${orderId}"]`
+        );
+        console.log("🔍 CASHIER: Fila encontrada:", orderRow);
+        if (orderRow && newStatus) {
+          const badge = orderRow.querySelector(".status-badge");
+          if (badge) {
+            updateStatusBadge(badge, newStatus);
+
+            // Flash animation
+            orderRow.classList.add("bg-primary/5");
+            setTimeout(() => {
+              orderRow.classList.remove("bg-primary/5");
+            }, 1500);
+          }
+        }
+
+        // Debounce stats update
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+        }
+
+        pendingStatsUpdate = true;
+
+        statsUpdateTimeout = setTimeout(() => {
+          if (pendingStatsUpdate) {
+            pendingStatsUpdate = false;
+            updateOrderStatsFromServer();
+          }
+        }, STATS_UPDATE_DELAY);
+      }
+
+      function updateStatusBadge(badge, status) {
+        console.log(
+          "🎨 CASHIER: updateStatusBadge llamado con estado:",
+          status
+        );
+        console.log(
+          "🎨 CASHIER: Badge antes:",
+          badge.className,
+          "|",
+          badge.textContent
+        );
+
+        // Remove all previous classes and set base classes
+        badge.className =
+          "status-badge px-3 py-1 text-xs rounded-full font-medium";
+
+        // Add new status-specific classes and text
+        switch (status) {
+          case "PENDING":
+            badge.className +=
+              " bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+            badge.textContent = "Pendiente";
+            console.log("🟡 CASHIER: Estado actualizado a PENDING");
+            break;
+          case "IN_PREPARATION":
+            badge.className +=
+              " bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
+            badge.textContent = "En Preparación";
+            console.log("🟠 CASHIER: Estado actualizado a IN_PREPARATION");
+            break;
+          case "READY":
+            badge.className +=
+              " bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+            badge.textContent = "Listo";
+            console.log("🔵 CASHIER: Estado actualizado a READY");
+            break;
+          case "ON_THE_WAY":
+            badge.className +=
+              " bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
+            badge.textContent = "En Camino";
+            console.log("🟣 CASHIER: Estado actualizado a ON_THE_WAY");
+            break;
+          case "DELIVERED":
+            badge.className +=
+              " bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+            badge.textContent = "Entregado";
+            console.log("🟢 CASHIER: Estado actualizado a DELIVERED");
+            break;
+          case "PAID":
+            badge.className += " bg-primary/20 text-primary";
+            badge.textContent = "Pagado";
+            console.log("💚 CASHIER: Estado actualizado a PAID");
+
+            // Play payment success sound
+            playPaymentSound();
+            console.log("🔊 CASHIER: Reproduciendo sonido de pago exitoso");
+            break;
+          case "CANCELLED":
+            badge.className +=
+              " bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+            badge.textContent = "Cancelado";
+            console.log("🔴 CASHIER: Estado actualizado a CANCELLED");
+            break;
+          default:
+            console.warn("⚠️ CASHIER: Estado desconocido:", status);
+        }
+
+        console.log(
+          "🎨 CASHIER: Badge después:",
+          badge.className,
+          "|",
+          badge.textContent
+        );
+      }
+
+      function updateOrderStatsFromServer() {
+        fetch("/cashier/orders/stats")
+          .then((response) => response.json())
+          .then((data) => {
+            updateOrderStats(data);
+          })
+          .catch((error) => console.error("Error fetching stats:", error));
+      }
+
+      function updateOrderStats(stats) {
+        console.log("📈 CASHIER: Actualizando estadísticas con:", stats);
+        let updatedCount = 0;
+
+        // Update stats cards - usando selectores de clase CSS
+        const todayCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-blue-500"
+        );
+        console.log("🔍 CASHIER: todayCountEl:", todayCountEl);
+        if (todayCountEl && stats.todayCount != null) {
+          console.log("📝 CASHIER: Actualizando todayCount:", stats.todayCount);
+          todayCountEl.textContent = stats.todayCount;
+          updatedCount++;
+        }
+
+        const todayRevenueSpan = document.querySelector(
+          ".text-3xl.font-bold.text-primary span"
+        );
+        console.log("🔍 CASHIER: todayRevenueSpan:", todayRevenueSpan);
+        if (todayRevenueSpan && stats.todayRevenue != null) {
+          console.log(
+            "💰 CASHIER: Actualizando todayRevenue:",
+            stats.todayRevenue
+          );
+          todayRevenueSpan.textContent = stats.todayRevenue.toFixed(2);
+          updatedCount++;
+        }
+
+        const pendingCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-yellow-500"
+        );
+        console.log("🔍 CASHIER: pendingCountEl:", pendingCountEl);
+        if (pendingCountEl && stats.pendingCount != null) {
+          console.log(
+            "🟡 CASHIER: Actualizando pendingCount:",
+            stats.pendingCount
+          );
+          pendingCountEl.textContent = stats.pendingCount;
+          updatedCount++;
+        }
+
+        const inPreparationCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-orange-500"
+        );
+        console.log("🔍 CASHIER: inPreparationCountEl:", inPreparationCountEl);
+        if (inPreparationCountEl && stats.inPreparationCount != null) {
+          console.log(
+            "🟠 CASHIER: Actualizando inPreparationCount:",
+            stats.inPreparationCount
+          );
+          inPreparationCountEl.textContent = stats.inPreparationCount;
+          updatedCount++;
+        }
+
+        const activeCountEl = document.querySelector(
+          ".text-3xl.font-bold.text-purple-500"
+        );
+        console.log("🔍 CASHIER: activeCountEl:", activeCountEl);
+        if (activeCountEl && stats.activeCount != null) {
+          console.log(
+            "🟣 CASHIER: Actualizando activeCount:",
+            stats.activeCount
+          );
+          activeCountEl.textContent = stats.activeCount;
+          updatedCount++;
+        }
+
+        console.log(
+          "✅ CASHIER: Stats actualizadas -",
+          updatedCount,
+          "campos cambiados"
+        );
+      }
+
+      function updateOrderStatsOld_unused(stats) {
+        let updatedCount = 0;
+
+        // OLD CODE - mantener por si acaso
+        const activeCountEl_old = document.querySelector(
+          '[th\\:text*="activeCount"]'
+        );
+        if (activeCountEl && stats.activeCount != null) {
+          activeCountEl.textContent = stats.activeCount;
+          updatedCount++;
+        }
+
+        if (updatedCount > 0) {
+          console.log("✅ Stats updated -", updatedCount, "fields changed");
+        }
+      }
+
+      // Connect on page load
+      window.addEventListener(
+        "DOMContentLoaded",
+        connectCashierOrdersWebSocket
+      );
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        console.log(
+          "👋 CASHIER: Página cerrándose, desconectando WebSocket..."
+        );
+        isIntentionalDisconnect = true;
+
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+        }
+        if (stompClient && stompClient.connected) {
+          stompClient.disconnect();
+        }
+      });
+
+      // Function to play payment success sound
+      function playPaymentSound() {
+        try {
+          const audio = new Audio("/sounds/payment.mp3");
+          audio.volume = 0.6;
+
+          console.log("🔊 Attempting to play payment sound...");
+
+          audio
+            .play()
+            .then(() => {
+              console.log("✅ Payment sound played successfully");
+            })
+            .catch((error) => {
+              console.warn(
+                "⚠️ Payment sound playback prevented:",
+                error.message
+              );
+            });
+
+          audio.onerror = function (e) {
+            console.error("❌ Payment audio file not found:", e);
+            console.log("📁 Make sure payment.mp3 exists in /static/sounds/");
+          };
+        } catch (e) {
+          console.error("❌ Error creating payment audio:", e);
+        }
+      }
     </script>
 
     <!-- Script del Sistema de Temas -->

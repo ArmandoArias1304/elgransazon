@@ -36,6 +36,7 @@ public class OrderServiceImpl implements OrderService {
     private final ItemMenuRepository itemMenuRepository;
     private final SystemConfigurationRepository systemConfigurationRepository;
     private final RestaurantTableService restaurantTableService;
+    private final WebSocketNotificationService wsNotificationService;
 
     @Override
     public Order create(Order order, List<OrderDetail> orderDetails) {
@@ -158,7 +159,14 @@ public class OrderServiceImpl implements OrderService {
                  savedOrder.getOrderType().getDisplayName(),
                  savedOrder.getTotal());
 
-        // 12. Auto-advance to READY if ALL items don't require preparation
+        // 12. Send WebSocket notification for new order
+        try {
+            wsNotificationService.notifyNewOrder(savedOrder);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket notification for new order: {}", savedOrder.getOrderNumber(), e);
+        }
+
+        // 13. Auto-advance to READY if ALL items don't require preparation
         autoAdvanceOrderIfNoPreparationNeeded(savedOrder);
 
         return savedOrder;
@@ -354,6 +362,16 @@ public class OrderServiceImpl implements OrderService {
         log.info("Order cancelled successfully: {} (was in {} status)", 
                  cancelledOrder.getOrderNumber(), currentStatus.getDisplayName());
         
+        // Send WebSocket notification for order cancellation
+        try {
+            String cancelMessage = String.format("Pedido cancelado: %s (anterior: %s)", 
+                cancelledOrder.getOrderNumber(), currentStatus.getDisplayName());
+            wsNotificationService.notifyOrderStatusChange(cancelledOrder, cancelMessage);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket notification for order cancellation: {}", 
+                cancelledOrder.getOrderNumber(), e);
+        }
+        
         return cancelledOrder;
     }
 
@@ -456,6 +474,15 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
         log.info("Order status changed: {} -> {}", oldStatus, newStatus);
 
+        // Send WebSocket notification for status change
+        try {
+            String statusMessage = String.format("Estado cambiado: %s → %s", 
+                oldStatus.getDisplayName(), newStatus.getDisplayName());
+            wsNotificationService.notifyOrderStatusChange(savedOrder, statusMessage);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket notification for status change: {}", savedOrder.getOrderNumber(), e);
+        }
+
         return savedOrder;
     }
 
@@ -534,6 +561,14 @@ public class OrderServiceImpl implements OrderService {
                  newItems.size(), 
                  savedOrder.getOrderNumber(),
                  savedOrder.getFormattedTotal());
+
+        // Send WebSocket notification for items added to existing order
+        try {
+            wsNotificationService.notifyItemsAdded(savedOrder, newItems.size());
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket notification for items added to order: {}", 
+                savedOrder.getOrderNumber(), e);
+        }
 
         return savedOrder;
     }

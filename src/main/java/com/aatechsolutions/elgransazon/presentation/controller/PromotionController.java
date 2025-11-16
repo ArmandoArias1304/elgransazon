@@ -102,7 +102,7 @@ public class PromotionController {
         // Group items by category for better UX
         Map<String, List<ItemMenu>> itemsByCategory = menuItems.stream()
             .collect(Collectors.groupingBy(item -> 
-                item.getCategory() != null ? item.getCategory().getName() : "Sin Categor�a"
+                item.getCategory() != null ? item.getCategory().getName() : "Sin Categoría"
             ));
 
         model.addAttribute("promotion", promotion);
@@ -131,7 +131,7 @@ public class PromotionController {
                 
                 Map<String, List<ItemMenu>> itemsByCategory = menuItems.stream()
                     .collect(Collectors.groupingBy(item -> 
-                        item.getCategory() != null ? item.getCategory().getName() : "Sin Categor�a"
+                        item.getCategory() != null ? item.getCategory().getName() : "Sin Categoría"
                     ));
 
                 // Get selected item IDs for pre-selecting in form
@@ -151,7 +151,7 @@ public class PromotionController {
                 return role + "/promotions/form";
             })
             .orElseGet(() -> {
-                redirectAttributes.addFlashAttribute("error", "Promoci�n no encontrada");
+                redirectAttributes.addFlashAttribute("error", "Promoción no encontrada");
                 return "redirect:/" + role + "/promotions";
             });
     }
@@ -173,12 +173,12 @@ public class PromotionController {
         if (daysOfWeek != null && !daysOfWeek.isEmpty()) {
             promotion.setValidDays(String.join(",", daysOfWeek));
         } else {
-            bindingResult.rejectValue("validDays", "error.promotion", "Debe seleccionar al menos un d�a de la semana");
+            bindingResult.rejectValue("validDays", "error.promotion", "Debe seleccionar al menos un día de la semana");
         }
 
         // Validate items
         if (itemIds == null || itemIds.isEmpty()) {
-            bindingResult.rejectValue("items", "error.promotion", "Debe seleccionar al menos un item del men�");
+            bindingResult.rejectValue("items", "error.promotion", "Debe seleccionar al menos un item del menú");
         }
 
         if (bindingResult.hasErrors()) {
@@ -197,7 +197,7 @@ public class PromotionController {
 
             promotionService.save(promotion);
             redirectAttributes.addFlashAttribute("success", 
-                "Promoci�n '" + promotion.getName() + "' creada exitosamente");
+                "Promoción '" + promotion.getName() + "' creada exitosamente");
             return "redirect:/" + role + "/promotions";
 
         } catch (IllegalArgumentException e) {
@@ -207,7 +207,7 @@ public class PromotionController {
             return role + "/promotions/form";
         } catch (Exception e) {
             log.error("Unexpected error creating promotion", e);
-            model.addAttribute("error", "Error inesperado al crear la promoci�n");
+            model.addAttribute("error", "Error inesperado al crear la promoción");
             loadFormData(model, promotion, role);
             return role + "/promotions/form";
         }
@@ -231,12 +231,12 @@ public class PromotionController {
         if (daysOfWeek != null && !daysOfWeek.isEmpty()) {
             promotion.setValidDays(String.join(",", daysOfWeek));
         } else {
-            bindingResult.rejectValue("validDays", "error.promotion", "Debe seleccionar al menos un d�a de la semana");
+            bindingResult.rejectValue("validDays", "error.promotion", "Debe seleccionar al menos un día de la semana");
         }
 
         // Validate items
         if (itemIds == null || itemIds.isEmpty()) {
-            bindingResult.rejectValue("items", "error.promotion", "Debe seleccionar al menos un item del men�");
+            bindingResult.rejectValue("items", "error.promotion", "Debe seleccionar al menos un item del menú");
         }
 
         if (bindingResult.hasErrors()) {
@@ -249,7 +249,7 @@ public class PromotionController {
         try {
             // Get existing promotion
             Promotion existing = promotionService.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Promoci�n no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("promoción no encontrada"));
 
             // Update fields
             existing.setName(promotion.getName());
@@ -276,7 +276,7 @@ public class PromotionController {
 
             promotionService.save(existing);
             redirectAttributes.addFlashAttribute("success", 
-                "Promoci�n '" + existing.getName() + "' actualizada exitosamente");
+                "promoción '" + existing.getName() + "' actualizada exitosamente");
             return "redirect:/" + role + "/promotions";
 
         } catch (IllegalArgumentException e) {
@@ -287,7 +287,7 @@ public class PromotionController {
             return role + "/promotions/form";
         } catch (Exception e) {
             log.error("Unexpected error updating promotion", e);
-            model.addAttribute("error", "Error inesperado al actualizar la promoci�n");
+            model.addAttribute("error", "Error inesperado al actualizar la promoción");
             model.addAttribute("formAction", "/admin/promotions/" + id);
             loadFormData(model, promotion, role);
             return role + "/promotions/form";
@@ -304,7 +304,7 @@ public class PromotionController {
         try {
             Promotion promotion = promotionService.activate(id);
             redirectAttributes.addFlashAttribute("success", 
-                "Promoci�n '" + promotion.getName() + "' activada exitosamente");
+                "promoción '" + promotion.getName() + "' activada exitosamente");
         } catch (Exception e) {
             log.error("Error activating promotion", e);
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -323,7 +323,7 @@ public class PromotionController {
         try {
             Promotion promotion = promotionService.deactivate(id);
             redirectAttributes.addFlashAttribute("success", 
-                "Promoci�n '" + promotion.getName() + "' desactivada exitosamente");
+                "promoción '" + promotion.getName() + "' desactivada exitosamente");
         } catch (Exception e) {
             log.error("Error deactivating promotion", e);
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -341,13 +341,13 @@ public class PromotionController {
 
         try {
             Promotion promotion = promotionService.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Promoci�n no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("promoción no encontrada"));
             
             String name = promotion.getName();
             promotionService.deleteById(id);
             
             redirectAttributes.addFlashAttribute("success", 
-                "Promoci�n '" + name + "' eliminada exitosamente");
+                "promoción '" + name + "' eliminada exitosamente");
         } catch (Exception e) {
             log.error("Error deleting promotion", e);
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -400,7 +400,7 @@ public class PromotionController {
 
         try {
             Promotion promotion = promotionService.findById(promotionId)
-                .orElseThrow(() -> new IllegalArgumentException("Promoci�n no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("promoción no encontrada"));
 
             BigDecimal discountedPrice = promotionService.calculateDiscountedPrice(originalPrice, promotion, quantity);
             BigDecimal savings = promotionService.calculateSavings(originalPrice, promotion, quantity);
@@ -474,7 +474,7 @@ public class PromotionController {
         
         Map<String, List<ItemMenu>> itemsByCategory = menuItems.stream()
             .collect(Collectors.groupingBy(item -> 
-                item.getCategory() != null ? item.getCategory().getName() : "Sin Categor�a"
+                item.getCategory() != null ? item.getCategory().getName() : "Sin Categoría"
             ));
 
         model.addAttribute("promotion", promotion);

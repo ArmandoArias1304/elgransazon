@@ -567,6 +567,148 @@
       }
     </script>
 
+    <!-- WebSocket for Real-time Updates -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+      let statsUpdateTimeout = null;
+      let pendingStatsUpdate = false;
+      const STATS_UPDATE_DELAY = 2000; // 2 seconds
+
+      function connectClientOrdersWebSocket() {
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            console.log("✅ Client Orders WebSocket Connected");
+
+            stompClient.subscribe(
+              "/topic/admin/kitchen",
+              function (notification) {
+                const message = JSON.parse(notification.body);
+                console.log(
+                  "📦 Notification:",
+                  message.type,
+                  "Order ID:",
+                  message.orderId
+                );
+                handleOrderUpdate(message);
+              }
+            );
+          },
+          function (error) {
+            console.error("❌ WebSocket Error:", error);
+            setTimeout(connectClientOrdersWebSocket, 5000);
+          }
+        );
+      }
+
+      function handleOrderUpdate(notification) {
+        const orderId = notification.orderId;
+        const newStatus = notification.newStatus;
+
+        // Update specific order row badge immediately
+        const orderRow = document.querySelector(
+          `tr[data-order-id="${orderId}"]`
+        );
+        if (orderRow && newStatus) {
+          const badge = orderRow.querySelector(".status-badge");
+          if (badge) {
+            updateStatusBadge(badge, newStatus);
+
+            // Flash animation
+            orderRow.classList.add("bg-primary/5");
+            setTimeout(() => {
+              orderRow.classList.remove("bg-primary/5");
+            }, 1500);
+          }
+        }
+
+        // Debounce stats update
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+        }
+
+        pendingStatsUpdate = true;
+
+        statsUpdateTimeout = setTimeout(() => {
+          if (pendingStatsUpdate) {
+            pendingStatsUpdate = false;
+            // Reload page to update stats (simpler for client view)
+            window.location.reload();
+          }
+        }, STATS_UPDATE_DELAY);
+      }
+
+      function updateStatusBadge(badge, status) {
+        // Remove all status classes
+        badge.className = "status-badge";
+
+        // Add new status class and text based on status
+        switch (status) {
+          case "PENDING":
+            badge.className =
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+            badge.innerHTML =
+              '<span class="material-symbols-outlined text-sm">schedule</span> Pendiente';
+            break;
+          case "IN_PREPARATION":
+            badge.className =
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+            badge.innerHTML =
+              '<span class="material-symbols-outlined text-sm">restaurant</span> En preparación';
+            break;
+          case "READY":
+            badge.className =
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+            badge.innerHTML =
+              '<span class="material-symbols-outlined text-sm">check_circle</span> Listo';
+            break;
+          case "ON_THE_WAY":
+            badge.className =
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+            badge.innerHTML =
+              '<span class="material-symbols-outlined text-sm">local_shipping</span> En camino';
+            break;
+          case "DELIVERED":
+            badge.className =
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+            badge.innerHTML =
+              '<span class="material-symbols-outlined text-sm">done_all</span> Entregado';
+            break;
+          case "PAID":
+            badge.className =
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-primary/20 text-primary dark:bg-primary/10 dark:text-primary";
+            badge.innerHTML =
+              '<span class="material-symbols-outlined text-sm">payments</span> Pagado';
+            break;
+          case "CANCELLED":
+            badge.className =
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+            badge.innerHTML =
+              '<span class="material-symbols-outlined text-sm">cancel</span> Cancelado';
+            break;
+        }
+      }
+
+      // Connect on page load
+      window.addEventListener("DOMContentLoaded", connectClientOrdersWebSocket);
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", function () {
+        if (statsUpdateTimeout) {
+          clearTimeout(statsUpdateTimeout);
+        }
+        if (stompClient) {
+          stompClient.disconnect();
+        }
+      });
+    </script>
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

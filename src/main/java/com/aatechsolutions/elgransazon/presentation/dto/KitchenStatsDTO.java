@@ -1,4 +1,4 @@
-package com.aatechsolutions.elgransazon.application.dto;
+package com.aatechsolutions.elgransazon.presentation.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

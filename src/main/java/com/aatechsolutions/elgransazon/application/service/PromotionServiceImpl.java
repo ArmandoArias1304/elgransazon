@@ -76,7 +76,15 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     public List<Promotion> findActivePromotions() {
         log.debug("Finding active promotions for today");
-        return promotionRepository.findActivePromotionsForDate(LocalDate.now());
+        LocalDate today = LocalDate.now();
+        
+        // Get promotions that are within date range and active
+        List<Promotion> promotions = promotionRepository.findActivePromotionsForDate(today);
+        
+        // Filter by valid day of week (validDays field)
+        return promotions.stream()
+            .filter(promotion -> promotion.isValidForDay(today.getDayOfWeek()))
+            .toList();
     }
 
     @Override
@@ -102,7 +110,15 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     public List<Promotion> findActivePromotionsByItemId(Long itemId) {
         log.debug("Finding active promotions for item ID: {}", itemId);
-        return promotionRepository.findActivePromotionsByItemId(itemId, LocalDate.now());
+        LocalDate today = LocalDate.now();
+        
+        // Get promotions for item that are within date range and active
+        List<Promotion> promotions = promotionRepository.findActivePromotionsByItemId(itemId, today);
+        
+        // Filter by valid day of week (validDays field)
+        return promotions.stream()
+            .filter(promotion -> promotion.isValidForDay(today.getDayOfWeek()))
+            .toList();
     }
 
     @Override
@@ -132,6 +148,12 @@ public class PromotionServiceImpl implements PromotionService {
     public BigDecimal calculateDiscountedPrice(BigDecimal originalPrice, Promotion promotion, int quantity) {
         if (promotion == null || originalPrice == null || quantity <= 0) {
             return originalPrice != null ? originalPrice.multiply(BigDecimal.valueOf(quantity)) : BigDecimal.ZERO;
+        }
+        
+        // CRITICAL: Validate promotion is valid NOW (date range + day of week)
+        if (!promotion.isValidNow()) {
+            log.warn("Attempted to apply invalid promotion: {} (not valid for today)", promotion.getName());
+            return originalPrice.multiply(BigDecimal.valueOf(quantity)); // Return full price without discount
         }
         
         return promotion.calculateDiscountedPrice(originalPrice, quantity);

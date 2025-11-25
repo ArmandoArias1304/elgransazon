@@ -1,4 +1,4 @@
-package com.aatechsolutions.elgransazon.application.dto;
+package com.aatechsolutions.elgransazon.presentation.dto;
 
 import com.aatechsolutions.elgransazon.domain.entity.OrderStatus;
 import com.aatechsolutions.elgransazon.domain.entity.OrderType;

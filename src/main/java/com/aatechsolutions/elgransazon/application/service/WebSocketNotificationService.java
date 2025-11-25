@@ -1,8 +1,9 @@
 package com.aatechsolutions.elgransazon.application.service;
 
-import com.aatechsolutions.elgransazon.application.dto.KitchenStatsDTO;
-import com.aatechsolutions.elgransazon.application.dto.OrderNotificationDTO;
 import com.aatechsolutions.elgransazon.domain.entity.Order;
+import com.aatechsolutions.elgransazon.presentation.dto.KitchenStatsDTO;
+import com.aatechsolutions.elgransazon.presentation.dto.OrderNotificationDTO;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

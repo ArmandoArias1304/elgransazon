@@ -469,7 +469,60 @@
           return false;
         }
 
+        // Validate date range
+        const startDate = document.getElementById("startDate").value;
+        const endDate = document.getElementById("endDate").value;
+
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+          alert("La fecha de inicio no puede ser posterior a la fecha de fin");
+          return false;
+        }
+
+        // Show warning if promotion is not valid today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const dayOfWeek = [
+          "SUNDAY",
+          "MONDAY",
+          "TUESDAY",
+          "WEDNESDAY",
+          "THURSDAY",
+          "FRIDAY",
+          "SATURDAY",
+        ][today.getDay()];
+
+        const withinDateRange = start <= today && end >= today;
+        const validForToday = selectedDays.includes(dayOfWeek);
+
+        if (withinDateRange && !validForToday) {
+          const confirmation = confirm(
+            "⚠️ ADVERTENCIA: Esta promoción está dentro del rango de fechas pero HOY (" +
+              getDayName(dayOfWeek) +
+              ") NO está en los días válidos.\n\n" +
+              "La promoción NO se aplicará hasta: " +
+              selectedDays.map((d) => getDayName(d)).join(", ") +
+              ".\n\n" +
+              "¿Desea continuar?"
+          );
+          return confirmation;
+        }
+
         return true;
+      }
+
+      function getDayName(day) {
+        const names = {
+          MONDAY: "Lunes",
+          TUESDAY: "Martes",
+          WEDNESDAY: "Miércoles",
+          THURSDAY: "Jueves",
+          FRIDAY: "Viernes",
+          SATURDAY: "Sábado",
+          SUNDAY: "Domingo",
+        };
+        return names[day] || day;
       }
 
       // Initialize on page load

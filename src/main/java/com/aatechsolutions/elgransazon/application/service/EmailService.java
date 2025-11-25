@@ -27,14 +27,44 @@ public class EmailService {
     @Value("${mail.from.name}")
     private String fromName;
 
+    @Value("${app.protocol}")
+    private String appProtocol;
+
+    @Value("${app.domain}")
+    private String appDomain;
+
+    @Value("${app.port}")
+    private String appPort;
+
+    /**
+     * Build base URL from environment variables
+     * Examples:
+     * - Development: http://localhost:8080
+     * - Production: https://midominio.com (without port)
+     * - Production with port: https://midominio.com:443
+     */
+    private String getBaseUrl() {
+        StringBuilder baseUrl = new StringBuilder();
+        baseUrl.append(appProtocol).append("://").append(appDomain);
+        
+        // Only add port if it's not empty and not the default ports (80 for http, 443 for https)
+        if (appPort != null && !appPort.isEmpty() 
+            && !("http".equals(appProtocol) && "80".equals(appPort))
+            && !("https".equals(appProtocol) && "443".equals(appPort))) {
+            baseUrl.append(":").append(appPort);
+        }
+        
+        return baseUrl.toString();
+    }
+
     /**
      * Send password reset email
      */
     public void sendPasswordResetEmail(String toEmail, String token) {
         log.info("Sending password reset email to: {}", toEmail);
         
-        // Build reset URL (adjust according to your deployment)
-        String resetUrl = "http://localhost:8080/client/reset-password?token=" + token;
+        // Build reset URL dynamically from environment variables
+        String resetUrl = getBaseUrl() + "/client/reset-password?token=" + token;
 
         Email from = new Email(fromEmail, fromName);
         Email to = new Email(toEmail);
@@ -52,8 +82,8 @@ public class EmailService {
     public void sendEmailVerification(String toEmail, String token) {
         log.info("Sending email verification to: {}", toEmail);
         
-        // Build verification URL
-        String verificationUrl = "http://localhost:8080/client/verify-email?token=" + token;
+        // Build verification URL dynamically from environment variables
+        String verificationUrl = getBaseUrl() + "/client/verify-email?token=" + token;
 
         Email from = new Email(fromEmail, fromName);
         Email to = new Email(toEmail);

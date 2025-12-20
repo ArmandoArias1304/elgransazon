@@ -2,6 +2,7 @@ package com.aatechsolutions.elgransazon.application.service;
 
 import com.aatechsolutions.elgransazon.domain.entity.Customer;
 import com.aatechsolutions.elgransazon.domain.repository.CustomerRepository;
+import com.aatechsolutions.elgransazon.domain.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +22,7 @@ import java.util.Optional;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -145,6 +147,12 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public boolean existsByPhone(String phone) {
         return customerRepository.existsByPhone(phone);
+    }
+    
+    @Override
+    public boolean usernameExistsInEmployees(String username) {
+        log.debug("Checking if username exists in employees table: {}", username);
+        return employeeRepository.existsByUsername(username);
     }
 
     @Override

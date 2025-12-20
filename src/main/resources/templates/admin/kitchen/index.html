@@ -627,10 +627,8 @@
         // Play notification sound
         playNotificationSound();
 
-        // Reload page to show updates
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Don't reload - WebSocket updates are sufficient
+        // Updates will be reflected on next navigation or manual refresh
       }
 
       function updateKitchenStats(stats) {

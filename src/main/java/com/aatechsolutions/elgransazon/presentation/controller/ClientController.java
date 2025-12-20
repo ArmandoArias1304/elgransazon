@@ -39,6 +39,7 @@ public class ClientController {
     private final PromotionService promotionService;
     private final ReviewService reviewService;
     private final PasswordEncoder passwordEncoder;
+    private final TicketPdfService ticketPdfService;
 
     public ClientController(
             @Qualifier("customerOrderService") OrderService orderService,
@@ -48,7 +49,8 @@ public class ClientController {
             CustomerService customerService,
             PromotionService promotionService,
             ReviewService reviewService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            TicketPdfService ticketPdfService) {
         this.orderService = orderService;
         this.itemMenuService = itemMenuService;
         this.categoryService = categoryService;
@@ -57,6 +59,7 @@ public class ClientController {
         this.promotionService = promotionService;
         this.reviewService = reviewService;
         this.passwordEncoder = passwordEncoder;
+        this.ticketPdfService = ticketPdfService;
     }
 
     /**
@@ -405,6 +408,7 @@ public class ClientController {
 
             // Set model attributes - similar to new order but with existing order context
             model.addAttribute("orderType", order.getOrderType());
+            model.addAttribute("paymentMethod", order.getPaymentMethod());
             model.addAttribute("customerName", order.getCustomerName());
             model.addAttribute("customerPhone", order.getCustomerPhone());
             model.addAttribute("deliveryAddress", order.getDeliveryAddress());
@@ -778,12 +782,23 @@ public class ClientController {
             Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
                     .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
             
+            // Check if customer has at least one PAID order
+            List<Order> customerOrders = orderService.findAll();
+            boolean hasPaidOrder = customerOrders.stream()
+                    .anyMatch(order -> order.getStatus() == OrderStatus.PAID);
+            
+            if (!hasPaidOrder) {
+                model.addAttribute("noPurchase", true);
+                return "client/review";
+            }
+            
             // Check if customer already has a review
             Optional<Review> existingReview = reviewService.getReviewByCustomer(customer);
             
             model.addAttribute("customer", customer);
             model.addAttribute("existingReview", existingReview.orElse(null));
             model.addAttribute("hasReview", existingReview.isPresent());
+            model.addAttribute("noPurchase", false);
             
             return "client/review";
             
@@ -810,6 +825,17 @@ public class ClientController {
             Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
                     .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
             
+            // Verify customer has at least one PAID order
+            List<Order> customerOrders = orderService.findAll();
+            boolean hasPaidOrder = customerOrders.stream()
+                    .anyMatch(order -> order.getStatus() == OrderStatus.PAID);
+            
+            if (!hasPaidOrder) {
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                        "Debes realizar al menos una compra antes de dejar una reseña");
+                return "redirect:/client/review";
+            }
+            
             // Validate input
             if (rating == null || rating < 1 || rating > 5) {
                 redirectAttributes.addFlashAttribute("errorMessage", "La calificación debe estar entre 1 y 5 estrellas");
@@ -830,14 +856,65 @@ public class ClientController {
             reviewService.createOrUpdateReview(customer, rating, comment.trim());
             
             redirectAttributes.addFlashAttribute("successMessage", 
-                    "¡Gracias por tu reseña! Está pendiente de aprobación y aparecerá en la página pronto.");
+                    "Su reseña se ha enviado correctamente. ¡Gracias!");
             
-            return "redirect:/client/dashboard";
+            return "redirect:/client/review";
             
         } catch (Exception e) {
             log.error("Error submitting review", e);
             redirectAttributes.addFlashAttribute("errorMessage", "Error al enviar reseña: " + e.getMessage());
             return "redirect:/client/review";
+        }
+    }
+
+    /**
+     * Download PDF ticket for paid order
+     * GET /client/orders/{orderId}/download-ticket
+     */
+    @GetMapping("/orders/{orderId}/download-ticket")
+    public ResponseEntity<byte[]> downloadTicket(
+            @PathVariable Long orderId,
+            Authentication authentication) {
+        
+        log.info("Customer {} downloading ticket for order {}", authentication.getName(), orderId);
+        
+        try {
+            // Find the order
+            Order order = orderService.findByIdWithDetails(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+            
+            // Validate that order belongs to the customer
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            if (!order.getCustomer().getIdCustomer().equals(customer.getIdCustomer())) {
+                log.warn("Customer {} attempted to download ticket for order {} that doesn't belong to them", 
+                         authentication.getName(), orderId);
+                return ResponseEntity.status(403).build();
+            }
+            
+            // Validate that order is PAID
+            if (order.getStatus() != OrderStatus.PAID) {
+                log.warn("Attempted to download ticket for unpaid order: {}", order.getOrderNumber());
+                return ResponseEntity.badRequest().build();
+            }
+            
+            // Generate PDF ticket
+            byte[] pdfBytes = ticketPdfService.generateTicket(order);
+            
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "ticket_" + order.getOrderNumber() + ".pdf");
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+            
+            return new ResponseEntity<>(pdfBytes, headers, org.springframework.http.HttpStatus.OK);
+            
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            log.error("Error downloading ticket: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Error generating ticket PDF for order ID: " + orderId, e);
+            return ResponseEntity.status(500).build();
         }
     }
 

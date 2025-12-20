@@ -428,24 +428,38 @@
                 id="ingredientTemplate"
                 class="ingredient-row hidden grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
               >
-                <div class="md:col-span-5">
+                <div class="md:col-span-5 relative">
                   <label class="block text-xs font-medium text-gray-700 mb-1"
                     >Ingrediente</label
                   >
-                  <select
+                  <!-- Hidden input for ingredient ID -->
+                  <input
+                    type="hidden"
                     name="ingredientIds"
-                    onchange="loadIngredientUnit(this)"
-                    class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option
-                      th:each="ing : ${ingredients}"
-                      th:value="${ing.idIngredient}"
-                      th:text="${ing.name + ' (Stock: ' + ing.currentStock + ' ' + ing.unitOfMeasure + ')'}"
+                    class="ingredient-id-input"
+                  />
+
+                  <!-- Search input -->
+                  <div class="relative">
+                    <input
+                      type="text"
+                      class="ingredient-search w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                      placeholder="Buscar ingrediente..."
+                      autocomplete="off"
+                    />
+                    <span
+                      class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
                     >
-                      Ingrediente
-                    </option>
-                  </select>
+                      search
+                    </span>
+                  </div>
+
+                  <!-- Dropdown results -->
+                  <div
+                    class="ingredient-dropdown hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                  >
+                    <!-- Results will be inserted here dynamically -->
+                  </div>
                 </div>
 
                 <div class="md:col-span-3">
@@ -516,8 +530,111 @@
       </div>
     </div>
 
-    <script>
-      // ========== Cargar Unidad de Medida al seleccionar Ingrediente ==========
+    <script th:inline="javascript">
+      // ========== Datos de Ingredientes ==========
+      /*<![CDATA[*/
+      const allIngredients = /*[[${ingredientsDTO}]]*/ [];
+      /*]]*/
+
+      // ========== Búsqueda en Tiempo Real de Ingredientes ==========
+      function setupIngredientSearch(row) {
+        const searchInput = row.querySelector(".ingredient-search");
+        const hiddenInput = row.querySelector(".ingredient-id-input");
+        const dropdown = row.querySelector(".ingredient-dropdown");
+        const unitInput = row.querySelector('input[name="units"]');
+
+        let searchTimeout;
+
+        // Evento de búsqueda
+        searchInput.addEventListener("input", function () {
+          clearTimeout(searchTimeout);
+          const query = this.value.trim().toLowerCase();
+
+          if (query.length === 0) {
+            dropdown.classList.add("hidden");
+            return;
+          }
+
+          searchTimeout = setTimeout(() => {
+            // Filtrar ingredientes
+            const filtered = allIngredients.filter(
+              (ing) =>
+                ing.name.toLowerCase().includes(query) ||
+                ing.category?.name?.toLowerCase().includes(query)
+            );
+
+            // Mostrar resultados
+            if (filtered.length > 0) {
+              dropdown.innerHTML = filtered
+                .map(
+                  (ing) => `
+                <div class="ingredient-option px-3 py-2 hover:bg-primary/10 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-b-0"
+                     data-id="${ing.idIngredient}"
+                     data-name="${ing.name}"
+                     data-unit="${ing.unitOfMeasure}"
+                     data-stock="${ing.currentStock}">
+                  <div>
+                    <div class="font-medium text-gray-900 text-sm">${ing.name}</div>
+                    <div class="text-xs text-gray-500">Stock: ${ing.currentStock} ${ing.unitOfMeasure}</div>
+                  </div>
+                  <span class="material-symbols-outlined text-primary text-sm">add_circle</span>
+                </div>
+              `
+                )
+                .join("");
+
+              dropdown.classList.remove("hidden");
+
+              // Agregar eventos de clic a las opciones
+              dropdown
+                .querySelectorAll(".ingredient-option")
+                .forEach((option) => {
+                  option.addEventListener("click", function () {
+                    const id = this.dataset.id;
+                    const name = this.dataset.name;
+                    const unit = this.dataset.unit;
+
+                    // Establecer valores
+                    hiddenInput.value = id;
+                    searchInput.value = name;
+                    unitInput.value = unit;
+
+                    // Marcar como requerido
+                    hiddenInput.setAttribute("required", "required");
+
+                    // Ocultar dropdown
+                    dropdown.classList.add("hidden");
+                  });
+                });
+            } else {
+              dropdown.innerHTML = `
+                <div class="px-3 py-4 text-center text-gray-500 text-sm">
+                  <span class="material-symbols-outlined text-gray-400 block mb-1">search_off</span>
+                  No se encontraron ingredientes
+                </div>
+              `;
+              dropdown.classList.remove("hidden");
+            }
+          }, 300);
+        });
+
+        // Cerrar dropdown al hacer clic fuera
+        document.addEventListener("click", function (e) {
+          if (!row.contains(e.target)) {
+            dropdown.classList.add("hidden");
+          }
+        });
+
+        // Focus en búsqueda abre dropdown si hay resultados
+        searchInput.addEventListener("focus", function () {
+          if (this.value.trim().length > 0) {
+            const event = new Event("input");
+            this.dispatchEvent(event);
+          }
+        });
+      }
+
+      // ========== Cargar Unidad de Medida al seleccionar Ingrediente (LEGACY - para ingredientes existentes) ==========
       function loadIngredientUnit(selectElement) {
         const ingredientId = selectElement.value;
         const row = selectElement.closest(".ingredient-row");
@@ -564,18 +681,16 @@
         newRow.id = "";
         newRow.classList.remove("hidden");
 
+        // Configurar búsqueda de ingredientes para la nueva fila
+        setupIngredientSearch(newRow);
+
         // Agregar atributo required a los campos clonados
-        const ingredientSelect = newRow.querySelector(
-          'select[name="ingredientIds"]'
-        );
+        const hiddenInput = newRow.querySelector(".ingredient-id-input");
         const quantityInput = newRow.querySelector('input[name="quantities"]');
         const unitInput = newRow.querySelector('input[name="units"]');
 
-        if (ingredientSelect) {
-          ingredientSelect.setAttribute("required", "required");
-          ingredientSelect.addEventListener("change", function () {
-            loadIngredientUnit(this);
-          });
+        if (hiddenInput) {
+          hiddenInput.setAttribute("required", "required");
         }
 
         if (quantityInput) {

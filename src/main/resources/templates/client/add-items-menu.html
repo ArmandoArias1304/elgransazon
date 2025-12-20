@@ -356,7 +356,7 @@
           <div
             class="sticky top-0 z-20 border-b border-slate-200/80 px-4 py-3 dark:border-slate-800/80 bg-gradient-to-br from-primary/5 to-primary-dark/5 backdrop-blur-sm"
           >
-            <div class="flex items-center gap-2 mb-0.5">
+            <div class="flex items-center gap-2 mb-2">
               <span class="material-symbols-outlined text-primary text-xl"
                 >receipt_long</span
               >
@@ -370,14 +370,32 @@
                 0
               </span>
             </div>
-            <p
-              class="text-xs font-medium text-text-light-secondary dark:text-text-dark-secondary"
-            >
-              <span th:text="${orderType.displayName}">Tipo de Pedido</span>
-              <span th:if="${selectedTable != null}">
-                - Mesa #<span th:text="${selectedTable.tableNumber}">1</span>
-              </span>
-            </p>
+            <!-- Order Info Badges (Read-only) -->
+            <div class="flex flex-wrap gap-2">
+              <!-- Order Type Badge -->
+              <div
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold"
+                th:classappend="${orderType.name() == 'TAKEOUT'} ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style="font-size: 16px"
+                  th:text="${orderType.name() == 'TAKEOUT'} ? 'shopping_bag' : 'delivery_dining'"
+                >
+                  shopping_bag
+                </span>
+                <span th:text="${orderType.displayName}">Para Llevar</span>
+              </div>
+              <!-- Payment Method Badge -->
+              <div
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300"
+              >
+                <span class="material-symbols-outlined" style="font-size: 16px">
+                  payments
+                </span>
+                <span th:text="${paymentMethod.displayName}">Efectivo</span>
+              </div>
+            </div>
           </div>
 
           <!-- Order Items - Scrolleable -->
@@ -437,66 +455,6 @@
               >
                 <span class="text-gray-900 dark:text-white">Total</span>
                 <span id="cartTotal" class="text-primary text-2xl">$0.00</span>
-              </div>
-
-              <!-- Order Type Selector -->
-              <div class="pt-2">
-                <label
-                  for="orderTypeSelector"
-                  class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5"
-                >
-                  Tipo de Pedido
-                </label>
-                <select
-                  id="orderTypeSelector"
-                  class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  onchange="updateOrderType(this.value)"
-                >
-                  <option
-                    th:each="type : ${orderTypes}"
-                    th:value="${type.name()}"
-                    th:text="${type.displayName}"
-                    th:selected="${type == orderType}"
-                  ></option>
-                </select>
-              </div>
-
-              <!-- Delivery References (shown only for DELIVERY orders) -->
-              <div id="deliveryReferencesContainer" class="pt-2 hidden">
-                <label
-                  for="deliveryReferences"
-                  class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5"
-                >
-                  Referencias de Entrega
-                  <span class="text-gray-500 font-normal">(Opcional)</span>
-                </label>
-                <textarea
-                  id="deliveryReferences"
-                  rows="2"
-                  class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
-                  placeholder="Ej: Casa de dos pisos, portón azul, frente al parque..."
-                ></textarea>
-              </div>
-
-              <!-- Payment Method Selector -->
-              <div class="pt-2">
-                <label
-                  for="paymentMethod"
-                  class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5"
-                >
-                  Método de Pago
-                </label>
-                <select
-                  id="paymentMethod"
-                  class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                >
-                  <option
-                    th:each="method : ${enabledPaymentMethods}"
-                    th:value="${method.name()}"
-                    th:text="${method.icon + ' ' + method.displayName}"
-                    th:selected="${methodStat.first}"
-                  ></option>
-                </select>
               </div>
 
               <!-- Action Buttons -->
@@ -646,24 +604,6 @@
       // Cart state
       let cart = [];
       let currentItem = null;
-
-      // Update order type
-      function updateOrderType(newType) {
-        orderData.orderType = newType;
-        console.log("Order type updated to:", newType);
-
-        // Show/hide delivery references field based on order type
-        const deliveryReferencesContainer = document.getElementById(
-          "deliveryReferencesContainer"
-        );
-        if (newType === "DELIVERY") {
-          deliveryReferencesContainer.classList.remove("hidden");
-        } else {
-          deliveryReferencesContainer.classList.add("hidden");
-          // Clear the field when hiding it
-          document.getElementById("deliveryReferences").value = "";
-        }
-      }
 
       // Scroll to category with smooth animation
       function scrollToCategory(button) {
@@ -1427,9 +1367,8 @@
         console.log("Cart:", cart);
         console.log("Order Data:", orderData);
 
-        // Prepare order data for AJAX
-        const paymentMethod =
-          document.getElementById("paymentMethod")?.value || "CASH";
+        // Payment method is already set in orderData from server (cannot be changed)
+        const paymentMethod = /*[[${paymentMethod.name()}]]*/ "CASH";
         console.log("Payment Method:", paymentMethod);
 
         // Prepare items array
@@ -1441,18 +1380,11 @@
           promotionId: item.appliedPromotionId || null,
         }));
 
-        // Get delivery references if DELIVERY order type
-        const deliveryReferences =
-          orderData.orderType === "DELIVERY"
-            ? document.getElementById("deliveryReferences")?.value || ""
-            : null;
-
         // Prepare request body
         const requestData = {
           ...orderData,
           paymentMethod: paymentMethod,
           items: items,
-          deliveryReferences: deliveryReferences,
         };
 
         console.log("Request Data:", requestData);

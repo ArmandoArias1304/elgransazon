@@ -14,6 +14,11 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
+
+    <!-- Sistema de Temas (Modo Claro/Oscuro) -->
+    <div th:replace="~{fragments/theme :: themeResources}"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
       tailwind.config = {
@@ -41,6 +46,9 @@
         color: #d1d5db;
         transition: all 0.2s ease;
       }
+      .dark .star {
+        color: #4b5563;
+      }
       .star:hover,
       .star.active {
         color: #fbbf24;
@@ -52,7 +60,7 @@
     </style>
   </head>
   <body
-    class="bg-gradient-to-br from-gray-50 to-gray-100 font-display min-h-screen"
+    class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 font-display min-h-screen"
   >
     <!-- NAVIGATION BAR -->
     <nav class="bg-gradient-to-r from-primary to-primary-dark shadow-lg">
@@ -93,7 +101,7 @@
       <!-- Error Message -->
       <div
         th:if="${errorMessage}"
-        class="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-800 flex items-center gap-3"
+        class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl text-red-800 dark:text-red-300 flex items-center gap-3"
       >
         <span class="material-symbols-outlined">error</span>
         <span th:text="${errorMessage}">Error message</span>
@@ -102,14 +110,57 @@
       <!-- Success Message -->
       <div
         th:if="${successMessage}"
-        class="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-xl text-green-800 flex items-center gap-3"
+        class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl text-green-800 dark:text-green-300 flex items-center gap-3"
       >
         <span class="material-symbols-outlined">check_circle</span>
         <span th:text="${successMessage}">Success message</span>
       </div>
 
+      <!-- No Purchase Warning -->
+      <div
+        th:if="${noPurchase}"
+        class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-200 dark:border-gray-800"
+      >
+        <div class="text-center">
+          <div
+            class="w-24 h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-2xl"
+          >
+            <span class="material-symbols-outlined text-white text-5xl"
+              >shopping_cart</span
+            >
+          </div>
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+            ¡Realiza tu primera compra!
+          </h2>
+          <p class="text-gray-600 dark:text-gray-400 mb-8 text-lg">
+            Para dejar una reseña, primero necesitas realizar al menos una
+            compra en nuestro restaurante. ¡Descubre nuestro delicioso menú!
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/client/menu"
+              class="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-primary to-primary-dark text-white font-bold rounded-xl hover:shadow-xl hover:scale-105 transition-all"
+            >
+              <span class="material-symbols-outlined">restaurant_menu</span>
+              Ver Menú
+            </a>
+            <a
+              href="/client/dashboard"
+              class="inline-flex items-center justify-center gap-2 px-8 py-4 border-2 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+            >
+              <span class="material-symbols-outlined">home</span>
+              Volver al Inicio
+            </a>
+          </div>
+        </div>
+      </div>
+
       <!-- Review Form Card -->
-      <div class="bg-white rounded-3xl shadow-xl p-8 sm:p-12">
+      <div
+        th:unless="${noPurchase}"
+        <div
+        class="bg-white dark:bg-gray-900 rounded-3xl shadow-xl p-8 sm:p-12 border border-gray-200 dark:border-gray-800"
+      >
         <!-- Header -->
         <div class="text-center mb-8">
           <div
@@ -119,11 +170,11 @@
               >rate_review</span
             >
           </div>
-          <h2 class="text-3xl font-bold text-gray-900 mb-2">
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             <span th:if="${hasReview}">Editar mi Reseña</span>
             <span th:unless="${hasReview}">Dejar una Reseña</span>
           </h2>
-          <p class="text-gray-600">
+          <p class="text-gray-600 dark:text-gray-400">
             <span th:if="${hasReview}"
               >Actualiza tu opinión sobre nuestro servicio</span
             >
@@ -133,55 +184,23 @@
           </p>
         </div>
 
-        <!-- Current Review Status (if exists) -->
+        <!-- Generic Review Status (if exists) -->
         <div
           th:if="${existingReview}"
-          class="mb-6 p-4 rounded-xl border-2"
-          th:classappend="${existingReview.status.name() == 'APPROVED'} ? 'bg-green-50 border-green-200' : 
-                           (${existingReview.status.name() == 'REJECTED'} ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200')"
+          class="mb-6 p-4 rounded-xl border-2 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
         >
           <div class="flex items-center gap-3">
             <span
-              class="material-symbols-outlined"
-              th:classappend="${existingReview.status.name() == 'APPROVED'} ? 'text-green-600' : 
-                                (${existingReview.status.name() == 'REJECTED'} ? 'text-red-600' : 'text-yellow-600')"
+              class="material-symbols-outlined text-blue-600 dark:text-blue-400"
             >
-              <span th:if="${existingReview.status.name() == 'APPROVED'}"
-                >check_circle</span
-              >
-              <span th:if="${existingReview.status.name() == 'REJECTED'}"
-                >cancel</span
-              >
-              <span th:if="${existingReview.status.name() == 'PENDING'}"
-                >schedule</span
-              >
+              info
             </span>
             <div>
-              <p
-                class="font-semibold"
-                th:classappend="${existingReview.status.name() == 'APPROVED'} ? 'text-green-800' : 
-                               (${existingReview.status.name() == 'REJECTED'} ? 'text-red-800' : 'text-yellow-800')"
-              >
-                Estado:
-                <span th:text="${existingReview.status.displayName}"
-                  >Estado</span
-                >
+              <p class="font-semibold text-blue-800 dark:text-blue-300">
+                Su reseña se ha enviado correctamente
               </p>
-              <p
-                class="text-sm"
-                th:classappend="${existingReview.status.name() == 'APPROVED'} ? 'text-green-600' : 
-                               (${existingReview.status.name() == 'REJECTED'} ? 'text-red-600' : 'text-yellow-600')"
-              >
-                <span th:if="${existingReview.status.name() == 'APPROVED'}"
-                  >Tu reseña está visible en la página principal</span
-                >
-                <span th:if="${existingReview.status.name() == 'REJECTED'}"
-                  >Tu reseña no fue aprobada. Puedes editarla y volver a
-                  enviarla.</span
-                >
-                <span th:if="${existingReview.status.name() == 'PENDING'}"
-                  >Tu reseña está siendo revisada</span
-                >
+              <p class="text-sm text-blue-600 dark:text-blue-400">
+                ¡Gracias por compartir su opinión con nosotros!
               </p>
             </div>
           </div>
@@ -191,7 +210,9 @@
         <form method="POST" action="/client/review" class="space-y-6">
           <!-- Rating -->
           <div>
-            <label class="block text-gray-700 font-semibold mb-3 text-lg">
+            <label
+              class="block text-gray-700 dark:text-gray-300 font-semibold mb-3 text-lg"
+            >
               Calificación <span class="text-red-500">*</span>
             </label>
             <div class="flex justify-center">
@@ -210,14 +231,19 @@
               th:value="${existingReview != null ? existingReview.rating : 0}"
               required
             />
-            <p class="text-center text-gray-500 text-sm mt-2">
+            <p
+              class="text-center text-gray-500 dark:text-gray-400 text-sm mt-2"
+            >
               Haz clic en las estrellas para calificar
             </p>
           </div>
 
           <!-- Comment -->
           <div>
-            <label for="comment" class="block text-gray-700 font-semibold mb-2">
+            <label
+              for="comment"
+              class="block text-gray-700 dark:text-gray-300 font-semibold mb-2"
+            >
               Tu Comentario <span class="text-red-500">*</span>
             </label>
             <textarea
@@ -227,11 +253,13 @@
               maxlength="500"
               required
               minlength="10"
-              class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+              class="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
               placeholder="Cuéntanos sobre tu experiencia... (mínimo 10 caracteres)"
               th:text="${existingReview != null ? existingReview.comment : ''}"
             ></textarea>
-            <div class="flex justify-between text-sm text-gray-500 mt-1">
+            <div
+              class="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-1"
+            >
               <span>Mínimo 10 caracteres</span>
               <span id="charCount">0 / 500</span>
             </div>
@@ -249,7 +277,7 @@
             </button>
             <a
               href="/client/dashboard"
-              class="px-6 py-4 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+              class="px-6 py-4 border-2 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
             >
               <span class="material-symbols-outlined">close</span>
               <span class="hidden sm:inline">Cancelar</span>
@@ -257,6 +285,7 @@
           </div>
         </form>
       </div>
+      <!-- End Review Form Card -->
     </div>
 
     <script>
@@ -325,16 +354,31 @@
       document.querySelector("form").addEventListener("submit", function (e) {
         if (currentRating === 0) {
           e.preventDefault();
-          alert("Por favor selecciona una calificación");
+          Swal.fire({
+            icon: "warning",
+            title: "Calificación requerida",
+            text: "Por favor selecciona una calificación con las estrellas",
+            confirmButtonText: "Entendido",
+            confirmButtonColor: "#38e07b",
+          });
           return false;
         }
 
         if (textarea.value.trim().length < 10) {
           e.preventDefault();
-          alert("El comentario debe tener al menos 10 caracteres");
+          Swal.fire({
+            icon: "warning",
+            title: "Comentario muy corto",
+            text: "El comentario debe tener al menos 10 caracteres",
+            confirmButtonText: "Entendido",
+            confirmButtonColor: "#38e07b",
+          });
           return false;
         }
       });
     </script>
+
+    <!-- Script del Sistema de Temas -->
+    <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>
 </html>

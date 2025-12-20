@@ -132,6 +132,9 @@ public class ChefController {
                  workingOrders.stream().filter(o -> o.getStatus() == OrderStatus.PENDING).count(),
                  workingOrders.stream().filter(o -> o.getStatus() == OrderStatus.IN_PREPARATION).count());
         
+        // Sort order details by status for each order
+        workingOrders.forEach(this::sortOrderDetailsByStatus);
+        
         // Contar por estados
         long pendingCount = workingOrders.stream()
             .filter(o -> o.getStatus() == OrderStatus.PENDING)
@@ -177,6 +180,9 @@ public class ChefController {
             .toList();
         
         log.info("Found {} completed orders prepared by chef {}", completedOrders.size(), username);
+        
+        // Sort order details by status for each order
+        completedOrders.forEach(this::sortOrderDetailsByStatus);
         
         // Contar por estados
         long readyCount = completedOrders.stream()
@@ -456,6 +462,48 @@ public class ChefController {
             log.error("Error loading ranking: {}", e.getMessage());
             redirectAttributes.addFlashAttribute("errorMessage", "Error al cargar el ranking");
             return "redirect:/chef/dashboard";
+        }
+    }
+
+    /**
+     * Sort order details by item status priority
+     * Priority order: NEW items first, then PENDING, IN_PREPARATION, READY, DELIVERED
+     * 
+     * @param order The order whose details need to be sorted
+     */
+    private void sortOrderDetailsByStatus(Order order) {
+        if (order.getOrderDetails() != null && !order.getOrderDetails().isEmpty()) {
+            order.getOrderDetails().sort((d1, d2) -> {
+                // Priority 1: NEW items first (isNewItem = true)
+                int newItemCompare = Boolean.compare(
+                    d2.getIsNewItem() != null && d2.getIsNewItem(),
+                    d1.getIsNewItem() != null && d1.getIsNewItem()
+                );
+                if (newItemCompare != 0) return newItemCompare;
+                
+                // Priority 2: By item status
+                int priority1 = getItemStatusPriority(d1.getItemStatus());
+                int priority2 = getItemStatusPriority(d2.getItemStatus());
+                return Integer.compare(priority1, priority2);
+            });
+        }
+    }
+
+    /**
+     * Get priority for item status sorting
+     * Lower number = higher priority (appears first)
+     */
+    private int getItemStatusPriority(OrderStatus status) {
+        if (status == null) return 0;
+        
+        switch (status) {
+            case PENDING: return 1;
+            case IN_PREPARATION: return 2;
+            case READY: return 3;
+            case DELIVERED: return 4;
+            case PAID: return 5;
+            case CANCELLED: return 6;
+            default: return 99;
         }
     }
 }

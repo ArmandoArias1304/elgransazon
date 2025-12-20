@@ -14,10 +14,10 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
-<link
+    <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
@@ -500,7 +500,10 @@
         window.location.href = "/admin/sales";
       }
     </script>
-      
+
+    <!-- Sidebar Scripts Fragment -->
+    <div th:replace="~{fragments/sidebar :: sidebarScripts}"></div>
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

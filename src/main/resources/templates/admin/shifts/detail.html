@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -477,7 +477,7 @@
                       ></td>
                       <td
                         class="hidden md:table-cell px-6 py-4 text-sm text-gray-600 dark:text-gray-400"
-                        th:text="${employee.email}"
+                        th:text="${employee.edad != null ? employee.edad + ' años' : 'No especificada'}"
                       ></td>
                       <td class="px-6 py-4">
                         <span
@@ -631,7 +631,7 @@
         });
       }
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

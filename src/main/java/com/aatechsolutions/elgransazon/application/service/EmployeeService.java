@@ -2,6 +2,7 @@ package com.aatechsolutions.elgransazon.application.service;
 
 import com.aatechsolutions.elgransazon.domain.entity.Employee;
 import com.aatechsolutions.elgransazon.domain.repository.EmployeeRepository;
+import com.aatechsolutions.elgransazon.domain.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.session.SessionInformation;
@@ -24,6 +25,7 @@ import java.util.Optional;
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
     private final SessionRegistry sessionRegistry;
 
@@ -63,18 +65,6 @@ public class EmployeeService {
     }
 
     /**
-     * Find employee by email
-     * 
-     * @param email Employee's email
-     * @return Optional containing the employee if found
-     */
-    @Transactional(readOnly = true)
-    public Optional<Employee> findByEmail(String email) {
-        log.debug("Finding employee by email: {}", email);
-        return employeeRepository.findByEmail(email);
-    }
-
-    /**
      * Create a new employee
      * Encodes the password before saving
      * Sets admin as supervisor by default if no supervisor is provided
@@ -82,7 +72,7 @@ public class EmployeeService {
      * @param employee Employee to create
      * @param createdBy Username of the user creating this employee
      * @return Created employee
-     * @throws IllegalArgumentException if employee with same username or email already exists
+     * @throws IllegalArgumentException if employee with same username or phone already exists
      */
     @Transactional
     public Employee create(Employee employee, String createdBy) {
@@ -92,10 +82,11 @@ public class EmployeeService {
             log.error("Employee with username {} already exists", employee.getUsername());
             throw new IllegalArgumentException("El usuario '" + employee.getUsername() + "' ya existe");
         }
-
-        if (employeeRepository.existsByEmail(employee.getEmail())) {
-            log.error("Employee with email {} already exists", employee.getEmail());
-            throw new IllegalArgumentException("El email '" + employee.getEmail() + "' ya existe");
+        
+        // Check if username already exists in customers table (cross-table validation)
+        if (customerRepository.existsByUsernameIgnoreCase(employee.getUsername())) {
+            log.error("Username {} already exists in customers table", employee.getUsername());
+            throw new IllegalArgumentException("El usuario '" + employee.getUsername() + "' ya existe");
         }
 
         // Check if phone number is already taken (if provided)
@@ -161,13 +152,6 @@ public class EmployeeService {
             throw new IllegalArgumentException("El usuario '" + employeeDetails.getUsername() + "' ya existe");
         }
 
-        // Check if email is being changed and if it's already taken
-        if (!employee.getEmail().equals(employeeDetails.getEmail()) &&
-            employeeRepository.existsByEmail(employeeDetails.getEmail())) {
-            log.error("Email {} already exists", employeeDetails.getEmail());
-            throw new IllegalArgumentException("El email '" + employeeDetails.getEmail() + "' ya existe");
-        }
-
         // Check if phone is being changed and if it's already taken (if provided)
         if (employeeDetails.getTelefono() != null && !employeeDetails.getTelefono().isEmpty() &&
             !employeeDetails.getTelefono().equals(employee.getTelefono()) &&
@@ -180,7 +164,7 @@ public class EmployeeService {
         employee.setUsername(employeeDetails.getUsername());
         employee.setNombre(employeeDetails.getNombre());
         employee.setApellido(employeeDetails.getApellido());
-        employee.setEmail(employeeDetails.getEmail());
+        employee.setEdad(employeeDetails.getEdad());
         employee.setTelefono(employeeDetails.getTelefono());
         
         // MANAGER restrictions: cannot modify roles, salary, supervisor, or enabled status

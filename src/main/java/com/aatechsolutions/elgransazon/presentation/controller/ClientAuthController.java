@@ -87,8 +87,14 @@ public class ClientAuthController {
         }
         
         try {
-            // Check if username already exists
+            // Check if username already exists in customers table
             if (customerService.existsByUsername(customer.getUsername())) {
+                bindingResult.rejectValue("username", "error.customer", "El nombre de usuario ya está en uso");
+                return "auth/registerClient";
+            }
+            
+            // Check if username already exists in employees table (cross-table validation)
+            if (customerService.usernameExistsInEmployees(customer.getUsername())) {
                 bindingResult.rejectValue("username", "error.customer", "El nombre de usuario ya está en uso");
                 return "auth/registerClient";
             }

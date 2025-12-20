@@ -337,19 +337,30 @@
                         <span th:text="${detail.itemMenu.name}"></span>
                       </p>
 
-                      <!-- NEW ITEM Badge -->
+                      <!-- NEW ITEM Badge - Improved Design -->
+                      <!-- Only show for new items that are NOT yet READY or DELIVERED -->
                       <div
-                        th:if="${detail.isNewItem != null && detail.isNewItem}"
-                        class="mt-1"
+                        th:if="${detail.isNewItem != null && detail.isNewItem && detail.itemStatus.name() != 'READY' && detail.itemStatus.name() != 'DELIVERED'}"
+                        class="mt-2"
                       >
                         <span
-                          class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg animate-pulse"
+                          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/50 animate-pulse border border-red-300"
                         >
-                          <span class="material-symbols-outlined !text-xs"
-                            >fiber_new</span
+                          <span
+                            class="material-symbols-outlined !text-sm font-bold"
                           >
-                          NUEVO ITEM
+                            notification_important
+                          </span>
+                          ¡NUEVO ITEM!
                         </span>
+                        <p
+                          class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 ml-1"
+                        >
+                          🕐
+                          <span
+                            th:text="${#temporals.format(detail.addedAt, 'HH:mm')}"
+                          ></span>
+                        </p>
                       </div>
 
                       <!-- Item Status Badge -->
@@ -393,15 +404,6 @@
                       </div>
 
                       <!-- Added At (for new items) -->
-                      <p
-                        th:if="${detail.isNewItem != null && detail.isNewItem && detail.addedAt != null}"
-                        class="text-xs text-gray-500 dark:text-gray-400 mt-1 italic"
-                      >
-                        🕐 Agregado:
-                        <span
-                          th:text="${#temporals.format(detail.addedAt, 'HH:mm')}"
-                        ></span>
-                      </p>
                     </div>
                   </div>
                   <p
@@ -710,6 +712,20 @@
             "Nuevo Pedido",
             `Pedido #${notification.orderNumber} - ${notification.itemCount} items`
           );
+        } else if (notification.notificationType === "ORDER_CANCELLED") {
+          console.log("⚠️ [PENDING] Processing ORDER_CANCELLED");
+          title = "⚠️ Pedido Cancelado";
+          message = notification.message || `El pedido #${notification.orderNumber} ha sido cancelado`;
+          icon = "warning";
+          playNotificationSound();
+          
+          // Reload page immediately to remove cancelled order from view
+          showNotification(title, message, icon);
+          setTimeout(() => {
+            console.log("🔄 [PENDING] Reloading page due to order cancellation");
+            window.location.reload();
+          }, 1500);
+          return; // Exit early to prevent duplicate reload
         } else if (notification.notificationType === "ITEMS_ADDED") {
           console.log("➕ [PENDING] Processing ITEMS_ADDED");
           console.log("➕ [PENDING] Will play sound and reload page");

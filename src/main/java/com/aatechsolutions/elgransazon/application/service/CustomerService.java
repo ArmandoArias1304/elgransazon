@@ -71,6 +71,11 @@ public interface CustomerService {
     boolean existsByPhone(String phone);
     
     /**
+     * Check if username exists in employees table (cross-table validation)
+     */
+    boolean usernameExistsInEmployees(String username);
+    
+    /**
      * Update last access timestamp
      */
     void updateLastAccess(String email);

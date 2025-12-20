@@ -543,8 +543,14 @@ public class OrderController {
                 order.getOrderDetails().size(), order.getSubtotal(), order.getTotal());
 
             // Add new items to order
+            LocalDateTime now = LocalDateTime.now();
             for (OrderDetail detail : newOrderDetails) {
                 detail.setOrder(order);
+                // Mark as new item for chef visibility
+                detail.setIsNewItem(true);
+                detail.setAddedAt(now);
+                log.info("Marking item {} as NEW (isNewItem=true, addedAt={})", 
+                    detail.getItemMenu().getName(), now);
                 order.getOrderDetails().add(detail);
             }
 
@@ -1070,6 +1076,10 @@ public class OrderController {
             if (stockInfo != null && !stockInfo.isEmpty()) {
                 response.put("stockInfo", stockInfo);
             }
+            
+            // Send WebSocket notification about order cancellation
+            wsNotificationService.notifyOrderCancelled(cancelled);
+            
         } catch (IllegalStateException e) {
             log.error("Error cancelling order: {}", e.getMessage());
             response.put("success", false);

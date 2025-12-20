@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html lang="es" 
-      xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html
+  lang="es"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,7 +18,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -444,12 +446,10 @@
                         class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
                       >
                         <span class="material-symbols-outlined text-base"
-                          >mail</span
+                          >calendar_today</span
                         >
                         <span
-                          class="truncate max-w-[200px]"
-                          th:text="${employee.email}"
-                          th:title="${employee.email}"
+                          th:text="${employee.edad != null ? employee.edad + ' años' : 'No especificada'}"
                         ></span>
                       </div>
                     </div>
@@ -1004,7 +1004,7 @@
           }
         });
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

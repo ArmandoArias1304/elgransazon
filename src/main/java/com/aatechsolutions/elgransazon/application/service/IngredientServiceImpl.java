@@ -1,15 +1,20 @@
 package com.aatechsolutions.elgransazon.application.service;
 
+import com.aatechsolutions.elgransazon.domain.entity.Employee;
 import com.aatechsolutions.elgransazon.domain.entity.Ingredient;
 import com.aatechsolutions.elgransazon.domain.entity.IngredientCategory;
+import com.aatechsolutions.elgransazon.domain.entity.IngredientStockHistory;
 import com.aatechsolutions.elgransazon.domain.entity.Supplier;
 import com.aatechsolutions.elgransazon.domain.repository.IngredientCategoryRepository;
 import com.aatechsolutions.elgransazon.domain.repository.IngredientRepository;
+import com.aatechsolutions.elgransazon.domain.repository.IngredientStockHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -27,6 +32,7 @@ public class IngredientServiceImpl implements IngredientService {
 
     private final IngredientRepository ingredientRepository;
     private final IngredientCategoryRepository categoryRepository;
+    private final IngredientStockHistoryRepository stockHistoryRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -283,5 +289,72 @@ public class IngredientServiceImpl implements IngredientService {
     @Transactional(readOnly = true)
     public long getInactiveCount() {
         return ingredientRepository.countByActive(false);
+    }
+
+    @Override
+    @Transactional
+    public Ingredient addStock(Long ingredientId, BigDecimal quantityToAdd, BigDecimal costPerUnit, Employee addedBy) {
+        log.info("Adding stock to ingredient ID: {} - Quantity: {} - Cost per unit: ${}", 
+                ingredientId, quantityToAdd, costPerUnit);
+
+        Ingredient ingredient = ingredientRepository.findById(ingredientId)
+                .orElseThrow(() -> {
+                    log.error("Ingredient not found with id: {}", ingredientId);
+                    return new IllegalArgumentException("Ingrediente no encontrado con ID: " + ingredientId);
+                });
+
+        // Guardar stock anterior
+        BigDecimal previousStock = ingredient.getCurrentStock();
+
+        // Calcular nuevo stock
+        BigDecimal newStock = previousStock.add(quantityToAdd);
+
+        // Actualizar stock del ingrediente
+        ingredient.setCurrentStock(newStock);
+        ingredient.setUpdatedAt(LocalDateTime.now());
+
+        Ingredient savedIngredient = ingredientRepository.save(ingredient);
+
+        // Crear registro en el historial
+        IngredientStockHistory history = IngredientStockHistory.builder()
+                .ingredient(ingredient)
+                .quantityAdded(quantityToAdd)
+                .costPerUnit(costPerUnit)
+                .previousStock(previousStock)
+                .newStock(newStock)
+                .addedAt(LocalDateTime.now())
+                .addedBy(addedBy)
+                .build();
+
+        stockHistoryRepository.save(history);
+
+        log.info("Stock agregado exitosamente al ingrediente '{}': +{} {} (Stock anterior: {}, Nuevo stock: {}, Costo total: ${})",
+                ingredient.getName(), quantityToAdd, ingredient.getUnitOfMeasure(),
+                previousStock, newStock, history.getTotalCost());
+
+        return savedIngredient;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<IngredientStockHistory> getStockHistory(Long ingredientId) {
+        log.info("Getting stock history for ingredient ID: {}", ingredientId);
+
+        Ingredient ingredient = ingredientRepository.findById(ingredientId)
+                .orElseThrow(() -> {
+                    log.error("Ingredient not found with id: {}", ingredientId);
+                    return new IllegalArgumentException("Ingrediente no encontrado con ID: " + ingredientId);
+                });
+
+        return stockHistoryRepository.findByIngredientOrderByAddedAtDesc(ingredient);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalCostByIngredient(Long ingredientId) {
+        log.info("Calculating total cost for ingredient ID: {}", ingredientId);
+
+        BigDecimal totalCost = stockHistoryRepository.getTotalCostByIngredient(ingredientId);
+        return totalCost != null ? totalCost : BigDecimal.ZERO;
     }
 }

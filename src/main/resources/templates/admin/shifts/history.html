@@ -16,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -492,17 +492,17 @@
                     <div class="flex items-center gap-2">
                       <span
                         class="material-symbols-outlined text-gray-400 text-lg"
-                        >email</span
+                        >calendar_today</span
                       >
                       <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400">
-                          Email
+                          Edad
                         </p>
                         <p
                           class="font-medium text-gray-900 dark:text-white"
-                          th:text="${record.employee.email}"
+                          th:text="${record.employee.edad != null ? record.employee.edad + ' años' : 'No especificada'}"
                         >
-                          juan@example.com
+                          25 años
                         </p>
                       </div>
                     </div>
@@ -758,7 +758,7 @@
         applyFilters();
       });
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

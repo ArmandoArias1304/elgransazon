@@ -228,6 +228,22 @@ public class RestaurantTableServiceImpl implements RestaurantTableService {
     }
 
     @Override
+    public Integer getNextTableNumber() {
+        log.debug("Calculating next table number");
+        Integer maxTableNumber = tableRepository.findMaxTableNumber();
+        
+        // If no tables exist, start from 1
+        if (maxTableNumber == null) {
+            log.debug("No existing tables found, starting from table number 1");
+            return 1;
+        }
+        
+        Integer nextNumber = maxTableNumber + 1;
+        log.debug("Max table number: {}, next number: {}", maxTableNumber, nextNumber);
+        return nextNumber;
+    }
+
+    @Override
     public RestaurantTable findByIdOrThrow(Long id) {
         return findById(id)
                 .orElseThrow(() -> {

@@ -22,28 +22,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Optional<Employee> findByUsername(String username);
 
     /**
-     * Find an employee by their email
-     * 
-     * @param email the employee's email
-     * @return Optional containing the employee if found
-     */
-    Optional<Employee> findByEmail(String email);
-
-    /**
      * Check if an employee exists by username
      * 
      * @param username the employee's username
      * @return true if employee exists, false otherwise
      */
     boolean existsByUsername(String username);
-
-    /**
-     * Check if an employee exists by email
-     * 
-     * @param email the employee's email
-     * @return true if employee exists, false otherwise
-     */
-    boolean existsByEmail(String email);
 
     /**
      * Find an employee by their phone number

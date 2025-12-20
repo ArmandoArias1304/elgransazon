@@ -383,6 +383,13 @@ public class CashierController {
             // Get system configuration for tax rate
             SystemConfiguration config = systemConfigurationService.getConfiguration();
             
+            // Get enabled payment methods
+            Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
+            List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
+                .filter(Map.Entry::getValue)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+            
             model.addAttribute("orderType", type);
             model.addAttribute("selectedTable", selectedTable);
             model.addAttribute("customerName", customerName);
@@ -395,6 +402,7 @@ public class CashierController {
             model.addAttribute("employee", employee);
             model.addAttribute("config", config);
             model.addAttribute("taxRate", config.getTaxRate());
+            model.addAttribute("enabledPaymentMethods", enabledPaymentMethods);
             model.addAttribute("currentRole", "cashier");
             
             return "cashier/orders/order-menu";

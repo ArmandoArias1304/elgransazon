@@ -44,10 +44,10 @@ public class Employee implements Serializable {
     @Column(name = "apellido", nullable = false, length = 100)
     private String apellido;
 
-    @NotBlank(message = "El email es obligatorio")
-    @Email(message = "El email debe ser válido")
-    @Column(name = "email", nullable = false, unique = true, length = 150)
-    private String email;
+    @Min(value = 18, message = "La edad mínima es 18 años")
+    @Max(value = 100, message = "La edad máxima es 100 años")
+    @Column(name = "edad")
+    private Integer edad;
 
     @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
     @Column(name = "contrasenia", nullable = false)

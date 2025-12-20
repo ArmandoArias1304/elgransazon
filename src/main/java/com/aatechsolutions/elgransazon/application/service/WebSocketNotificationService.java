@@ -133,6 +133,31 @@ public class WebSocketNotificationService {
         log.info("WebSocket: Order deletion notification - {}", orderNumber);
     }
 
+    /**
+     * Notifies about order cancellation
+     */
+    public void notifyOrderCancelled(Order order) {
+        OrderNotificationDTO notification = buildOrderNotification(order, "ORDER_CANCELLED",
+            "Pedido #" + order.getOrderNumber() + " ha sido cancelado");
+        
+        // Send to all chefs to remove from their view
+        messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+        
+        // Send to admin kitchen
+        messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
+        
+        // If chef was assigned, send personal notification
+        if (order.getPreparedBy() != null) {
+            messagingTemplate.convertAndSendToUser(
+                order.getPreparedBy().getUsername(),
+                "/queue/orders",
+                notification
+            );
+        }
+        
+        log.info("WebSocket: Order cancellation notification - {}", order.getOrderNumber());
+    }
+
     // Helper method to build order notification DTO
     private OrderNotificationDTO buildOrderNotification(Order order, String type, String message) {
         return OrderNotificationDTO.builder()

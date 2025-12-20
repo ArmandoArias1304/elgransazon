@@ -114,6 +114,11 @@ public interface RestaurantTableService {
     List<String> getDistinctLocations();
 
     /**
+     * Get the next available consecutive table number
+     */
+    Integer getNextTableNumber();
+
+    /**
      * Find table by ID or throw exception
      */
     RestaurantTable findByIdOrThrow(Long id);

@@ -76,4 +76,10 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
      */
     @Query("SELECT DISTINCT t.location FROM RestaurantTable t WHERE t.location IS NOT NULL ORDER BY t.location")
     List<String> findDistinctLocations();
+
+    /**
+     * Find the maximum table number
+     */
+    @Query("SELECT MAX(t.tableNumber) FROM RestaurantTable t")
+    Integer findMaxTableNumber();
 }

@@ -22,7 +22,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -266,32 +266,39 @@
                     ></p>
                   </div>
 
-                  <!-- Email -->
+                  <!-- Edad -->
                   <div>
                     <label
-                      for="email"
+                      for="edad"
                       class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
                     >
                       <span
                         class="material-symbols-outlined text-lg text-primary"
-                        >email</span
+                        >calendar_today</span
                       >
-                      Correo Electrónico
-                      <span class="text-red-500">*</span>
+                      Edad
                     </label>
                     <input
-                      type="email"
-                      th:field="*{email}"
-                      id="email"
-                      required
-                      pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
+                      type="number"
+                      th:field="*{edad}"
+                      id="edad"
+                      min="18"
+                      max="100"
                       class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                      placeholder="correo@ejemplo.com"
-                      title="Ingrese un correo electrónico válido"
+                      placeholder="Ej: 25"
+                      title="La edad debe estar entre 18 y 100 años"
                     />
                     <p
-                      th:if="${#fields.hasErrors('email')}"
-                      th:errors="*{email}"
+                      class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"
+                    >
+                      <span class="material-symbols-outlined text-sm"
+                        >info</span
+                      >
+                      Opcional - Edad en años (entre 18 y 100)
+                    </p>
+                    <p
+                      th:if="${#fields.hasErrors('edad')}"
+                      th:errors="*{edad}"
                       class="mt-2 text-xs text-red-600 dark:text-red-400"
                     ></p>
                   </div>
@@ -335,8 +342,8 @@
                     ></p>
                   </div>
 
-                  <!-- Password -->
-                  <div>
+                  <!-- Password (Only for new employees) -->
+                  <div th:if="${employee.idEmpleado == null}">
                     <label
                       for="password"
                       class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
@@ -346,26 +353,21 @@
                         >lock</span
                       >
                       Contraseña
-                      <span
-                        th:if="${employee.idEmpleado == null}"
-                        class="text-red-500"
-                        >*</span
-                      >
+                      <span class="text-red-500">*</span>
                     </label>
                     <input
                       type="password"
                       name="password"
                       id="password"
-                      th:required="${employee.idEmpleado == null}"
+                      required
                       minlength="6"
                       class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
                       placeholder="••••••••"
                       title="La contraseña debe tener al menos 6 caracteres"
                     />
-                    <p
-                      class="mt-2 text-xs text-gray-500 dark:text-gray-400"
-                      th:text="${employee.idEmpleado != null} ? 'Dejar en blanco para mantener la contraseña actual' : 'Mínimo 6 caracteres'"
-                    ></p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      Mínimo 6 caracteres
+                    </p>
                   </div>
                 </div>
               </div>
@@ -386,7 +388,7 @@
                   </h2>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <!-- Role - Only ADMIN can edit -->
+                  <!-- Role - Only ADMIN can edit (except for ADMIN employees) -->
                   <div>
                     <label
                       for="role"
@@ -403,8 +405,16 @@
                         class="text-xs font-normal text-gray-500"
                         >(Solo lectura)</span
                       >
+                      <span
+                        th:if="${isAdminEmployee}"
+                        class="text-xs font-normal text-yellow-600 dark:text-yellow-400"
+                        >(Rol protegido)</span
+                      >
                     </label>
+
+                    <!-- Editable select for non-ADMIN employees (only visible to ADMIN users) -->
                     <select
+                      th:if="${!isAdminEmployee}"
                       id="role"
                       name="roleId"
                       required
@@ -419,8 +429,24 @@
                         th:selected="${employee.primaryRole == role.nombreRol}"
                       ></option>
                     </select>
+
+                    <!-- Read-only display for ADMIN employees (locked) -->
+                    <div th:if="${isAdminEmployee}" class="relative">
+                      <input
+                        type="text"
+                        value="Administrador"
+                        disabled
+                        class="w-full px-4 py-3 rounded-xl border-2 border-yellow-400 dark:border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-gray-900 dark:text-yellow-300 font-semibold cursor-not-allowed"
+                      />
+                      <span
+                        class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-yellow-600 dark:text-yellow-400"
+                        >lock</span
+                      >
+                    </div>
+
                     <!-- Read-only display for MANAGER -->
                     <input
+                      th:if="${!isAdminEmployee}"
                       sec:authorize="hasRole('ROLE_MANAGER')"
                       type="text"
                       th:value="${employee.roleDisplayName}"
@@ -428,12 +454,23 @@
                       class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-400 cursor-not-allowed"
                     />
                     <p
+                      th:if="${!isAdminEmployee}"
                       class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"
                     >
                       <span class="material-symbols-outlined text-sm"
                         >info</span
                       >
                       El rol determina los permisos del empleado
+                    </p>
+                    <p
+                      th:if="${isAdminEmployee}"
+                      class="mt-2 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1"
+                    >
+                      <span class="material-symbols-outlined text-sm"
+                        >lock</span
+                      >
+                      El rol de Administrador no puede ser modificado por
+                      seguridad
                     </p>
                   </div>
 
@@ -703,32 +740,143 @@
             </div>
           </form>
 
+          <!-- Change Password Section (Only for Edit) -->
+          <form
+            th:if="${employee.idEmpleado != null}"
+            th:action="@{/admin/employees/{id}/change-password(id=${employee.idEmpleado})}"
+            method="post"
+            class="px-6 sm:px-8 py-6 border-t-2 border-gray-200 dark:border-gray-700 bg-gradient-to-br from-orange-50/50 to-amber-50/50 dark:from-orange-900/10 dark:to-amber-900/10"
+            id="changePasswordForm"
+          >
+            <div class="max-w-2xl">
+              <div class="flex items-center gap-3 mb-6">
+                <div
+                  class="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-lg"
+                >
+                  <span class="material-symbols-outlined text-white text-2xl"
+                    >lock_reset</span
+                  >
+                </div>
+                <div>
+                  <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+                    Cambiar Contraseña
+                  </h2>
+                  <p class="text-sm text-gray-600 dark:text-gray-400">
+                    Actualiza la contraseña del empleado
+                  </p>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <!-- New Password -->
+                <div>
+                  <label
+                    for="newPassword"
+                    class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    <span
+                      class="material-symbols-outlined text-lg text-orange-500"
+                      >vpn_key</span
+                    >
+                    Nueva Contraseña
+                    <span class="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    id="newPassword"
+                    required
+                    minlength="6"
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                    placeholder="••••••••"
+                  />
+                  <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Mínimo 6 caracteres
+                  </p>
+                </div>
+
+                <!-- Confirm Password -->
+                <div>
+                  <label
+                    for="confirmPassword"
+                    class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    <span
+                      class="material-symbols-outlined text-lg text-orange-500"
+                      >check_circle</span
+                    >
+                    Confirmar Contraseña
+                    <span class="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    id="confirmPassword"
+                    required
+                    minlength="6"
+                    class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
+                  >
+                    <span class="material-symbols-outlined">lock_reset</span>
+                    Cambiar Contraseña
+                  </button>
+                </div>
+
+                <!-- Info message -->
+                <div
+                  class="mt-4 flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-lg"
+                >
+                  <span
+                    class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-xl"
+                    >info</span
+                  >
+                  <p class="text-sm text-blue-800 dark:text-blue-300">
+                    <strong>Importante:</strong> El empleado deberá usar la
+                    nueva contraseña en su próximo inicio de sesión.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </form>
+
           <!-- Delete Button (Only for Edit) -->
           <form
             th:if="${employee.idEmpleado != null}"
             th:action="@{/admin/employees/{id}/delete(id=${employee.idEmpleado})}"
             method="post"
-            class="px-6 sm:px-8 py-5 border-t border-gray-200 dark:border-gray-700"
+            class="px-6 sm:px-8 py-6 border-t-2 border-gray-200 dark:border-gray-700"
             id="deleteForm"
           >
             <div
               class="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl"
             >
               <span
-                class="material-symbols-outlined text-red-500 text-xl mt-0.5"
-                >delete</span
+                class="material-symbols-outlined text-red-600 dark:text-red-400 text-xl flex-shrink-0 mt-0.5"
+                >warning</span
               >
               <div class="flex-1">
-                <h3 class="font-bold text-red-900 dark:text-red-300 mb-1">
+                <h3
+                  class="font-bold text-red-900 dark:text-red-300 mb-1 text-sm sm:text-base"
+                >
                   Zona Peligrosa
                 </h3>
-                <p class="text-sm text-red-800 dark:text-red-200 mb-3">
-                  Eliminar este empleado es permanente y no se puede deshacer
+                <p
+                  class="text-xs sm:text-sm text-red-700 dark:text-red-400 mb-3"
+                >
+                  Esta acción eliminará permanentemente el empleado del sistema.
                 </p>
                 <button
                   type="button"
                   onclick="confirmDelete()"
-                  class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-all"
+                  class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors text-sm"
                 >
                   <span class="material-symbols-outlined text-lg"
                     >delete_forever</span
@@ -917,7 +1065,7 @@
         const apellido = form
           .querySelector('input[name="apellido"]')
           .value.trim();
-        const email = form.querySelector('input[name="email"]').value.trim();
+        const edad = form.querySelector('input[name="edad"]')?.value || "";
         const password =
           form.querySelector('input[name="password"]')?.value || "";
         const telefono = form
@@ -985,13 +1133,12 @@
           return false;
         }
 
-        // Validate email
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!email || !emailRegex.test(email)) {
+        // Validate edad (opcional)
+        if (edad && (parseInt(edad) < 18 || parseInt(edad) > 100)) {
           event.preventDefault();
           Swal.fire({
-            title: "Email inválido",
-            html: "Por favor ingresa un <strong>email válido</strong>.<br>Ejemplo: usuario@ejemplo.com",
+            title: "Edad inválida",
+            html: "La <strong>edad</strong> debe estar entre <strong>18 y 100 años</strong>.",
             icon: "warning",
             confirmButtonColor: "#38e07b",
             confirmButtonText: "Entendido",
@@ -1004,30 +1151,12 @@
           return false;
         }
 
-        // Validate password (required for new, optional for edit)
+        // Validate password (only for new employees now)
         if (!isEdit && (!password || password.length < 6)) {
           event.preventDefault();
           Swal.fire({
             title: "Contraseña inválida",
             html: "La <strong>contraseña</strong> debe tener al menos <strong>6 caracteres</strong>.",
-            icon: "warning",
-            confirmButtonColor: "#38e07b",
-            confirmButtonText: "Entendido",
-            customClass: {
-              popup: "rounded-2xl",
-              title: "text-xl font-bold",
-              confirmButton: "rounded-xl px-6 py-2.5 font-semibold",
-            },
-          });
-          return false;
-        }
-
-        // Validate password if provided in edit mode
-        if (isEdit && password && password.length > 0 && password.length < 6) {
-          event.preventDefault();
-          Swal.fire({
-            title: "Contraseña inválida",
-            html: "Si deseas cambiar la contraseña, debe tener al menos <strong>6 caracteres</strong>.",
             icon: "warning",
             confirmButtonColor: "#38e07b",
             confirmButtonText: "Entendido",
@@ -1125,7 +1254,7 @@
       const usernameInput = document.getElementById("username");
       const nombreInput = document.getElementById("nombre");
       const apellidoInput = document.getElementById("apellido");
-      const emailInput = document.getElementById("email");
+      const edadInput = document.getElementById("edad");
       const passwordInput = document.querySelector('input[name="password"]');
       const salarioInput = document.getElementById("salario");
 
@@ -1411,8 +1540,80 @@
           }
         });
       }
+
+      // Password Change Form Validation
+      const changePasswordForm = document.getElementById("changePasswordForm");
+      if (changePasswordForm) {
+        changePasswordForm.addEventListener("submit", function (event) {
+          const newPassword = document.getElementById("newPassword").value;
+          const confirmPassword =
+            document.getElementById("confirmPassword").value;
+
+          // Validate minimum length
+          if (newPassword.length < 6) {
+            event.preventDefault();
+            Swal.fire({
+              title: "Contraseña muy corta",
+              html: "La <strong>contraseña</strong> debe tener al menos <strong>6 caracteres</strong>.",
+              icon: "warning",
+              confirmButtonColor: "#38e07b",
+              confirmButtonText: "Entendido",
+              customClass: {
+                popup: "rounded-2xl",
+                title: "text-xl font-bold",
+                confirmButton: "rounded-xl px-6 py-2.5 font-semibold",
+              },
+            });
+            return false;
+          }
+
+          // Validate passwords match
+          if (newPassword !== confirmPassword) {
+            event.preventDefault();
+            Swal.fire({
+              title: "Las contraseñas no coinciden",
+              html: "Asegúrate de que ambas contraseñas sean <strong>exactamente iguales</strong>.",
+              icon: "error",
+              confirmButtonColor: "#38e07b",
+              confirmButtonText: "Entendido",
+              customClass: {
+                popup: "rounded-2xl",
+                title: "text-xl font-bold",
+                confirmButton: "rounded-xl px-6 py-2.5 font-semibold",
+              },
+            });
+            return false;
+          }
+        });
+
+        // Real-time password match validation
+        const newPasswordInput = document.getElementById("newPassword");
+        const confirmPasswordInput = document.getElementById("confirmPassword");
+
+        function validatePasswordMatch() {
+          const newPassword = newPasswordInput.value;
+          const confirmPassword = confirmPasswordInput.value;
+
+          if (confirmPassword && newPassword !== confirmPassword) {
+            confirmPasswordInput.classList.add("border-red-500");
+            confirmPasswordInput.classList.remove(
+              "border-gray-300",
+              "dark:border-gray-700"
+            );
+          } else {
+            confirmPasswordInput.classList.remove("border-red-500");
+            confirmPasswordInput.classList.add(
+              "border-gray-300",
+              "dark:border-gray-700"
+            );
+          }
+        }
+
+        newPasswordInput?.addEventListener("input", validatePasswordMatch);
+        confirmPasswordInput?.addEventListener("input", validatePasswordMatch);
+      }
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

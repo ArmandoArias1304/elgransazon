@@ -66,6 +66,11 @@ public class RestaurantTableController {
 
         RestaurantTable table = new RestaurantTable();
         table.setStatus(TableStatus.AVAILABLE);
+        
+        // Generate next consecutive table number automatically
+        Integer nextTableNumber = tableService.getNextTableNumber();
+        table.setTableNumber(nextTableNumber);
+        log.debug("Auto-generated next table number: {}", nextTableNumber);
 
         model.addAttribute("table", table);
         model.addAttribute("allStatuses", TableStatus.values());

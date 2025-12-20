@@ -14,10 +14,11 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
       tailwind.config = {
         darkMode: "class",
@@ -281,6 +282,9 @@
                   name="active"
                   class="h-12 px-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none text-sm"
                 >
+                  <option value="" th:selected="${active == null}">
+                    Todos los estados
+                  </option>
                   <option value="true" th:selected="${active == true}">
                     Activos
                   </option>
@@ -485,12 +489,12 @@
                           th:action="@{/admin/suppliers/{id}/delete(id=${supplier.idSupplier})}"
                           method="post"
                           class="inline"
+                          onsubmit="return confirmDeactivate(event, this)"
                         >
                           <button
                             type="submit"
                             class="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                             title="Desactivar"
-                            onclick="return confirm('¿Desactivar este proveedor?')"
                           >
                             <span class="material-symbols-outlined text-xl"
                               >block</span
@@ -503,6 +507,7 @@
                           th:action="@{/admin/suppliers/{id}/activate(id=${supplier.idSupplier})}"
                           method="post"
                           class="inline"
+                          onsubmit="return confirmActivate(event, this)"
                         >
                           <button
                             type="submit"
@@ -529,6 +534,68 @@
     <div th:replace="~{fragments/sidebar :: sidebarScripts}"></div>
 
     <script>
+      // Confirm deactivate supplier
+      function confirmDeactivate(event, form) {
+        event.preventDefault();
+
+        Swal.fire({
+          title: "¿Desactivar proveedor?",
+          html: "El proveedor será marcado como <strong>inactivo</strong> y se moverá al final de la lista.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#ef4444",
+          cancelButtonColor: "#6b7280",
+          confirmButtonText:
+            '<span class="flex items-center gap-2"><span class="material-symbols-outlined text-lg">block</span> Sí, desactivar</span>',
+          cancelButtonText: "Cancelar",
+          reverseButtons: true,
+          customClass: {
+            popup: "rounded-2xl",
+            title: "text-xl font-bold",
+            confirmButton: "rounded-xl px-6 py-2.5 font-semibold",
+            cancelButton: "rounded-xl px-6 py-2.5 font-semibold",
+          },
+          buttonsStyling: true,
+        }).then((result) => {
+          if (result.isConfirmed) {
+            form.submit();
+          }
+        });
+
+        return false;
+      }
+
+      // Confirm activate supplier
+      function confirmActivate(event, form) {
+        event.preventDefault();
+
+        Swal.fire({
+          title: "¿Activar proveedor?",
+          html: "El proveedor será marcado como <strong>activo</strong> y aparecerá en la lista principal.",
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonColor: "#38e07b",
+          cancelButtonColor: "#6b7280",
+          confirmButtonText:
+            '<span class="flex items-center gap-2"><span class="material-symbols-outlined text-lg">check_circle</span> Sí, activar</span>',
+          cancelButtonText: "Cancelar",
+          reverseButtons: true,
+          customClass: {
+            popup: "rounded-2xl",
+            title: "text-xl font-bold",
+            confirmButton: "rounded-xl px-6 py-2.5 font-semibold",
+            cancelButton: "rounded-xl px-6 py-2.5 font-semibold",
+          },
+          buttonsStyling: true,
+        }).then((result) => {
+          if (result.isConfirmed) {
+            form.submit();
+          }
+        });
+
+        return false;
+      }
+
       // Auto-hide alerts after 2 seconds
       document.addEventListener("DOMContentLoaded", function () {
         // Buscar alertas por su contenido de clase CSS
@@ -551,7 +618,7 @@
         });
       });
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

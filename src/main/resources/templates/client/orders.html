@@ -451,6 +451,19 @@
                       Ver Detalles
                     </a>
 
+                    <!-- Descargar Ticket (only for PAID orders) -->
+                    <a
+                      th:if="${order.status.name() == 'PAID'}"
+                      th:href="@{/client/orders/{id}/download-ticket(id=${order.idOrder})}"
+                      class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 text-white font-semibold transition-all text-sm"
+                      title="Descargar ticket del pedido"
+                    >
+                      <span class="material-symbols-outlined text-base">
+                        receipt_long
+                      </span>
+                      Descargar Ticket
+                    </a>
+
                     <!-- Agregar Items (only for DINE_IN and TAKEOUT orders that can accept new items) -->
                     <a
                       th:if="${order.canAcceptNewItems()}"

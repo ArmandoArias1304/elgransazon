@@ -51,8 +51,8 @@ public class SupplierController {
         log.info("Listing suppliers with filters - search: {}, rating: {}, categoryId: {}, ingredientId: {}, active: {}",
                 search, rating, categoryId, ingredientId, active);
 
-        // Default to showing only active suppliers if no filter is specified
-        Boolean activeFilter = (active != null) ? active : true;
+        // Show all suppliers (active and inactive) by default if no filter is specified
+        Boolean activeFilter = active;
 
         List<Supplier> suppliers;
         String filterMessage = null;

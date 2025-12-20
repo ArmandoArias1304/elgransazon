@@ -607,6 +607,14 @@ public class OrderServiceImpl implements OrderService {
                 detail.setPreparedBy(username);
             }
 
+            // Remove "new item" badge when item reaches READY status
+            // This ensures the badge only shows for items that are still being prepared
+            if (newStatus == OrderStatus.READY && Boolean.TRUE.equals(detail.getIsNewItem())) {
+                detail.setIsNewItem(false);
+                log.info("Item '{}' marked as no longer new (READY status reached)", 
+                         detail.getItemMenu().getName());
+            }
+
             log.info("Item '{}' status changed: {} -> {}", 
                      detail.getItemMenu().getName(), oldItemStatus, newStatus);
         }

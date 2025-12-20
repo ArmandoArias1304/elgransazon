@@ -105,9 +105,20 @@ public class PromotionController {
                 item.getCategory() != null ? item.getCategory().getName() : "Sin Categoría"
             ));
 
+        // Create a map with Spanish day names
+        Map<String, String> daysOfWeekMap = new LinkedHashMap<>();
+        daysOfWeekMap.put("MONDAY", "Lunes");
+        daysOfWeekMap.put("TUESDAY", "Martes");
+        daysOfWeekMap.put("WEDNESDAY", "Miércoles");
+        daysOfWeekMap.put("THURSDAY", "Jueves");
+        daysOfWeekMap.put("FRIDAY", "Viernes");
+        daysOfWeekMap.put("SATURDAY", "Sábado");
+        daysOfWeekMap.put("SUNDAY", "Domingo");
+
         model.addAttribute("promotion", promotion);
         model.addAttribute("promotionTypes", PromotionType.values());
         model.addAttribute("allDaysOfWeek", DayOfWeek.values());
+        model.addAttribute("daysOfWeekMap", daysOfWeekMap);
         model.addAttribute("menuItems", menuItems);
         model.addAttribute("itemsByCategory", itemsByCategory);
         model.addAttribute("formAction", "/" + role + "/promotions");
@@ -139,9 +150,20 @@ public class PromotionController {
                     .map(ItemMenu::getIdItemMenu)
                     .collect(Collectors.toList());
 
+                // Create a map with Spanish day names
+                Map<String, String> daysOfWeekMap = new LinkedHashMap<>();
+                daysOfWeekMap.put("MONDAY", "Lunes");
+                daysOfWeekMap.put("TUESDAY", "Martes");
+                daysOfWeekMap.put("WEDNESDAY", "Miércoles");
+                daysOfWeekMap.put("THURSDAY", "Jueves");
+                daysOfWeekMap.put("FRIDAY", "Viernes");
+                daysOfWeekMap.put("SATURDAY", "Sábado");
+                daysOfWeekMap.put("SUNDAY", "Domingo");
+
                 model.addAttribute("promotion", promotion);
                 model.addAttribute("promotionTypes", PromotionType.values());
                 model.addAttribute("allDaysOfWeek", DayOfWeek.values());
+                model.addAttribute("daysOfWeekMap", daysOfWeekMap);
                 model.addAttribute("menuItems", menuItems);
                 model.addAttribute("itemsByCategory", itemsByCategory);
                 model.addAttribute("selectedItemIds", selectedItemIds);
@@ -477,9 +499,20 @@ public class PromotionController {
                 item.getCategory() != null ? item.getCategory().getName() : "Sin Categoría"
             ));
 
+        // Create a map with Spanish day names
+        Map<String, String> daysOfWeekMap = new LinkedHashMap<>();
+        daysOfWeekMap.put("MONDAY", "Lunes");
+        daysOfWeekMap.put("TUESDAY", "Martes");
+        daysOfWeekMap.put("WEDNESDAY", "Miércoles");
+        daysOfWeekMap.put("THURSDAY", "Jueves");
+        daysOfWeekMap.put("FRIDAY", "Viernes");
+        daysOfWeekMap.put("SATURDAY", "Sábado");
+        daysOfWeekMap.put("SUNDAY", "Domingo");
+
         model.addAttribute("promotion", promotion);
         model.addAttribute("promotionTypes", PromotionType.values());
         model.addAttribute("allDaysOfWeek", DayOfWeek.values());
+        model.addAttribute("daysOfWeekMap", daysOfWeekMap);
         model.addAttribute("menuItems", menuItems);
         model.addAttribute("itemsByCategory", itemsByCategory);
         

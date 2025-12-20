@@ -1,7 +1,10 @@
 package com.aatechsolutions.elgransazon.application.service;
 
+import com.aatechsolutions.elgransazon.domain.entity.Employee;
 import com.aatechsolutions.elgransazon.domain.entity.Ingredient;
+import com.aatechsolutions.elgransazon.domain.entity.IngredientStockHistory;
 import com.aatechsolutions.elgransazon.domain.entity.Supplier;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -84,4 +87,19 @@ public interface IngredientService {
      * Get inactive ingredient count
      */
     long getInactiveCount();
+
+    /**
+     * Agrega stock adicional a un ingrediente y registra en el historial
+     */
+    Ingredient addStock(Long ingredientId, BigDecimal quantityToAdd, BigDecimal costPerUnit, Employee addedBy);
+
+    /**
+     * Obtiene el historial de stock de un ingrediente
+     */
+    List<IngredientStockHistory> getStockHistory(Long ingredientId);
+
+    /**
+     * Calcula el gasto total de un ingrediente
+     */
+    BigDecimal getTotalCostByIngredient(Long ingredientId);
 }

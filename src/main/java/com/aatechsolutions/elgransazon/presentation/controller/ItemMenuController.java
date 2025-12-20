@@ -74,10 +74,24 @@ public class ItemMenuController {
 
         List<Category> categories = categoryService.getAllActiveCategories();
         List<Ingredient> ingredients = ingredientService.findAll();
+        
+        // Convertir ingredientes a DTOs simples para evitar referencias circulares
+        List<Map<String, Object>> ingredientsDTO = ingredients.stream()
+            .map(ing -> {
+                Map<String, Object> dto = new HashMap<>();
+                dto.put("idIngredient", ing.getIdIngredient());
+                dto.put("name", ing.getName());
+                dto.put("unitOfMeasure", ing.getUnitOfMeasure());
+                dto.put("currentStock", ing.getCurrentStock());
+                dto.put("categoryName", ing.getCategory() != null ? ing.getCategory().getName() : "");
+                return dto;
+            })
+            .collect(java.util.stream.Collectors.toList());
 
         model.addAttribute("itemMenu", itemMenu);
         model.addAttribute("categories", categories);
         model.addAttribute("ingredients", ingredients);
+        model.addAttribute("ingredientsDTO", ingredientsDTO);
         model.addAttribute("recipe", new ArrayList<ItemIngredient>());
         model.addAttribute("formAction", "/admin/menu-items");
 
@@ -96,10 +110,24 @@ public class ItemMenuController {
                     List<Category> categories = categoryService.getAllCategories();
                     List<Ingredient> ingredients = ingredientService.findAll();
                     List<ItemIngredient> recipe = itemMenuService.getRecipe(id);
+                    
+                    // Convertir ingredientes a DTOs simples para evitar referencias circulares
+                    List<Map<String, Object>> ingredientsDTO = ingredients.stream()
+                        .map(ing -> {
+                            Map<String, Object> dto = new HashMap<>();
+                            dto.put("idIngredient", ing.getIdIngredient());
+                            dto.put("name", ing.getName());
+                            dto.put("unitOfMeasure", ing.getUnitOfMeasure());
+                            dto.put("currentStock", ing.getCurrentStock());
+                            dto.put("categoryName", ing.getCategory() != null ? ing.getCategory().getName() : "");
+                            return dto;
+                        })
+                        .collect(java.util.stream.Collectors.toList());
 
                     model.addAttribute("itemMenu", itemMenu);
                     model.addAttribute("categories", categories);
                     model.addAttribute("ingredients", ingredients);
+                    model.addAttribute("ingredientsDTO", ingredientsDTO);
                     model.addAttribute("recipe", recipe);
                     model.addAttribute("formAction", "/admin/menu-items/" + id);
                     return "admin/menu-items/form";
@@ -462,10 +490,24 @@ public class ItemMenuController {
     private void loadFormData(Model model, ItemMenu itemMenu, List<ItemIngredient> recipe) {
         List<Category> categories = categoryService.getAllCategories();
         List<Ingredient> ingredients = ingredientService.findAll();
+        
+        // Convertir ingredientes a DTOs simples para evitar referencias circulares
+        List<Map<String, Object>> ingredientsDTO = ingredients.stream()
+            .map(ing -> {
+                Map<String, Object> dto = new HashMap<>();
+                dto.put("idIngredient", ing.getIdIngredient());
+                dto.put("name", ing.getName());
+                dto.put("unitOfMeasure", ing.getUnitOfMeasure());
+                dto.put("currentStock", ing.getCurrentStock());
+                dto.put("categoryName", ing.getCategory() != null ? ing.getCategory().getName() : "");
+                return dto;
+            })
+            .collect(java.util.stream.Collectors.toList());
 
         model.addAttribute("itemMenu", itemMenu);
         model.addAttribute("categories", categories);
         model.addAttribute("ingredients", ingredients);
+        model.addAttribute("ingredientsDTO", ingredientsDTO);
         model.addAttribute("recipe", recipe);
         model.addAttribute("formAction", itemMenu.getIdItemMenu() != null ? 
                 "/admin/menu-items/" + itemMenu.getIdItemMenu() : "/admin/menu-items");

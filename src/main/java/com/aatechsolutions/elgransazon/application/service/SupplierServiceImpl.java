@@ -155,6 +155,12 @@ public class SupplierServiceImpl implements SupplierService {
         String normalizedSearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
 
         List<Supplier> suppliers = supplierRepository.searchWithFilters(normalizedSearch, rating, categoryId, active);
+        
+        // Sort: active suppliers first (alphabetically), then inactive suppliers (alphabetically)
+        suppliers.sort(Comparator
+                .comparing(Supplier::getActive, Comparator.reverseOrder()) // true (active) first, then false (inactive)
+                .thenComparing(Supplier::getName, String.CASE_INSENSITIVE_ORDER)); // then alphabetically
+        
         log.info("Found {} suppliers with filters", suppliers.size());
         return suppliers;
     }
@@ -166,8 +172,10 @@ public class SupplierServiceImpl implements SupplierService {
 
         List<Supplier> suppliers = supplierRepository.findByCategoriesIdCategory(categoryId);
 
-        // Sort alphabetically
-        suppliers.sort(Comparator.comparing(Supplier::getName, String.CASE_INSENSITIVE_ORDER));
+        // Sort: active suppliers first (alphabetically), then inactive suppliers (alphabetically)
+        suppliers.sort(Comparator
+                .comparing(Supplier::getActive, Comparator.reverseOrder()) // true (active) first, then false (inactive)
+                .thenComparing(Supplier::getName, String.CASE_INSENSITIVE_ORDER)); // then alphabetically
 
         log.info("Found {} suppliers for category ID: {}", suppliers.size(), categoryId);
         return suppliers;

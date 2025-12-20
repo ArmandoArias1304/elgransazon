@@ -104,6 +104,7 @@ public class EmployeeController {
         model.addAttribute("shifts", availableShifts);
         model.addAttribute("supervisors", supervisors);
         model.addAttribute("isEdit", false);
+        model.addAttribute("isAdminEmployee", false); // New employees are never ADMIN
         model.addAttribute("formAction", "/admin/employees");
         
         return "admin/employees/form";
@@ -118,6 +119,9 @@ public class EmployeeController {
         
         return employeeService.findById(id)
                 .map(employee -> {
+                    // Check if employee has ADMIN role
+                    boolean isAdminEmployee = employee.hasRole(Role.ADMIN);
+                    
                     List<Role> availableRoles = roleRepository.findAll().stream()
                             .filter(r -> !r.getNombreRol().equals(Role.ADMIN))
                             .collect(Collectors.toList());
@@ -133,6 +137,7 @@ public class EmployeeController {
                     model.addAttribute("shifts", availableShifts);
                     model.addAttribute("supervisors", supervisors);
                     model.addAttribute("isEdit", true);
+                    model.addAttribute("isAdminEmployee", isAdminEmployee);
                     model.addAttribute("formAction", "/admin/employees/" + id);
                     
                     return "admin/employees/form";
@@ -229,13 +234,12 @@ public class EmployeeController {
     }
 
     /**
-     * Update an existing employee
+     * Update an existing employee (without password)
      */
     @PostMapping("/{id}")
     public String updateEmployee(
             @PathVariable Long id,
             @Valid @ModelAttribute("employee") Employee employee,
-            @RequestParam(value = "password", required = false) String password,
             @RequestParam(value = "roleId", required = false) Long roleId,
             @RequestParam(value = "supervisorId", required = false) Long supervisorId,
             BindingResult bindingResult,
@@ -251,20 +255,29 @@ public class EmployeeController {
         }
         
         try {
-            // Set password if provided (optional for update)
-            if (password != null && !password.isEmpty()) {
-                employee.setContrasenia(password);
-            }
+            // Get existing employee to check if is ADMIN
+            Employee existingEmployee = employeeService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado"));
             
-            // Set role
-            if (roleId != null) {
-                Optional<Role> role = roleRepository.findById(roleId);
-                if (role.isPresent()) {
-                    Set<Role> roles = new HashSet<>();
-                    roles.add(role.get());
-                    employee.setRoles(roles);
+            // Prevent role change for ADMIN employees
+            if (existingEmployee.hasRole(Role.ADMIN)) {
+                log.warn("Attempted to change role of ADMIN employee ID: {}", id);
+                // Preserve ADMIN role
+                employee.setRoles(existingEmployee.getRoles());
+            } else {
+                // Set role (only for non-ADMIN employees)
+                if (roleId != null) {
+                    Optional<Role> role = roleRepository.findById(roleId);
+                    if (role.isPresent()) {
+                        Set<Role> roles = new HashSet<>();
+                        roles.add(role.get());
+                        employee.setRoles(roles);
+                    }
                 }
             }
+            
+            // Preserve existing password (no password change in this endpoint)
+            employee.setContrasenia(existingEmployee.getContrasenia());
             
             // Set supervisor if provided
             if (supervisorId != null) {
@@ -290,6 +303,62 @@ public class EmployeeController {
             model.addAttribute("errorMessage", "Error al actualizar el empleado: " + e.getMessage());
             prepareFormModel(model, employee, true);
             return "admin/employees/form";
+        }
+    }
+
+    /**
+     * Change employee password (separate endpoint to prevent session logout)
+     */
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PostMapping("/{id}/change-password")
+    public String changeEmployeePassword(
+            @PathVariable Long id,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("confirmPassword") String confirmPassword,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+        
+        log.info("Changing password for employee ID: {}", id);
+        
+        try {
+            // Validate passwords match
+            if (!newPassword.equals(confirmPassword)) {
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                        "Las contraseñas no coinciden");
+                return "redirect:/admin/employees/" + id + "/edit";
+            }
+            
+            // Validate minimum length
+            if (newPassword.length() < 6) {
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                        "La contraseña debe tener al menos 6 caracteres");
+                return "redirect:/admin/employees/" + id + "/edit";
+            }
+            
+            // Get employee
+            Employee employee = employeeService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado"));
+            
+            // Update password
+            employee.setContrasenia(newPassword);
+            String currentUsername = authentication.getName();
+            Employee updated = employeeService.update(id, employee, currentUsername);
+            
+            log.info("Password changed successfully for employee: {}", updated.getFullName());
+            redirectAttributes.addFlashAttribute("successMessage", 
+                    "Contraseña actualizada exitosamente para " + updated.getFullName());
+            return "redirect:/admin/employees/" + id + "/edit";
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Error changing password: {}", e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/admin/employees/" + id + "/edit";
+            
+        } catch (Exception e) {
+            log.error("Error changing employee password", e);
+            redirectAttributes.addFlashAttribute("errorMessage", 
+                    "Error al cambiar la contraseña: " + e.getMessage());
+            return "redirect:/admin/employees/" + id + "/edit";
         }
     }
 
@@ -340,7 +409,7 @@ public class EmployeeController {
             employeeData.put("id", employee.getIdEmpleado());
             employeeData.put("fullName", employee.getFullName());
             employeeData.put("username", employee.getUsername());
-            employeeData.put("email", employee.getEmail());
+            employeeData.put("edad", employee.getEdad());
             employeeData.put("telefono", employee.getTelefono());
             employeeData.put("salario", employee.getFormattedSalary());
             employeeData.put("roleName", employee.getRoleDisplayName());
@@ -419,7 +488,7 @@ public class EmployeeController {
                 // Check if employee has admin role
                 if (employee.hasRole(Role.ADMIN)) {
                     redirectAttributes.addFlashAttribute("errorMessage", 
-                            "No se puede eliminar un administrador");
+                            "No se puede eliminar un administrador. Los administradores no pueden ser eliminados por seguridad del sistema.");
                     return "redirect:/admin/employees";
                 }
                 
@@ -432,7 +501,17 @@ public class EmployeeController {
             
         } catch (Exception e) {
             log.error("Error deleting employee", e);
-            redirectAttributes.addFlashAttribute("errorMessage", "Error al eliminar el empleado");
+            // Check if it's a constraint violation (employee has associated records)
+            String errorMessage = e.getMessage();
+            if (errorMessage != null && (errorMessage.contains("constraint") || 
+                errorMessage.contains("foreign key") || 
+                errorMessage.contains("referencia"))) {
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                        "No se puede eliminar este empleado debido a que ya cuenta con registros asociados (órdenes, turnos, supervisiones, etc.). Puedes deshabilitarlo en su lugar.");
+            } else {
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                        "Error al eliminar el empleado: " + e.getMessage());
+            }
         }
         
         return "redirect:/admin/employees";
@@ -451,10 +530,14 @@ public class EmployeeController {
                 .filter(e -> e.hasRole(Role.ADMIN) || e.hasRole(Role.MANAGER))
                 .collect(Collectors.toList());
         
+        // Check if employee is ADMIN (for edit mode)
+        boolean isAdminEmployee = isEdit && employee.getIdEmpleado() != null && employee.hasRole(Role.ADMIN);
+        
         model.addAttribute("availableRoles", availableRoles);
         model.addAttribute("shifts", availableShifts);
         model.addAttribute("supervisors", supervisors);
         model.addAttribute("isEdit", isEdit);
+        model.addAttribute("isAdminEmployee", isAdminEmployee);
         
         String formAction = isEdit && employee.getIdEmpleado() != null 
             ? "/admin/employees/" + employee.getIdEmpleado() 

@@ -1,22 +1,27 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
+import com.aatechsolutions.elgransazon.application.service.EmployeeService;
 import com.aatechsolutions.elgransazon.application.service.IngredientCategoryService;
 import com.aatechsolutions.elgransazon.application.service.IngredientService;
 import com.aatechsolutions.elgransazon.application.service.SupplierService;
+import com.aatechsolutions.elgransazon.domain.entity.Employee;
 import com.aatechsolutions.elgransazon.domain.entity.Ingredient;
 import com.aatechsolutions.elgransazon.domain.entity.IngredientCategory;
+import com.aatechsolutions.elgransazon.domain.entity.IngredientStockHistory;
 import com.aatechsolutions.elgransazon.domain.entity.Supplier;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -33,6 +38,7 @@ public class IngredientController {
     private final IngredientService ingredientService;
     private final IngredientCategoryService categoryService;
     private final SupplierService supplierService;
+    private final EmployeeService employeeService;
 
     /**
      * List all ingredients with optional filters
@@ -97,7 +103,7 @@ public class IngredientController {
 
         Ingredient ingredient = new Ingredient();
         ingredient.setActive(true);
-        ingredient.setCurrency("USD");
+        ingredient.setCurrency("MXN");
 
         model.addAttribute("ingredient", ingredient);
         model.addAttribute("isEdit", false);
@@ -115,7 +121,8 @@ public class IngredientController {
             @RequestParam Long categoryId,
             BindingResult result,
             Model model,
-            RedirectAttributes redirectAttributes) {
+            RedirectAttributes redirectAttributes,
+            Authentication authentication) {
 
         log.info("Creating ingredient: {} with categoryId: {}", ingredient.getName(), categoryId);
 
@@ -137,7 +144,35 @@ public class IngredientController {
         }
 
         try {
-            ingredientService.create(ingredient);
+            // Create the ingredient
+            Ingredient savedIngredient = ingredientService.create(ingredient);
+            
+            // If the ingredient has initial stock and cost, create a history record
+            if (savedIngredient.getCurrentStock() != null && 
+                savedIngredient.getCurrentStock().compareTo(BigDecimal.ZERO) > 0 &&
+                savedIngredient.getCostPerUnit() != null && 
+                savedIngredient.getCostPerUnit().compareTo(BigDecimal.ZERO) > 0) {
+                
+                try {
+                    String username = authentication.getName();
+                    Employee currentEmployee = employeeService.findByUsername(username)
+                            .orElse(null);
+                    
+                    ingredientService.addStock(
+                            savedIngredient.getIdIngredient(),
+                            savedIngredient.getCurrentStock(),
+                            savedIngredient.getCostPerUnit(),
+                            currentEmployee
+                    );
+                    
+                    log.info("Initial stock history record created for ingredient: {}", savedIngredient.getName());
+                } catch (Exception e) {
+                    log.warn("Could not create initial stock history for ingredient {}: {}", 
+                            savedIngredient.getName(), e.getMessage());
+                    // Continue without failing the ingredient creation
+                }
+            }
+            
             redirectAttributes.addFlashAttribute("successMessage", "Ingrediente creado exitosamente");
             return "redirect:/admin/ingredients";
         } catch (DataAccessException e) {
@@ -286,5 +321,73 @@ public class IngredientController {
         }
 
         return "redirect:/admin/ingredients";
+    }
+
+    /**
+     * Add stock to an existing ingredient
+     */
+    @PostMapping("/{id}/add-stock")
+    public String addStock(
+            @PathVariable Long id,
+            @RequestParam BigDecimal quantityToAdd,
+            @RequestParam BigDecimal costPerUnit,
+            RedirectAttributes redirectAttributes,
+            Authentication authentication) {
+
+        log.info("Adding stock to ingredient ID: {} - Quantity: {} - Cost: ${}", id, quantityToAdd, costPerUnit);
+
+        try {
+            if (quantityToAdd.compareTo(BigDecimal.ZERO) <= 0) {
+                redirectAttributes.addFlashAttribute("errorMessage", "La cantidad debe ser mayor a 0");
+                return "redirect:/admin/ingredients/" + id + "/edit";
+            }
+
+            if (costPerUnit.compareTo(BigDecimal.ZERO) <= 0) {
+                redirectAttributes.addFlashAttribute("errorMessage", "El costo por unidad debe ser mayor a 0");
+                return "redirect:/admin/ingredients/" + id + "/edit";
+            }
+
+            Employee currentEmployee = employeeService.findByUsername(authentication.getName())
+                    .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            ingredientService.addStock(id, quantityToAdd, costPerUnit, currentEmployee);
+
+            redirectAttributes.addFlashAttribute("successMessage",
+                    "Stock agregado exitosamente. Se ha registrado en el historial.");
+
+        } catch (Exception e) {
+            log.error("Error al agregar stock al ingrediente {}: {}", id, e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Error al agregar stock: " + e.getMessage());
+        }
+
+        return "redirect:/admin/ingredients/" + id + "/edit";
+    }
+
+    /**
+     * Show stock history for an ingredient
+     */
+    @GetMapping("/{id}/stock-history")
+    public String showStockHistory(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        log.info("Showing stock history for ingredient ID: {}", id);
+
+        try {
+            Ingredient ingredient = ingredientService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Ingrediente no encontrado"));
+
+            List<IngredientStockHistory> history = ingredientService.getStockHistory(id);
+            BigDecimal totalCost = ingredientService.getTotalCostByIngredient(id);
+
+            model.addAttribute("ingredient", ingredient);
+            model.addAttribute("history", history);
+            model.addAttribute("totalCost", totalCost);
+
+            return "admin/ingredients/stock-history";
+
+        } catch (Exception e) {
+            log.error("Error al cargar historial de stock: {}", e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al cargar el historial: " + e.getMessage());
+            return "redirect:/admin/ingredients";
+        }
     }
 }

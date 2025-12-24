@@ -274,4 +274,19 @@ public class CashierOrderServiceImpl implements OrderService {
         log.info("Cashier {} deleting item {} from order {}", getCurrentUsername(), itemDetailId, orderId);
         return adminOrderService.deleteOrderItem(orderId, itemDetailId, username);
     }
+
+    @Override
+    public BigDecimal getTotalIncome() {
+        return adminOrderService.getTotalIncome();
+    }
+
+    @Override
+    public Map<String, BigDecimal> getIncomeByCategory() {
+        return adminOrderService.getIncomeByCategory();
+    }
+
+    @Override
+    public List<Object[]> getItemSalesByCategory(Long categoryId) {
+        return adminOrderService.getItemSalesByCategory(categoryId);
+    }
 }

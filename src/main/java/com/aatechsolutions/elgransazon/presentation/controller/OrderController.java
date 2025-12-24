@@ -27,11 +27,12 @@ import java.util.stream.Collectors;
  */
 @Controller
 @RequestMapping("/{role}/orders")
-@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAITER', 'ROLE_CHEF', 'ROLE_DELIVERY', 'ROLE_CASHIER')")
+@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_WAITER', 'ROLE_CHEF', 'ROLE_BARISTA', 'ROLE_DELIVERY', 'ROLE_CASHIER')")
 @Slf4j
 public class OrderController {
 
     private final Map<String, OrderService> orderServices;
+    private final OrderService chefOrderService; // Direct reference for chef-specific methods
     private final RestaurantTableService restaurantTableService;
     private final ItemMenuService itemMenuService;
     private final EmployeeService employeeService;
@@ -43,13 +44,14 @@ public class OrderController {
 
     /**
      * Constructor with dependency injection
-     * Injects admin, waiter, chef, delivery and cashier order services
+     * Injects admin, waiter, chef, barista, delivery and cashier order services
      * MANAGER uses the same service as ADMIN
      */
     public OrderController(
             @Qualifier("adminOrderService") OrderService adminOrderService,
             @Qualifier("waiterOrderService") OrderService waiterOrderService,
             @Qualifier("chefOrderService") OrderService chefOrderService,
+            @Qualifier("baristaOrderService") OrderService baristaOrderService,
             @Qualifier("deliveryOrderService") OrderService deliveryOrderService,
             @Qualifier("cashierOrderService") OrderService cashierOrderService,
             RestaurantTableService restaurantTableService,
@@ -61,11 +63,13 @@ public class OrderController {
             PromotionService promotionService,
             WebSocketNotificationService wsNotificationService) {
         
+        this.chefOrderService = chefOrderService; // Store direct reference
         this.orderServices = Map.of(
             "admin", adminOrderService,
             "manager", adminOrderService,  // MANAGER uses admin service
             "waiter", waiterOrderService,
             "chef", chefOrderService,
+            "barista", baristaOrderService,
             "delivery", deliveryOrderService,
             "cashier", cashierOrderService
         );
@@ -99,7 +103,8 @@ public class OrderController {
                 .map(GrantedAuthority::getAuthority)
                 .filter(auth -> auth.equals("ROLE_ADMIN") || auth.equals("ROLE_MANAGER") || 
                                auth.equals("ROLE_WAITER") || auth.equals("ROLE_CHEF") || 
-                               auth.equals("ROLE_DELIVERY") || auth.equals("ROLE_CASHIER"))
+                               auth.equals("ROLE_BARISTA") || auth.equals("ROLE_DELIVERY") || 
+                               auth.equals("ROLE_CASHIER"))
                 .map(auth -> auth.replace("ROLE_", "").toLowerCase())
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("User has no valid role"));
@@ -594,7 +599,8 @@ public class OrderController {
             
             // Send WebSocket notification for items added to existing order
             try {
-                wsNotificationService.notifyItemsAdded(updated, newOrderDetails.size());
+                // Pass the actual new items list to detect what type of items were added
+                wsNotificationService.notifyItemsAdded(updated, newOrderDetails);
             } catch (Exception e) {
                 log.error("Failed to send WebSocket notification for items added to order: {}", 
                     updated.getOrderNumber(), e);
@@ -1135,11 +1141,20 @@ public class OrderController {
             }
             
             // Set preparedBy BEFORE changing status (when someone accepts the order)
-            if (status == OrderStatus.IN_PREPARATION && order.getStatus() == OrderStatus.PENDING && order.getPreparedBy() == null) {
-                // Update the preparedBy field directly in the repository
-                order.setPreparedBy(currentEmployee);
-                orderRepository.save(order);
-                log.info("Setting preparedBy to: {} (role: {}) for order {}", username, role, id);
+            // For CHEF role: use preparedBy
+            // For BARISTA role: use preparedByBarista
+            if (status == OrderStatus.IN_PREPARATION && order.getStatus() == OrderStatus.PENDING) {
+                if ("chef".equalsIgnoreCase(role) && order.getPreparedBy() == null) {
+                    // Chef accepting the order
+                    order.setPreparedBy(currentEmployee);
+                    orderRepository.save(order);
+                    log.info("Setting preparedBy (Chef) to: {} for order {}", username, id);
+                } else if ("barista".equalsIgnoreCase(role) && order.getPreparedByBarista() == null) {
+                    // Barista accepting the order
+                    order.setPreparedByBarista(currentEmployee);
+                    orderRepository.save(order);
+                    log.info("Setting preparedByBarista to: {} for order {}", username, id);
+                }
             }
             
             // Set paidBy BEFORE changing status (when order is marked as PAID)
@@ -1293,6 +1308,55 @@ public class OrderController {
             response.put("message", e.getMessage());
         } catch (Exception e) {
             log.error("Error changing items status", e);
+            response.put("success", false);
+            response.put("message", "Error al cambiar el estado de los items: " + e.getMessage());
+        }
+
+        return response;
+    }
+
+    /**
+     * Change ALL chef items in order to next status (AJAX)
+     * This is a convenience endpoint for chef to avoid touching screen many times
+     * Only available for CHEF role
+     */
+    @PostMapping("/{id}/change-all-chef-items")
+    @ResponseBody
+    public Map<String, Object> changeAllChefItems(
+            @PathVariable String role,
+            @PathVariable Long id,
+            Authentication authentication) {
+        
+        String username = authentication.getName();
+        log.info("Changing ALL chef items in order {} by user: {} (role: {})", id, username, role);
+
+        // Validate role - ONLY chef can use this
+        validateRole(role, authentication);
+        
+        if (!"chef".equalsIgnoreCase(role)) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Esta operación solo está disponible para el rol de chef");
+            return errorResponse;
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Cast to ChefOrderServiceImpl to access the new method
+            ChefOrderServiceImpl chefService = (ChefOrderServiceImpl) chefOrderService;
+            Order updated = chefService.changeAllChefItemsToNextStatus(id, username);
+
+            response.put("success", true);
+            response.put("message", "Todos los items del chef han sido actualizados");
+            response.put("order", buildOrderDTO(updated));
+            response.put("orderStatus", updated.getStatus().name());
+        } catch (IllegalStateException e) {
+            log.error("Error changing all chef items: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", e.getMessage());
+        } catch (Exception e) {
+            log.error("Error changing all chef items", e);
             response.put("success", false);
             response.put("message", "Error al cambiar el estado de los items: " + e.getMessage());
         }
@@ -1601,11 +1665,17 @@ public class OrderController {
                 .unitPrice(item.getPrice())
                 .comments(comment);
             
-            // Set item status based on whether it requires preparation
-            // If item doesn't require preparation, it goes directly to READY status
-            if (Boolean.TRUE.equals(item.getRequiresPreparation())) {
+            // Set item status based on whether it requires ANY preparation (chef or barista)
+            // ONLY items requiring NO preparation at all go directly to READY
+            // Items requiring barista preparation MUST start as PENDING
+            boolean requiresChefPreparation = Boolean.TRUE.equals(item.getRequiresPreparation());
+            boolean requiresBaristaPreparation = Boolean.TRUE.equals(item.getRequiresBaristaPreparation());
+            
+            if (requiresChefPreparation || requiresBaristaPreparation) {
+                // Item requires preparation by chef OR barista - starts PENDING
                 detailBuilder.itemStatus(OrderStatus.PENDING);
             } else {
+                // Item requires NO preparation - goes directly to READY
                 detailBuilder.itemStatus(OrderStatus.READY);
             }
             

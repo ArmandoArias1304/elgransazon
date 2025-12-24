@@ -1,7 +1,10 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
+import com.aatechsolutions.elgransazon.application.service.IngredientCategoryService;
+import com.aatechsolutions.elgransazon.application.service.IngredientService;
 import com.aatechsolutions.elgransazon.application.service.OrderService;
 import com.aatechsolutions.elgransazon.application.service.ReportPdfService;
+import com.aatechsolutions.elgransazon.application.service.CategoryService;
 import com.aatechsolutions.elgransazon.domain.entity.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,13 +36,22 @@ public class ReportsController {
 
     private final OrderService orderService;
     private final ReportPdfService reportPdfService;
+    private final IngredientService ingredientService;
+    private final IngredientCategoryService ingredientCategoryService;
+    private final CategoryService categoryService;
 
     // Constructor manual para inyectar adminOrderService específicamente
     public ReportsController(
             @Qualifier("adminOrderService") OrderService orderService,
-            ReportPdfService reportPdfService) {
+            ReportPdfService reportPdfService,
+            IngredientService ingredientService,
+            IngredientCategoryService ingredientCategoryService,
+            CategoryService categoryService) {
         this.orderService = orderService;
         this.reportPdfService = reportPdfService;
+        this.ingredientService = ingredientService;
+        this.ingredientCategoryService = ingredientCategoryService;
+        this.categoryService = categoryService;
     }
 
     /**
@@ -184,12 +196,14 @@ public class ReportsController {
 
     /**
      * Calculate sales by employee (total with tax, WITHOUT tip)
+     * EXCLUDES orders created by customers (web orders)
      */
     private Map<String, BigDecimal> calculateSalesByEmployee(List<Order> orders) {
         Map<String, BigDecimal> salesByEmployee = new HashMap<>();
         
         for (Order order : orders) {
-            if (order.getEmployee() != null) {
+            // Only include orders created by employees (exclude customer-created orders)
+            if (order.getEmployee() != null && order.getCustomer() == null) {
                 String employeeName = order.getEmployee().getNombre() + " " + order.getEmployee().getApellido();
                 // Use total (subtotal + tax) without tip
                 BigDecimal orderTotal = order.getTotal() != null ? order.getTotal() : BigDecimal.ZERO;
@@ -359,6 +373,7 @@ public class ReportsController {
 
     /**
      * Download Employees Report PDF
+     * Excludes orders created by customers (web orders)
      */
     @GetMapping("/download/employees")
     public ResponseEntity<byte[]> downloadEmployeesPdf(
@@ -376,13 +391,18 @@ public class ReportsController {
                 paidOrders = filterByDateRange(paidOrders, startDate, endDate);
             }
 
-            // Calculate statistics
-            BigDecimal totalSales = calculateTotalSales(paidOrders);
-            Map<String, BigDecimal> salesByEmployee = calculateSalesByEmployee(paidOrders);
+            // Exclude customer-created orders (web orders)
+            List<Order> employeeOrders = paidOrders.stream()
+                .filter(o -> o.getEmployee() != null && o.getCustomer() == null)
+                .collect(Collectors.toList());
+
+            // Calculate statistics (excluding web orders)
+            BigDecimal totalSales = calculateTotalSales(employeeOrders);
+            Map<String, BigDecimal> salesByEmployee = calculateSalesByEmployee(employeeOrders);
 
             // Generate PDF
             byte[] pdfBytes = reportPdfService.generateEmployeesReport(
-                paidOrders, startDate, endDate, salesByEmployee, totalSales
+                employeeOrders, startDate, endDate, salesByEmployee, totalSales
             );
 
             // Prepare response
@@ -408,6 +428,102 @@ public class ReportsController {
     private String getCurrentDateForFilename() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
         return LocalDateTime.now().format(formatter);
+    }
+
+    /**
+     * Show Income and Expenses Report
+     */
+    @GetMapping("/income-expenses")
+    public String showIncomeExpensesReport(Model model) {
+        log.info("Showing income and expenses report");
+
+        try {
+            // Get total income and expenses
+            BigDecimal totalIncome = orderService.getTotalIncome();
+            BigDecimal totalExpenses = ingredientService.getTotalExpenses();
+            BigDecimal netProfit = totalIncome.subtract(totalExpenses);
+
+            // Get categories
+            List<IngredientCategory> ingredientCategories = ingredientCategoryService.findAll();
+            List<Category> menuCategories = categoryService.getAllActiveCategories();
+
+            // Get expenses by category
+            Map<String, BigDecimal> expensesByCategory = ingredientService.getExpensesByCategory();
+
+            // Get income by category
+            Map<String, BigDecimal> incomeByCategory = orderService.getIncomeByCategory();
+
+            model.addAttribute("totalIncome", totalIncome);
+            model.addAttribute("totalExpenses", totalExpenses);
+            model.addAttribute("netProfit", netProfit);
+            model.addAttribute("ingredientCategories", ingredientCategories);
+            model.addAttribute("menuCategories", menuCategories);
+            model.addAttribute("expensesByCategory", expensesByCategory);
+            model.addAttribute("incomeByCategory", incomeByCategory);
+
+            return "admin/reports/income-expenses";
+
+        } catch (Exception e) {
+            log.error("Error loading income and expenses report: {}", e.getMessage(), e);
+            model.addAttribute("errorMessage", "Error al cargar el reporte: " + e.getMessage());
+            return "admin/reports/income-expenses";
+        }
+    }
+
+    /**
+     * Get expense details by ingredient category (AJAX)
+     */
+    @GetMapping("/income-expenses/expenses/{categoryId}")
+    @ResponseBody
+    public ResponseEntity<List<Map<String, Object>>> getExpensesByCategory(@PathVariable Long categoryId) {
+        log.info("Getting expense details for ingredient category ID: {}", categoryId);
+
+        try {
+            List<Object[]> results = ingredientService.getExpenseDetailsByCategory(categoryId);
+            List<Map<String, Object>> response = new ArrayList<>();
+
+            for (Object[] row : results) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("name", row[0]); // ingredient name
+                item.put("quantity", row[1]); // total quantity purchased
+                item.put("total", row[2]); // total expense
+                response.add(item);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Error getting expenses by category: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Get income details by menu category (AJAX)
+     */
+    @GetMapping("/income-expenses/income/{categoryId}")
+    @ResponseBody
+    public ResponseEntity<List<Map<String, Object>>> getIncomeByCategory(@PathVariable Long categoryId) {
+        log.info("Getting income details for menu category ID: {}", categoryId);
+
+        try {
+            List<Object[]> results = orderService.getItemSalesByCategory(categoryId);
+            List<Map<String, Object>> response = new ArrayList<>();
+
+            for (Object[] row : results) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("name", row[0]); // item name
+                item.put("quantity", row[1]); // total quantity sold
+                item.put("total", row[2]); // total sales
+                response.add(item);
+            }
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("Error getting income by category: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
 

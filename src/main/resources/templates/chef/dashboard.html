@@ -7,7 +7,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>El Gran Sazón - Dashboard Chef</title>
+    <title th:text="'El Gran Sazón - Dashboard ' + ${role}">
+      El Gran Sazón - Dashboard Chef
+    </title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -199,12 +201,19 @@
         <h1
           class="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3"
         >
-          👨‍🍳 Panel de Control de Cocina
+          <span th:if="${isBarista}">☕ Panel de Control de Barra</span>
+          <span th:unless="${isBarista}">👨‍🍳 Panel de Control de Cocina</span>
         </h1>
         <p
           class="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
         >
-          Gestiona los pedidos de la cocina y prepara deliciosos platillos
+          <span th:if="${isBarista}"
+            >Gestiona las bebidas y preparaciones de la barra</span
+          >
+          <span th:unless="${isBarista}"
+            >Gestiona los pedidos de la cocina y prepara deliciosos
+            platillos</span
+          >
         </p>
       </div>
 

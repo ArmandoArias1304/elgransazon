@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -356,5 +357,39 @@ public class IngredientServiceImpl implements IngredientService {
 
         BigDecimal totalCost = stockHistoryRepository.getTotalCostByIngredient(ingredientId);
         return totalCost != null ? totalCost : BigDecimal.ZERO;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalExpenses() {
+        log.info("Calculating total expenses for all ingredients");
+
+        BigDecimal totalExpenses = stockHistoryRepository.getTotalExpenses();
+        return totalExpenses != null ? totalExpenses : BigDecimal.ZERO;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, BigDecimal> getExpensesByCategory() {
+        log.info("Getting expenses grouped by category");
+
+        List<Object[]> results = stockHistoryRepository.getExpensesByCategory();
+        Map<String, BigDecimal> expenseMap = new java.util.LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            String categoryName = (String) row[0];
+            BigDecimal totalExpense = (BigDecimal) row[1];
+            expenseMap.put(categoryName, totalExpense != null ? totalExpense : BigDecimal.ZERO);
+        }
+
+        return expenseMap;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Object[]> getExpenseDetailsByCategory(Long categoryId) {
+        log.info("Getting expense details for category ID: {}", categoryId);
+
+        return stockHistoryRepository.getExpensesByIngredient(categoryId);
     }
 }

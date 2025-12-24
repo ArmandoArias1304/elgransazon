@@ -357,4 +357,22 @@ public class CustomerOrderServiceImpl implements OrderService {
         validateOrderOwnership(order);
         return order;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalIncome() {
+        return adminOrderService.getTotalIncome();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, BigDecimal> getIncomeByCategory() {
+        return adminOrderService.getIncomeByCategory();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Object[]> getItemSalesByCategory(Long categoryId) {
+        return adminOrderService.getItemSalesByCategory(categoryId);
+    }
 }

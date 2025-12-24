@@ -135,7 +135,7 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
 
     /**
      * Determine the target URL based on user's roles
-     * Priority: CLIENT > ADMIN > MANAGER > CHEF > WAITER > CASHIER > DELIVERY > default
+     * Priority: CLIENT > ADMIN > MANAGER > CHEF > BARISTA > WAITER > CASHIER > DELIVERY > default
      */
     private String determineTargetUrl(Authentication authentication) {
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
@@ -151,6 +151,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             } else if (Role.MANAGER.equals(role)) {
                 return "/admin/dashboard";
             } else if (Role.CHEF.equals(role)) {
+                return "/chef/dashboard";
+            } else if (Role.BARISTA.equals(role)) {
                 return "/chef/dashboard";
             } else if (Role.WAITER.equals(role)) {
                 return "/waiter/dashboard";

@@ -68,12 +68,12 @@ public interface IngredientStockHistoryRepository extends JpaRepository<Ingredie
     List<Object[]> getExpensesByCategory();
 
     /**
-     * Obtener gastos agrupados por ingrediente
+     * Obtener gastos agrupados por ingrediente (todos)
      */
     @Query("SELECT h.ingredient.name, SUM(h.totalCost), h.ingredient.unitOfMeasure " +
             "FROM IngredientStockHistory h GROUP BY h.ingredient.id, h.ingredient.name, h.ingredient.unitOfMeasure " +
             "ORDER BY SUM(h.totalCost) DESC")
-    List<Object[]> getExpensesByIngredient();
+    List<Object[]> getAllExpensesByIngredient();
 
     /**
      * Obtener gastos agrupados por ingrediente con rango de fechas
@@ -86,4 +86,15 @@ public interface IngredientStockHistoryRepository extends JpaRepository<Ingredie
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
+
+    /**
+     * Obtener gastos detallados por categoría específica
+     * Returns: [ingredientName, totalQuantityPurchased, totalExpense]
+     */
+    @Query("SELECT h.ingredient.name, SUM(h.quantityAdded), COALESCE(SUM(h.totalCost), 0) " +
+            "FROM IngredientStockHistory h " +
+            "WHERE h.ingredient.category.idCategory = :categoryId " +
+            "GROUP BY h.ingredient.idIngredient, h.ingredient.name " +
+            "ORDER BY SUM(h.totalCost) DESC")
+    List<Object[]> getExpensesByIngredient(@Param("categoryId") Long categoryId);
 }

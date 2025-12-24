@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>El Gran Sazón - Ranking de Chefs</title>
+    <title th:text="'El Gran Sazón - Ranking de ' + ${role} + 's'">
+      El Gran Sazón - Ranking de Chefs
+    </title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,7 +16,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -180,7 +182,7 @@
         <div class="flex-1 min-w-0">
           <h1
             class="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate"
-            th:text="${config.restaurantName != null && !config.restaurantName.isEmpty()} ? ${config.restaurantName} + ' - Ranking de Chefs' : 'Ranking de Chefs'"
+            th:text="${config.restaurantName != null && !config.restaurantName.isEmpty()} ? ${config.restaurantName} + ' - Ranking de ' + ${role} + 's' : 'Ranking de ' + ${role} + 's'"
           >
             Ranking de Chefs
           </h1>

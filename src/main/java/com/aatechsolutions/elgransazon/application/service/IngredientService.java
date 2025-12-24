@@ -6,6 +6,7 @@ import com.aatechsolutions.elgransazon.domain.entity.IngredientStockHistory;
 import com.aatechsolutions.elgransazon.domain.entity.Supplier;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -102,4 +103,21 @@ public interface IngredientService {
      * Calcula el gasto total de un ingrediente
      */
     BigDecimal getTotalCostByIngredient(Long ingredientId);
+
+    /**
+     * Obtiene el gasto total de todos los ingredientes
+     */
+    BigDecimal getTotalExpenses();
+
+    /**
+     * Obtiene gastos agrupados por categoría
+     * Returns Map<categoryName, totalExpense>
+     */
+    Map<String, BigDecimal> getExpensesByCategory();
+
+    /**
+     * Obtiene gastos detallados por categoría específica
+     * Returns List of [ingredientName, totalQuantityPurchased, totalExpense]
+     */
+    List<Object[]> getExpenseDetailsByCategory(Long categoryId);
 }

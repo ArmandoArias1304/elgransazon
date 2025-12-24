@@ -96,6 +96,11 @@ public class Order implements Serializable {
     @JoinColumn(name = "id_prepared_by", nullable = true)
     private Employee preparedBy;
 
+    // Employee who prepared beverages/coffee (barista)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_prepared_by_barista", nullable = true)
+    private Employee preparedByBarista;
+
     // Employee who collected payment (cashier or waiter, depending on payment method)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_paid_by", nullable = true)
@@ -352,78 +357,63 @@ public class Order implements Serializable {
 
     /**
      * Calculate order status based on individual item statuses
-     * This method determines the overall order status by analyzing all order details
      * 
-     * IMPORTANT: Items that don't require preparation (beverages) are auto-set to READY
-     * but should NOT change the order status to IN_PREPARATION if there are still
-     * PENDING items that require chef preparation
+     * NEW LOGIC: Order status is the MINIMUM (lowest) status of all items
+     * Respecting status hierarchy: PENDING < IN_PREPARATION < READY < DELIVERED
      * 
-     * IMPORTANT 2: If a chef has already accepted the order (preparedBy is set),
-     * adding new items should NOT revert the order to PENDING. New items stay PENDING
-     * but the order remains IN_PREPARATION (owned by the same chef)
+     * Examples:
+     * - 3 items IN_PREPARATION + 1 item PENDING → Order stays PENDING
+     * - All items IN_PREPARATION → Order is IN_PREPARATION
+     * - All items READY → Order is READY
+     * - Some items READY + some IN_PREPARATION → Order stays IN_PREPARATION
+     * 
+     * This ensures order doesn't advance until ALL items reach the same level
      */
     public OrderStatus calculateStatusFromItems() {
         if (orderDetails == null || orderDetails.isEmpty()) {
             return OrderStatus.PENDING;
         }
 
-        long pendingCount = orderDetails.stream().filter(detail -> detail.getItemStatus() == OrderStatus.PENDING).count();
-        long inPrepCount = orderDetails.stream().filter(detail -> detail.getItemStatus() == OrderStatus.IN_PREPARATION).count();
-        long readyCount = orderDetails.stream().filter(detail -> detail.getItemStatus() == OrderStatus.READY).count();
-        long deliveredCount = orderDetails.stream().filter(detail -> detail.getItemStatus() == OrderStatus.DELIVERED).count();
+        // Count items in each status
+        boolean hasPending = orderDetails.stream()
+            .anyMatch(detail -> detail.getItemStatus() == OrderStatus.PENDING);
+        
+        boolean hasInPreparation = orderDetails.stream()
+            .anyMatch(detail -> detail.getItemStatus() == OrderStatus.IN_PREPARATION);
+        
+        boolean hasReady = orderDetails.stream()
+            .anyMatch(detail -> detail.getItemStatus() == OrderStatus.READY);
+        
+        long deliveredCount = orderDetails.stream()
+            .filter(detail -> detail.getItemStatus() == OrderStatus.DELIVERED)
+            .count();
         
         int totalItems = orderDetails.size();
 
+        // Order status follows the MINIMUM (lowest) item status
+        // Hierarchy: PENDING < IN_PREPARATION < READY < DELIVERED
+        
+        // If ANY item is still PENDING, entire order is PENDING
+        if (hasPending) {
+            return OrderStatus.PENDING;
+        }
+        
+        // If no PENDING items, but ANY item is IN_PREPARATION, order is IN_PREPARATION
+        if (hasInPreparation) {
+            return OrderStatus.IN_PREPARATION;
+        }
+        
+        // If no PENDING or IN_PREPARATION items, but ANY item is READY, order is READY
+        if (hasReady) {
+            return OrderStatus.READY;
+        }
+        
         // All items delivered
         if (deliveredCount == totalItems) {
             return OrderStatus.DELIVERED;
         }
 
-        // All items ready (but not delivered)
-        if (readyCount == totalItems) {
-            return OrderStatus.READY;
-        }
-
-        // All items pending
-        if (pendingCount == totalItems) {
-            return OrderStatus.PENDING;
-        }
-
-        // IMPORTANT: If a chef has already accepted this order (preparedBy is set),
-        // the order should remain IN_PREPARATION even if new items are added
-        // This prevents another chef from stealing the order
-        if (this.preparedBy != null && inPrepCount > 0) {
-            // Order belongs to a chef who is working on it
-            // New PENDING items are for the SAME chef to prepare
-            return OrderStatus.IN_PREPARATION;
-        }
-
-        // Check if there are items that require preparation still pending
-        // If so, order should remain PENDING (waiting for chef to accept)
-        boolean hasPendingPreparationItems = orderDetails.stream()
-            .anyMatch(detail -> 
-                detail.getItemStatus() == OrderStatus.PENDING &&
-                detail.getItemMenu() != null &&
-                Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation())
-            );
-        
-        if (hasPendingPreparationItems) {
-            // Items requiring preparation are still pending (chef hasn't accepted)
-            // Even if there are READY items (beverages), order stays PENDING
-            return OrderStatus.PENDING;
-        }
-
-        // At least one item in preparation (chef has accepted some items)
-        if (inPrepCount > 0) {
-            return OrderStatus.IN_PREPARATION;
-        }
-        
-        // If we have READY items but no PENDING preparation items and no IN_PREPARATION
-        // This means all preparation items (if any) are done, only READY items remain
-        if (readyCount > 0) {
-            return OrderStatus.READY;
-        }
-
+        // Default fallback
         return OrderStatus.PENDING;
     }
 

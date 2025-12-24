@@ -182,4 +182,21 @@ public interface OrderService {
      * Find order by ID or throw exception
      */
     Order findByIdOrThrow(Long id);
+
+    /**
+     * Get total income from all PAID orders
+     */
+    BigDecimal getTotalIncome();
+
+    /**
+     * Get income grouped by menu category
+     * Returns Map<categoryName, totalIncome>
+     */
+    Map<String, BigDecimal> getIncomeByCategory();
+
+    /**
+     * Get items sold by category with details
+     * Returns List of [itemName, totalQuantity, totalSales]
+     */
+    List<Object[]> getItemSalesByCategory(Long categoryId);
 }

@@ -79,6 +79,16 @@ public class ItemMenu implements Serializable {
     @Builder.Default
     private Boolean requiresPreparation = true;
 
+    /**
+     * Indicates if this item requires preparation by the barista
+     * TRUE: Items like coffee, espresso, cappuccino, smoothies (barista must prepare)
+     * FALSE: Items that don't require barista preparation
+     * Items with requiresBaristaPreparation=true will be assigned to baristas
+     */
+    @Column(name = "requires_barista_preparation", nullable = false)
+    @Builder.Default
+    private Boolean requiresBaristaPreparation = false;
+
     // ========== Relationships ==========
 
     /**

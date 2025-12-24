@@ -149,17 +149,25 @@ public class ItemMenuController {
             @RequestParam(value = "quantities", required = false) List<BigDecimal> quantities,
             @RequestParam(value = "units", required = false) List<String> units,
             @RequestParam(value = "requiresPreparation", required = false) Boolean requiresPreparationParam,
+            @RequestParam(value = "requiresBaristaPreparation", required = false) Boolean requiresBaristaPreparationParam,
             Model model,
             RedirectAttributes redirectAttributes) {
 
         log.info("Creating new menu item: {}", itemMenu.getName());
         log.info("🔍 requiresPreparation received from form: {}", itemMenu.getRequiresPreparation());
         log.info("🔍 requiresPreparation as @RequestParam: {}", requiresPreparationParam);
+        log.info("🔍 requiresBaristaPreparation received from form: {}", itemMenu.getRequiresBaristaPreparation());
+        log.info("🔍 requiresBaristaPreparation as @RequestParam: {}", requiresBaristaPreparationParam);
         
         // Si el parámetro está presente, usarlo (para debug)
         if (requiresPreparationParam != null) {
-            log.info("🔍 Using @RequestParam value: {}", requiresPreparationParam);
+            log.info("🔍 Using @RequestParam value for Chef: {}", requiresPreparationParam);
             itemMenu.setRequiresPreparation(requiresPreparationParam);
+        }
+        
+        if (requiresBaristaPreparationParam != null) {
+            log.info("🔍 Using @RequestParam value for Barista: {}", requiresBaristaPreparationParam);
+            itemMenu.setRequiresBaristaPreparation(requiresBaristaPreparationParam);
         }
 
         if (bindingResult.hasErrors()) {
@@ -213,17 +221,25 @@ public class ItemMenuController {
             @RequestParam(value = "quantities", required = false) List<String> quantities,
             @RequestParam(value = "units", required = false) List<String> units,
             @RequestParam(value = "requiresPreparation", required = false) Boolean requiresPreparationParam,
+            @RequestParam(value = "requiresBaristaPreparation", required = false) Boolean requiresBaristaPreparationParam,
             Model model,
             RedirectAttributes redirectAttributes) {
 
         log.info("Updating menu item with ID: {}", id);
         log.info("🔍 requiresPreparation received from form: {}", itemMenu.getRequiresPreparation());
         log.info("🔍 requiresPreparation as @RequestParam: {}", requiresPreparationParam);
+        log.info("🔍 requiresBaristaPreparation received from form: {}", itemMenu.getRequiresBaristaPreparation());
+        log.info("🔍 requiresBaristaPreparation as @RequestParam: {}", requiresBaristaPreparationParam);
         
         // Si el parámetro está presente, usarlo (para debug)
         if (requiresPreparationParam != null) {
-            log.info("🔍 Using @RequestParam value: {}", requiresPreparationParam);
+            log.info("🔍 Using @RequestParam value for Chef: {}", requiresPreparationParam);
             itemMenu.setRequiresPreparation(requiresPreparationParam);
+        }
+        
+        if (requiresBaristaPreparationParam != null) {
+            log.info("🔍 Using @RequestParam value for Barista: {}", requiresBaristaPreparationParam);
+            itemMenu.setRequiresBaristaPreparation(requiresBaristaPreparationParam);
         }
 
         if (bindingResult.hasErrors()) {

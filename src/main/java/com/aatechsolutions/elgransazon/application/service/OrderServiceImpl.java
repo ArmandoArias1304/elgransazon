@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * OrderServiceImpl - Business logic implementation for Orders management
@@ -37,6 +38,7 @@ public class OrderServiceImpl implements OrderService {
     private final SystemConfigurationRepository systemConfigurationRepository;
     private final RestaurantTableService restaurantTableService;
     private final WebSocketNotificationService wsNotificationService;
+    private final EmployeeMonthlyStatsService monthlyStatsService;
 
     @Override
     public Order create(Order order, List<OrderDetail> orderDetails) {
@@ -101,10 +103,20 @@ public class OrderServiceImpl implements OrderService {
             detail.setIsNewItem(false); // Initial items are not "new"
             detail.setAddedAt(LocalDateTime.now());
             
-            // Auto-advance to READY if item does NOT require preparation
-            if (!Boolean.TRUE.equals(item.getRequiresPreparation())) {
+            // Auto-advance to READY ONLY if item requires NO preparation at all (neither chef nor barista)
+            // Items requiring barista preparation MUST start as PENDING and be changed manually
+            boolean requiresChefPreparation = Boolean.TRUE.equals(item.getRequiresPreparation());
+            boolean requiresBaristaPreparation = Boolean.TRUE.equals(item.getRequiresBaristaPreparation());
+            
+            if (!requiresChefPreparation && !requiresBaristaPreparation) {
+                // Item requires NO preparation (e.g., bottled drinks, pre-packaged items)
                 detail.setItemStatus(OrderStatus.READY);
                 log.info("Item '{}' auto-advanced to READY (no preparation required)", item.getName());
+            } else {
+                // Item requires preparation (chef or barista), starts as PENDING
+                log.info("Item '{}' set to PENDING (requires {} preparation)", 
+                    item.getName(), 
+                    requiresBaristaPreparation ? "barista" : "chef");
             }
 
             // Deduct stock from ingredients
@@ -414,22 +426,35 @@ public class OrderServiceImpl implements OrderService {
         order.setUpdatedBy(updatedBy);
         order.setUpdatedAt(LocalDateTime.now()); // Explicitly set updatedAt
 
-        // Update item statuses to match order status (IMPORTANT: only for non-new items or when applicable)
-        // When order changes to IN_PREPARATION, READY, or DELIVERED, update all items that aren't individually managed
+        // NUEVA LÓGICA: Ya NO actualizamos items automáticamente cuando cambia el estado de la orden
+        // Los items solo se actualizan mediante changeItemsStatus() por chef/barista
+        // El estado de la orden se recalcula automáticamente en changeItemsStatus()
+        
+        // EXCEPCIÓN: Solo actualizamos items SIN preparación específica
         if (newStatus == OrderStatus.IN_PREPARATION || 
             newStatus == OrderStatus.READY || 
             newStatus == OrderStatus.DELIVERED) {
             
             for (OrderDetail detail : order.getOrderDetails()) {
-                // Only update items that are not being individually tracked by chef
-                // Or update all items if order is being bulk-changed
-                if (detail.getItemStatus() == null || 
-                    detail.getItemStatus() == OrderStatus.PENDING ||
-                    detail.getItemStatus().ordinal() < newStatus.ordinal()) {
-                    detail.setItemStatus(newStatus);
+                ItemMenu itemMenu = detail.getItemMenu();
+                
+                // Check if item requires specific preparation by chef or barista
+                boolean requiresChefPreparation = itemMenu != null && 
+                    Boolean.TRUE.equals(itemMenu.getRequiresPreparation());
+                boolean requiresBaristaPreparation = itemMenu != null && 
+                    Boolean.TRUE.equals(itemMenu.getRequiresBaristaPreparation());
+                
+                // ONLY update items that DON'T require ANY specific preparation
+                if (!requiresChefPreparation && !requiresBaristaPreparation) {
+                    // Item doesn't require specific preparation - auto-advance with order
+                    if (detail.getItemStatus() == null || 
+                        detail.getItemStatus().ordinal() < newStatus.ordinal()) {
+                        detail.setItemStatus(newStatus);
+                        log.debug("Item '{}' auto-advanced to {} (no specific preparation)", 
+                            itemMenu != null ? itemMenu.getName() : "unknown", newStatus);
+                    }
                 }
             }
-            log.info("Updated item statuses to {} for order {}", newStatus, order.getOrderNumber());
         }
 
         // NOTE: preparedBy and paidBy should be set in the controller BEFORE calling this method
@@ -468,6 +493,34 @@ public class OrderServiceImpl implements OrderService {
                 }
                 table.setUpdatedBy(updatedBy);
                 restaurantTableRepository.save(table);
+            }
+        }
+
+        // If order is marked as PAID, update employee monthly statistics
+        if (newStatus == OrderStatus.PAID) {
+            try {
+                LocalDateTime paidDate = order.getUpdatedAt();
+                Integer month = paidDate.getMonthValue();
+                Integer year = paidDate.getYear();
+                
+                // Update waiter statistics (sales)
+                if (order.getEmployee() != null && order.getEmployee().hasRole(Role.WAITER)) {
+                    BigDecimal salesAmount = order.getTotal(); // Total without tip
+                    monthlyStatsService.updateWaiterSales(order.getEmployee(), salesAmount, month, year);
+                    log.info("Updated waiter {} monthly sales: +${} for {}/{}", 
+                            order.getEmployee().getUsername(), salesAmount, month, year);
+                }
+                
+                // Update chef statistics (orders count)
+                if (order.getPreparedBy() != null && order.getPreparedBy().hasRole(Role.CHEF)) {
+                    monthlyStatsService.updateChefOrders(order.getPreparedBy(), month, year);
+                    log.info("Updated chef {} monthly orders count for {}/{}", 
+                            order.getPreparedBy().getUsername(), month, year);
+                }
+            } catch (Exception e) {
+                // Don't fail the order if stats update fails
+                log.error("Failed to update employee monthly statistics for order {}: {}", 
+                         order.getOrderNumber(), e.getMessage(), e);
             }
         }
 
@@ -532,10 +585,20 @@ public class OrderServiceImpl implements OrderService {
             // Initialize as PENDING by default
             detail.setItemStatus(OrderStatus.PENDING);
             
-            // Auto-advance to READY if item does NOT require preparation
-            if (!Boolean.TRUE.equals(item.getRequiresPreparation())) {
+            // Auto-advance to READY ONLY if item requires NO preparation at all (neither chef nor barista)
+            // Items requiring barista preparation MUST start as PENDING and be changed manually
+            boolean requiresChefPreparation = Boolean.TRUE.equals(item.getRequiresPreparation());
+            boolean requiresBaristaPreparation = Boolean.TRUE.equals(item.getRequiresBaristaPreparation());
+            
+            if (!requiresChefPreparation && !requiresBaristaPreparation) {
+                // Item requires NO preparation (e.g., bottled drinks, pre-packaged items)
                 detail.setItemStatus(OrderStatus.READY);
                 log.info("New item '{}' auto-advanced to READY (no preparation required)", item.getName());
+            } else {
+                // Item requires preparation (chef or barista), starts as PENDING
+                log.info("New item '{}' set to PENDING (requires {} preparation)", 
+                    item.getName(), 
+                    requiresBaristaPreparation ? "barista" : "chef");
             }
 
             // Deduct stock from ingredients
@@ -564,7 +627,11 @@ public class OrderServiceImpl implements OrderService {
 
         // Send WebSocket notification for items added to existing order
         try {
-            wsNotificationService.notifyItemsAdded(savedOrder, newItems.size());
+            // Pass the actual new items list to detect what type of items were added
+            List<OrderDetail> newOrderDetails = savedOrder.getOrderDetails().stream()
+                .skip(savedOrder.getOrderDetails().size() - newItems.size())
+                .collect(Collectors.toList());
+            wsNotificationService.notifyItemsAdded(savedOrder, newOrderDetails);
         } catch (Exception e) {
             log.error("Failed to send WebSocket notification for items added to order: {}", 
                 savedOrder.getOrderNumber(), e);
@@ -580,6 +647,10 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = findByIdOrThrow(orderId);
 
+        // Detect what type of items are being changed (chef or barista items)
+        boolean changingChefItems = false;
+        boolean changingBaristaItems = false;
+
         // Find and update each item
         for (Long itemDetailId : itemDetailIds) {
             OrderDetail detail = order.getOrderDetails().stream()
@@ -588,6 +659,16 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new IllegalArgumentException(
                     "Item detail no encontrado en esta orden: " + itemDetailId
                 ));
+
+            // Detect item type
+            if (detail.getItemMenu() != null) {
+                if (Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation())) {
+                    changingChefItems = true;
+                }
+                if (Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation())) {
+                    changingBaristaItems = true;
+                }
+            }
 
             // Validate status transition for this item
             OrderStatus oldItemStatus = detail.getItemStatus();
@@ -620,16 +701,47 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // Update order's overall status based on all items
+        OrderStatus oldOrderStatus = order.getStatus();
         order.updateStatusFromItems();
+        OrderStatus newOrderStatus = order.getStatus();
 
         // Set audit fields
         order.setUpdatedBy(username);
         order.setUpdatedAt(LocalDateTime.now());
 
         Order savedOrder = orderRepository.save(order);
-        log.info("Order {} status recalculated to: {}", 
+        log.info("Order {} status recalculated: {} -> {}", 
                  savedOrder.getOrderNumber(), 
-                 savedOrder.getStatus());
+                 oldOrderStatus,
+                 newOrderStatus);
+
+        // Send WebSocket notification if order status changed automatically
+        if (oldOrderStatus != newOrderStatus) {
+            try {
+                String statusChangeMessage = String.format(
+                    "Pedido #%s cambió automáticamente de %s a %s", 
+                    savedOrder.getOrderNumber(),
+                    oldOrderStatus.getDisplayName(),
+                    newOrderStatus.getDisplayName()
+                );
+                
+                // Determine which role made the change
+                String roleWhoChanged = null;
+                if (changingChefItems && !changingBaristaItems) {
+                    roleWhoChanged = "chef";
+                } else if (changingBaristaItems && !changingChefItems) {
+                    roleWhoChanged = "barista";
+                }
+                // If both or none, roleWhoChanged stays null (notify all)
+                
+                wsNotificationService.notifyOrderStatusChange(savedOrder, statusChangeMessage, roleWhoChanged);
+                log.info("🔔 WebSocket: Order status auto-update notification sent - {} ({} -> {}) - Role: {}", 
+                    savedOrder.getOrderNumber(), oldOrderStatus, newOrderStatus, roleWhoChanged);
+            } catch (Exception e) {
+                log.error("Failed to send WebSocket notification for order status change: {}", 
+                    savedOrder.getOrderNumber(), e);
+            }
+        }
 
         return savedOrder;
     }
@@ -940,8 +1052,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Automatically advance order to READY status if ALL items don't require preparation
-     * This allows orders with ONLY drinks/pre-packaged items to skip the chef
+     * Automatically advance order to READY status if ALL items don't require ANY preparation
+     * This allows orders with ONLY items requiring no preparation (bottled drinks, pre-packaged) to skip chef AND barista
      * 
      * @param order The order to check and potentially auto-advance
      */
@@ -951,13 +1063,15 @@ public class OrderServiceImpl implements OrderService {
             return;
         }
 
-        // Check if ALL items don't require preparation
+        // Check if ALL items don't require ANY preparation (neither chef nor barista)
+        // Items requiring barista preparation CANNOT auto-advance
         boolean allItemsReady = order.getOrderDetails().stream()
             .allMatch(detail -> detail.getItemMenu() != null 
-                && Boolean.FALSE.equals(detail.getItemMenu().getRequiresPreparation()));
+                && Boolean.FALSE.equals(detail.getItemMenu().getRequiresPreparation())
+                && Boolean.FALSE.equals(detail.getItemMenu().getRequiresBaristaPreparation()));
 
         if (allItemsReady && !order.getOrderDetails().isEmpty()) {
-            log.info("Order {} contains ONLY items that don't require preparation. Auto-advancing to READY status.", 
+            log.info("Order {} contains ONLY items that don't require ANY preparation. Auto-advancing to READY status.", 
                      order.getOrderNumber());
             
             // Change order status to READY
@@ -1299,6 +1413,38 @@ public class OrderServiceImpl implements OrderService {
                 order.getStatus());
 
         return itemToDelete;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalIncome() {
+        log.info("Calculating total income from all PAID orders");
+        BigDecimal totalIncome = orderRepository.getTotalIncome();
+        return totalIncome != null ? totalIncome : BigDecimal.ZERO;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, BigDecimal> getIncomeByCategory() {
+        log.info("Getting income grouped by menu category");
+        
+        List<Object[]> results = orderDetailRepository.getIncomeByMenuCategory();
+        Map<String, BigDecimal> incomeMap = new java.util.LinkedHashMap<>();
+
+        for (Object[] row : results) {
+            String categoryName = (String) row[1];
+            BigDecimal totalIncome = (BigDecimal) row[2];
+            incomeMap.put(categoryName, totalIncome != null ? totalIncome : BigDecimal.ZERO);
+        }
+
+        return incomeMap;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Object[]> getItemSalesByCategory(Long categoryId) {
+        log.info("Getting items sold for category ID: {}", categoryId);
+        return orderDetailRepository.getItemSalesByCategory(categoryId);
     }
 }
 

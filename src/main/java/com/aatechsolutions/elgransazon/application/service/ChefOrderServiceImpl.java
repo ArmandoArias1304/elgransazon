@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,32 +83,13 @@ public class ChefOrderServiceImpl implements OrderService {
 
     @Override
     public Order changeStatus(Long id, OrderStatus newStatus, String username) {
-        Order order = findByIdOrThrow(id);
-        String currentUsername = getCurrentUsername();
-        
-        // Validate that chef can only change status of orders they accepted
-        // Exception: PENDING orders can be accepted by any chef
-        if (order.getStatus() == OrderStatus.IN_PREPARATION) {
-            if (order.getPreparedBy() == null || 
-                !order.getPreparedBy().getUsername().equalsIgnoreCase(currentUsername)) {
-                throw new IllegalStateException(
-                    "Solo el chef que aceptó esta orden puede cambiar su estado"
-                );
-            }
-        }
-        
-        validateStatusChange(order, newStatus);
-        log.info("Chef {} changing order {} status from {} to {}", 
-            currentUsername, id, order.getStatus(), newStatus);
-        
-        // When chef accepts the order (PENDING -> IN_PREPARATION), set preparedBy
-        if (newStatus == OrderStatus.IN_PREPARATION && order.getPreparedBy() == null) {
-            // Find the current chef employee
-            order.setPreparedBy(order.getEmployee()); // Will be set properly in controller
-            log.info("Chef {} accepted order {}", currentUsername, id);
-        }
-        
-        return adminOrderService.changeStatus(id, newStatus, username);
+        // NUEVA LÓGICA: El chef ya NO controla el estado general de la orden
+        // Solo controla el estado de items individuales usando changeItemsStatus()
+        // El estado de la orden se calcula automáticamente basado en los items
+        throw new UnsupportedOperationException(
+            "El chef no puede cambiar el estado general de la orden. " +
+            "Use el control de items individuales. El estado de la orden se actualiza automáticamente."
+        );
     }
 
     @Override
@@ -141,11 +123,20 @@ public class ChefOrderServiceImpl implements OrderService {
             }
             
             // Validate status change for this item
+            // ALLOWED transitions for chef:
+            // 1. PENDING -> IN_PREPARATION (normal acceptance)
+            // 2. IN_PREPARATION -> READY (normal completion)
+            // 3. PENDING -> READY (skip state when marking all as ready with mixed items)
             OrderStatus itemStatus = detail.getItemStatus();
-            if (!(itemStatus == OrderStatus.PENDING && newStatus == OrderStatus.IN_PREPARATION) &&
-                !(itemStatus == OrderStatus.IN_PREPARATION && newStatus == OrderStatus.READY)) {
+            boolean isValidTransition = 
+                (itemStatus == OrderStatus.PENDING && newStatus == OrderStatus.IN_PREPARATION) ||
+                (itemStatus == OrderStatus.IN_PREPARATION && newStatus == OrderStatus.READY) ||
+                (itemStatus == OrderStatus.PENDING && newStatus == OrderStatus.READY); // Allow skip
+            
+            if (!isValidTransition) {
                 throw new IllegalStateException(
-                    "El chef solo puede cambiar items de PENDIENTE a EN PREPARACIÓN o de EN PREPARACIÓN a LISTO"
+                    "El chef solo puede cambiar items de PENDIENTE a EN PREPARACIÓN, " +
+                    "de EN PREPARACIÓN a LISTO, o de PENDIENTE a LISTO (cuando marca todo como listo)"
                 );
             }
         }
@@ -154,6 +145,83 @@ public class ChefOrderServiceImpl implements OrderService {
             currentUsername, itemDetailIds.size(), orderId);
         
         return adminOrderService.changeItemsStatus(orderId, itemDetailIds, newStatus, username);
+    }
+
+    /**
+     * Change ALL chef items in an order to the next status
+     * This is a convenience method for chef to avoid touching the screen many times
+     * 
+     * NEW Logic:
+     * - If ANY item is IN_PREPARATION -> Move ALL chef items to READY (priority action)
+     * - Else if all items are PENDING -> Move all to IN_PREPARATION
+     * - This allows items to "skip" states when chef marks order as ready
+     * 
+     * Example: Item A is IN_PREP, Item B (new) is PENDING
+     * When chef clicks "Marcar Listo" -> Both A and B go to READY
+     * 
+     * @param orderId The order ID
+     * @param username The chef username
+     * @return The updated order
+     */
+    public Order changeAllChefItemsToNextStatus(Long orderId, String username) {
+        Order order = findByIdOrThrow(orderId);
+        String currentUsername = getCurrentUsername();
+        
+        // Get all items requiring chef preparation
+        List<OrderDetail> chefItems = order.getOrderDetails().stream()
+            .filter(detail -> detail.getItemMenu() != null && 
+                Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation()))
+            .collect(Collectors.toList());
+        
+        if (chefItems.isEmpty()) {
+            throw new IllegalStateException("Esta orden no contiene items para el chef");
+        }
+        
+        // Count items in each status
+        long pendingCount = chefItems.stream()
+            .filter(d -> d.getItemStatus() == OrderStatus.PENDING)
+            .count();
+        long inPrepCount = chefItems.stream()
+            .filter(d -> d.getItemStatus() == OrderStatus.IN_PREPARATION)
+            .count();
+        long readyCount = chefItems.stream()
+            .filter(d -> d.getItemStatus() == OrderStatus.READY)
+            .count();
+        
+        OrderStatus targetStatus;
+        List<Long> itemsToChange = new ArrayList<>();
+        
+        // PRIORITY 1: If ANY item is IN_PREPARATION, mark ALL chef items as READY
+        // This allows new PENDING items to "skip" IN_PREPARATION state
+        if (inPrepCount > 0) {
+            targetStatus = OrderStatus.READY;
+            // Move ALL items that are NOT already READY
+            itemsToChange = chefItems.stream()
+                .filter(d -> d.getItemStatus() != OrderStatus.READY)
+                .map(OrderDetail::getIdOrderDetail)
+                .collect(Collectors.toList());
+            
+            log.info("Chef {} marking order {} as ready - moving {} items (PENDING+IN_PREP) to READY", 
+                currentUsername, orderId, itemsToChange.size());
+        } 
+        // PRIORITY 2: If all items are PENDING, move them to IN_PREPARATION
+        else if (pendingCount > 0) {
+            targetStatus = OrderStatus.IN_PREPARATION;
+            itemsToChange = chefItems.stream()
+                .filter(d -> d.getItemStatus() == OrderStatus.PENDING)
+                .map(OrderDetail::getIdOrderDetail)
+                .collect(Collectors.toList());
+            
+            log.info("Chef {} accepting order {} - moving {} PENDING items to IN_PREPARATION", 
+                currentUsername, orderId, itemsToChange.size());
+        } 
+        // All items already READY
+        else {
+            throw new IllegalStateException("Todos los items del chef ya están listos");
+        }
+        
+        // Change the items using the existing method
+        return changeItemsStatus(orderId, itemsToChange, targetStatus, username);
     }
 
     @Override
@@ -165,47 +233,68 @@ public class ChefOrderServiceImpl implements OrderService {
 
     @Override
     public List<Order> findAll() {
-        // Chef ONLY sees orders that contain at least ONE item requiring preparation
-        // Orders with ONLY items that don't require preparation (like sodas) are filtered out
-        // NOW OPTIMIZED: Filter at database level instead of loading all orders
-        log.info("🔍 Chef findAll() - Loading orders with preparation items (DB-level filter)");
-        List<Order> ordersWithPreparation = orderRepository.findOrdersWithPreparationItems();
-        log.info("🔍 Orders visible to chef: {}", ordersWithPreparation.size());
+        // Chef ONLY sees orders that have at least ONE chef item that is PENDING or IN_PREPARATION
+        // If all chef items are READY, the order won't appear
+        // This prevents chef from seeing orders when barista items are added but chef items are already done
+        log.info("🔍 Chef findAll() - Loading orders with PENDING/IN_PREP chef items");
         
-        return ordersWithPreparation;
+        List<Order> allOrders = orderRepository.findOrdersWithPreparationItems();
+        List<Order> ordersWithPendingChefItems = allOrders.stream()
+            .filter(this::hasItemsRequiringPreparation) // Now checks PENDING/IN_PREP status
+            .collect(Collectors.toList());
+        
+        log.info("🔍 Orders visible to chef (with pending items): {}", ordersWithPendingChefItems.size());
+        
+        return ordersWithPendingChefItems;
     }
 
     /**
      * Check if an order has at least one item that requires chef preparation
-     * @param order The order to check
-     * @return true if at least one item requires preparation, false otherwise
+     * AND that item is still PENDING or IN_PREPARATION
      * 
-     * DEPRECATED: Now filtering is done at database level via findOrdersWithPreparationItems()
-     * Keeping this method for reference or if needed for other use cases
+     * @param order The order to check
+     * @return true if at least one chef item is PENDING or IN_PREPARATION, false otherwise
+     * 
+     * IMPORTANT: This now checks both:
+     * 1. Item requires chef preparation (requiresPreparation = true)
+     * 2. Item status is PENDING or IN_PREPARATION
+     * 
+     * If all chef items are already READY, the order won't be shown to chef
      */
-    @Deprecated
     private boolean hasItemsRequiringPreparation(Order order) {
         if (order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
             log.debug("Order {} has no details", order.getIdOrder());
             return false;
         }
         
-        boolean hasPreparationItems = order.getOrderDetails().stream()
+        boolean hasPendingChefItems = order.getOrderDetails().stream()
             .anyMatch(detail -> {
                 if (detail.getItemMenu() == null) {
                     log.warn("OrderDetail {} has null ItemMenu", detail.getIdOrderDetail());
                     return false;
                 }
+                
+                // Check if item requires chef preparation
                 Boolean requiresPrep = detail.getItemMenu().getRequiresPreparation();
-                log.debug("Order {}, Item '{}': requiresPreparation = {}", 
+                if (!Boolean.TRUE.equals(requiresPrep)) {
+                    return false; // Not a chef item
+                }
+                
+                // Check if item is PENDING or IN_PREPARATION
+                OrderStatus itemStatus = detail.getItemStatus();
+                boolean isPending = itemStatus == OrderStatus.PENDING || itemStatus == OrderStatus.IN_PREPARATION;
+                
+                log.debug("Order {}, Chef Item '{}': status = {}, isPending = {}", 
                     order.getOrderNumber(), 
-                    detail.getItemMenu().getName(), 
-                    requiresPrep);
-                return Boolean.TRUE.equals(requiresPrep);
+                    detail.getItemMenu().getName(),
+                    itemStatus,
+                    isPending);
+                
+                return isPending;
             });
         
-        log.info("🔍 Order {} hasItemsRequiringPreparation: {}", order.getOrderNumber(), hasPreparationItems);
-        return hasPreparationItems;
+        log.info("🔍 Order {} hasPendingChefItems: {}", order.getOrderNumber(), hasPendingChefItems);
+        return hasPendingChefItems;
     }
 
     @Override
@@ -371,5 +460,20 @@ public class ChefOrderServiceImpl implements OrderService {
     @Override
     public OrderDetail deleteOrderItem(Long orderId, Long itemDetailId, String username) {
         throw new UnsupportedOperationException("El chef no puede eliminar items de pedidos");
+    }
+
+    @Override
+    public BigDecimal getTotalIncome() {
+        return adminOrderService.getTotalIncome();
+    }
+
+    @Override
+    public Map<String, BigDecimal> getIncomeByCategory() {
+        return adminOrderService.getIncomeByCategory();
+    }
+
+    @Override
+    public List<Object[]> getItemSalesByCategory(Long categoryId) {
+        return adminOrderService.getItemSalesByCategory(categoryId);
     }
 }

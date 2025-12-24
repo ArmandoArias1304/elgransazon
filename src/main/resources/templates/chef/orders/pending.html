@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>El Gran Sazón - Pedidos Pendientes</title>
+    <title th:text="'El Gran Sazón - Pedidos Pendientes (' + ${role} + ')'">
+      El Gran Sazón - Pedidos Pendientes
+    </title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -105,10 +107,16 @@
                 <h1
                   class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white"
                 >
-                  👨‍🍳 Gestión de Pedidos
+                  <span th:if="${isBarista}">☕ Gestión de Pedidos</span>
+                  <span th:unless="${isBarista}">👨‍🍳 Gestión de Pedidos</span>
                 </h1>
                 <p class="text-sm text-gray-600 dark:text-gray-300">
-                  Todos los pedidos activos de cocina
+                  <span th:if="${isBarista}"
+                    >Todos los pedidos activos de barra</span
+                  >
+                  <span th:unless="${isBarista}"
+                    >Todos los pedidos activos de cocina</span
+                  >
                 </p>
               </div>
             </div>
@@ -196,7 +204,8 @@
               </div>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Pedidos en cocina
+              <span th:if="${isBarista}">Pedidos en barra</span>
+              <span th:unless="${isBarista}">Pedidos en cocina</span>
             </p>
           </div>
         </div>
@@ -322,10 +331,10 @@
                 Detalles del Pedido:
               </h4>
               <div class="space-y-1">
-                <!-- FILTER: Chef only sees items that require preparation -->
+                <!-- FILTER: Chef sees items with requiresPreparation, Barista sees items with requiresBaristaPreparation -->
                 <div
                   th:each="detail : ${order.orderDetails}"
-                  th:if="${detail.itemMenu.requiresPreparation == true}"
+                  th:if="${isBarista ? (detail.itemMenu.requiresBaristaPreparation == true) : (detail.itemMenu.requiresPreparation == true)}"
                   class="py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col gap-2 last:border-b-0"
                 >
                   <div class="flex items-start justify-between w-full gap-2">
@@ -403,6 +412,35 @@
                         </span>
                       </div>
 
+                      <!-- CHEF: No item-level buttons - uses order-level bulk button only -->
+
+                      <!-- Barista Item Control Buttons -->
+                      <div th:if="${isBarista}" class="mt-3 flex gap-2">
+                        <!-- Accept Item Button (PENDING -> IN_PREPARATION) -->
+                        <button
+                          th:if="${detail.itemStatus != null && detail.itemStatus.name() == 'PENDING'}"
+                          th:attr="data-order-id=${order.idOrder}, data-item-id=${detail.idOrderDetail}, data-item-name=${detail.itemMenu.name}"
+                          class="btn-accept-item flex-1 px-3 py-2 text-xs font-bold text-white bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                        >
+                          <span class="material-symbols-outlined !text-sm"
+                            >play_arrow</span
+                          >
+                          Comenzar
+                        </button>
+
+                        <!-- Mark Item as Ready Button (IN_PREPARATION -> READY) -->
+                        <button
+                          th:if="${detail.itemStatus != null && detail.itemStatus.name() == 'IN_PREPARATION'}"
+                          th:attr="data-order-id=${order.idOrder}, data-item-id=${detail.idOrderDetail}, data-item-name=${detail.itemMenu.name}"
+                          class="btn-ready-item flex-1 px-3 py-2 text-xs font-bold text-white bg-gradient-to-br from-primary to-primary-dark rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                        >
+                          <span class="material-symbols-outlined !text-sm"
+                            >check_circle</span
+                          >
+                          Marcar Listo
+                        </button>
+                      </div>
+
                       <!-- Added At (for new items) -->
                     </div>
                   </div>
@@ -438,29 +476,51 @@
               </div>
 
               <!-- Action Buttons -->
-              <!-- PENDING: Show "Aceptar Pedido" button -->
-              <button
-                th:if="${order.status.name() == 'PENDING'}"
-                th:attr="data-order-id=${order.idOrder}, data-order-number=${order.orderNumber}"
-                class="btn-accept-order flex-1 px-6 py-3.5 text-base font-bold text-center text-white bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 border-0 cursor-pointer shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 relative z-[2]"
-              >
-                <span class="material-symbols-outlined !text-base animate-pulse"
-                  >restaurant</span
+              <!-- CHEF: Show order-level buttons that change ALL chef items -->
+              <div th:if="${!isBarista}">
+                <!-- PRIORITY 1: If ANY item is IN_PREPARATION, show ONLY "Marcar Listo" button -->
+                <!-- This button will move ALL chef items (including PENDING ones) to READY -->
+                <button
+                  th:if="${#lists.size(order.orderDetails.?[itemMenu.requiresPreparation == true && itemStatus.name() == 'IN_PREPARATION']) > 0}"
+                  th:attr="data-order-id=${order.idOrder}, data-order-number=${order.orderNumber}"
+                  class="btn-mark-all-ready flex-1 px-6 py-3.5 text-base font-bold text-center text-white bg-gradient-to-br from-primary to-primary-dark rounded-xl transition-all duration-300 flex items-center justify-center gap-2 border-0 cursor-pointer shadow-lg shadow-primary/40 hover:-translate-y-0.5"
                 >
-                Aceptar Pedido
-              </button>
+                  <span class="material-symbols-outlined !text-base"
+                    >check_circle</span
+                  >
+                  Marcar Todo Listo
+                </button>
 
-              <!-- IN_PREPARATION: Show "Marcar como Listo" button -->
-              <button
-                th:if="${order.status.name() == 'IN_PREPARATION'}"
-                th:attr="data-order-id=${order.idOrder}, data-order-number=${order.orderNumber}"
-                class="btn-mark-ready flex-1 px-6 py-3.5 text-base font-bold text-center text-white bg-gradient-to-br from-primary to-primary-dark rounded-xl transition-all duration-300 flex items-center justify-center gap-2 border-0 cursor-pointer shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5"
-              >
-                <span class="material-symbols-outlined !text-base"
-                  >check_circle</span
+                <!-- PRIORITY 2: If NO items are IN_PREPARATION but there are PENDING items, show "Comenzar" button -->
+                <button
+                  th:if="${#lists.size(order.orderDetails.?[itemMenu.requiresPreparation == true && itemStatus.name() == 'IN_PREPARATION']) == 0 && #lists.size(order.orderDetails.?[itemMenu.requiresPreparation == true && itemStatus.name() == 'PENDING']) > 0}"
+                  th:attr="data-order-id=${order.idOrder}, data-order-number=${order.orderNumber}"
+                  class="btn-accept-all-chef-items flex-1 px-6 py-3.5 text-base font-bold text-center text-white bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 border-0 cursor-pointer shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 relative z-[2]"
                 >
-                Marcar como Listo
-              </button>
+                  <span
+                    class="material-symbols-outlined !text-base animate-pulse"
+                    >restaurant</span
+                  >
+                  Comenzar Preparación
+                </button>
+
+                <p
+                  class="text-xs text-gray-500 dark:text-gray-400 text-center mt-2"
+                >
+                  Este botón cambia el estado de todos tus items
+                </p>
+              </div>
+
+              <!-- BARISTA: Show item-level instructions -->
+              <div th:if="${isBarista}" class="text-center py-3">
+                <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  ☕ Usa los botones en cada item para controlar su preparación
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  El estado de la orden se actualiza automáticamente cuando
+                  cambias los items
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -469,36 +529,117 @@
 
     <script th:inline="javascript">
       /*<![CDATA[*/
-      const currentRole = "chef";
+      const currentRole = /*[[${isBarista ? 'barista' : 'chef'}]]*/ "chef";
       /*]]>*/
 
-      // Accept order and change status to IN_PREPARATION
-      function acceptOrder(orderId, orderNumber) {
+      // CHEF: Accept ALL chef items in order (PENDING -> IN_PREPARATION)
+      function acceptAllChefItems(orderId, orderNumber) {
         Swal.fire({
-          title: "¿Aceptar pedido?",
-          text: `¿Deseas aceptar el pedido ${orderNumber}?`,
+          title: "¿Comenzar preparación?",
+          text: `¿Deseas comenzar a preparar todos los items del pedido ${orderNumber}?`,
           icon: "question",
           showCancelButton: true,
-          confirmButtonText: "Sí, aceptar",
+          confirmButtonText: "Sí, comenzar",
           cancelButtonText: "Cancelar",
-          confirmButtonColor: "#10b981",
+          confirmButtonColor: "#3b82f6",
           cancelButtonColor: "#6b7280",
         }).then((result) => {
           if (result.isConfirmed) {
-            changeOrderStatus(
+            changeAllChefItems(
               orderId,
               orderNumber,
-              "IN_PREPARATION",
-              "Aceptando pedido...",
-              "Pedido Aceptado",
-              "El pedido está ahora en preparación"
+              "Comenzando preparación...",
+              "Preparación Iniciada",
+              "Todos los items del chef están ahora en preparación"
             );
           }
         });
       }
 
-      // Mark order as READY
-      function markAsReady(orderId, orderNumber) {
+      // CHEF: Mark ALL chef items as READY (IN_PREPARATION -> READY)
+      function markAllChefItemsReady(orderId, orderNumber) {
+        Swal.fire({
+          title: "¿Marcar todo listo?",
+          text: `¿Todos los items del pedido ${orderNumber} están listos?`,
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonText: "Sí, todo listo",
+          cancelButtonText: "Cancelar",
+          confirmButtonColor: "#38e07b",
+          cancelButtonColor: "#6b7280",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            changeAllChefItems(
+              orderId,
+              orderNumber,
+              "Marcando items como listos...",
+              "Items Listos",
+              "Todos los items del chef están listos para servir"
+            );
+          }
+        });
+      }
+
+      // Generic function to change ALL chef items
+      function changeAllChefItems(
+        orderId,
+        orderNumber,
+        loadingText,
+        successTitle,
+        successText
+      ) {
+        Swal.fire({
+          title: loadingText,
+          text: "Por favor espere",
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => {
+            Swal.showLoading();
+
+            fetch(`/${currentRole}/orders/${orderId}/change-all-chef-items`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                Swal.close();
+
+                if (data.success) {
+                  Swal.fire({
+                    icon: "success",
+                    title: successTitle,
+                    text: `${successText}: ${orderNumber}`,
+                    timer: 1500,
+                    showConfirmButton: false,
+                  }).then(() => {
+                    // Reload to update the view
+                    window.location.reload();
+                  });
+                } else {
+                  Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: data.message || "No se pudo cambiar el estado",
+                  });
+                }
+              })
+              .catch((error) => {
+                Swal.close();
+                console.error("Error:", error);
+                Swal.fire({
+                  icon: "error",
+                  title: "Error",
+                  text: "Error al cambiar el estado de los items",
+                });
+              });
+          },
+        });
+      }
+
+      // Barista: Accept individual item (PENDING -> IN_PREPARATION)
+      function acceptItem(orderId, itemId, itemName) {
         Swal.fire({
           title: "¿Marcar como listo?",
           text: `¿El pedido ${orderNumber} está listo para servir?`,
@@ -582,23 +723,158 @@
         });
       }
 
+      // Barista: Accept individual item (PENDING -> IN_PREPARATION)
+      function acceptItem(orderId, itemId, itemName) {
+        Swal.fire({
+          title: "¿Comenzar preparación?",
+          text: `¿Deseas comenzar a preparar: ${itemName}?`,
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonText: "Sí, comenzar",
+          cancelButtonText: "Cancelar",
+          confirmButtonColor: "#3b82f6",
+          cancelButtonColor: "#6b7280",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            changeItemStatus(
+              orderId,
+              itemId,
+              itemName,
+              "IN_PREPARATION",
+              "Aceptando item...",
+              "Item Aceptado",
+              "Has comenzado a preparar este item"
+            );
+          }
+        });
+      }
+
+      // Barista: Mark individual item as ready (IN_PREPARATION -> READY)
+      function markItemReady(orderId, itemId, itemName) {
+        Swal.fire({
+          title: "¿Marcar como listo?",
+          text: `¿El item ${itemName} está listo?`,
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonText: "Sí, está listo",
+          cancelButtonText: "Cancelar",
+          confirmButtonColor: "#38e07b",
+          cancelButtonColor: "#6b7280",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            changeItemStatus(
+              orderId,
+              itemId,
+              itemName,
+              "READY",
+              "Marcando item como listo...",
+              "Item Listo",
+              "El item está listo para servir"
+            );
+          }
+        });
+      }
+
+      // Generic function to change item status (for barista)
+      function changeItemStatus(
+        orderId,
+        itemId,
+        itemName,
+        newStatus,
+        loadingText,
+        successTitle,
+        successText
+      ) {
+        Swal.fire({
+          title: loadingText,
+          text: "Por favor espere",
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => {
+            Swal.showLoading();
+
+            fetch(`/${currentRole}/orders/${orderId}/change-items-status`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: `itemDetailIds=${itemId}&newStatus=${newStatus}`,
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                Swal.close();
+
+                if (data.success) {
+                  Swal.fire({
+                    icon: "success",
+                    title: successTitle,
+                    text: `${successText}: ${itemName}`,
+                    timer: 1500,
+                    showConfirmButton: false,
+                  }).then(() => {
+                    // Reload to update the view
+                    window.location.reload();
+                  });
+                } else {
+                  Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text:
+                      data.message || "No se pudo cambiar el estado del item",
+                  });
+                }
+              })
+              .catch((error) => {
+                Swal.close();
+                console.error("Error:", error);
+                Swal.fire({
+                  icon: "error",
+                  title: "Error",
+                  text: "Error al cambiar el estado del item",
+                });
+              });
+          },
+        });
+      }
+
       // Event listeners
       document.addEventListener("DOMContentLoaded", function () {
-        // Accept order buttons (PENDING -> IN_PREPARATION)
-        document.querySelectorAll(".btn-accept-order").forEach((button) => {
+        // CHEF: Order-level buttons that change ALL chef items
+        document
+          .querySelectorAll(".btn-accept-all-chef-items")
+          .forEach((button) => {
+            button.addEventListener("click", function () {
+              const orderId = this.getAttribute("data-order-id");
+              const orderNumber = this.getAttribute("data-order-number");
+              acceptAllChefItems(orderId, orderNumber);
+            });
+          });
+
+        document.querySelectorAll(".btn-mark-all-ready").forEach((button) => {
           button.addEventListener("click", function () {
             const orderId = this.getAttribute("data-order-id");
             const orderNumber = this.getAttribute("data-order-number");
-            acceptOrder(orderId, orderNumber);
+            markAllChefItemsReady(orderId, orderNumber);
           });
         });
 
-        // Mark as ready buttons (IN_PREPARATION -> READY)
-        document.querySelectorAll(".btn-mark-ready").forEach((button) => {
+        // Accept item buttons - Chef and Barista (individual control)
+        document.querySelectorAll(".btn-accept-item").forEach((button) => {
           button.addEventListener("click", function () {
             const orderId = this.getAttribute("data-order-id");
-            const orderNumber = this.getAttribute("data-order-number");
-            markAsReady(orderId, orderNumber);
+            const itemId = this.getAttribute("data-item-id");
+            const itemName = this.getAttribute("data-item-name");
+            acceptItem(orderId, itemId, itemName);
+          });
+        });
+
+        // Mark item ready buttons - Chef and Barista (individual control)
+        document.querySelectorAll(".btn-ready-item").forEach((button) => {
+          button.addEventListener("click", function () {
+            const orderId = this.getAttribute("data-order-id");
+            const itemId = this.getAttribute("data-item-id");
+            const itemName = this.getAttribute("data-item-name");
+            markItemReady(orderId, itemId, itemName);
           });
         });
       });
@@ -627,10 +903,15 @@
             reconnectAttempts = 0;
             updateConnectionStatus(true);
 
-            // Subscribe to chef orders channel (handles all notifications)
-            stompClient.subscribe("/topic/chef/orders", function (message) {
+            // Subscribe to role-specific orders channel
+            // Chef subscribes to /topic/chef/orders
+            // Barista subscribes to /topic/barista/orders
+            const ordersTopic = `/topic/${currentRole}/orders`;
+            console.log(`🔌 Subscribing to: ${ordersTopic}`);
+
+            stompClient.subscribe(ordersTopic, function (message) {
               console.log(
-                "🔌 [PENDING] Raw WebSocket message received:",
+                `🔌 [PENDING] Raw WebSocket message received on ${ordersTopic}:`,
                 message.body
               );
               const notification = JSON.parse(message.body);
@@ -715,14 +996,18 @@
         } else if (notification.notificationType === "ORDER_CANCELLED") {
           console.log("⚠️ [PENDING] Processing ORDER_CANCELLED");
           title = "⚠️ Pedido Cancelado";
-          message = notification.message || `El pedido #${notification.orderNumber} ha sido cancelado`;
+          message =
+            notification.message ||
+            `El pedido #${notification.orderNumber} ha sido cancelado`;
           icon = "warning";
           playNotificationSound();
-          
+
           // Reload page immediately to remove cancelled order from view
           showNotification(title, message, icon);
           setTimeout(() => {
-            console.log("🔄 [PENDING] Reloading page due to order cancellation");
+            console.log(
+              "🔄 [PENDING] Reloading page due to order cancellation"
+            );
             window.location.reload();
           }, 1500);
           return; // Exit early to prevent duplicate reload

@@ -1,11 +1,13 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.BusinessHoursService;
+import com.aatechsolutions.elgransazon.application.service.EmployeeMonthlyStatsService;
 import com.aatechsolutions.elgransazon.application.service.PromotionService;
 import com.aatechsolutions.elgransazon.application.service.ReviewService;
 import com.aatechsolutions.elgransazon.application.service.SocialNetworkService;
 import com.aatechsolutions.elgransazon.domain.entity.BusinessHours;
 import com.aatechsolutions.elgransazon.domain.entity.DayOfWeek;
+import com.aatechsolutions.elgransazon.domain.entity.EmployeeMonthlyStats;
 import com.aatechsolutions.elgransazon.domain.entity.Promotion;
 import com.aatechsolutions.elgransazon.domain.entity.PromotionType;
 import com.aatechsolutions.elgransazon.domain.entity.Review;
@@ -33,6 +35,7 @@ public class HomeController {
     private final SocialNetworkService socialNetworkService;
     private final PromotionService promotionService;
     private final ReviewService reviewService;
+    private final EmployeeMonthlyStatsService monthlyStatsService;
 
     /**
      * Display home/landing page with system configuration data
@@ -99,6 +102,23 @@ public class HomeController {
         // Load approved reviews for testimonials section
         List<Review> approvedReviews = reviewService.getApprovedReviews();
         model.addAttribute("approvedReviews", approvedReviews);
+        
+        // Load employees of the month
+        try {
+            EmployeeMonthlyStats waiterOfMonth = monthlyStatsService.getWaiterOfCurrentMonth().orElse(null);
+            EmployeeMonthlyStats chefOfMonth = monthlyStatsService.getChefOfCurrentMonth().orElse(null);
+            
+            model.addAttribute("waiterOfMonth", waiterOfMonth);
+            model.addAttribute("chefOfMonth", chefOfMonth);
+            
+            log.debug("Employees of the month loaded: waiter={}, chef={}", 
+                     waiterOfMonth != null ? waiterOfMonth.getEmployee().getFullName() : "none",
+                     chefOfMonth != null ? chefOfMonth.getEmployee().getFullName() : "none");
+        } catch (Exception e) {
+            log.error("Error loading employees of the month: {}", e.getMessage(), e);
+            model.addAttribute("waiterOfMonth", null);
+            model.addAttribute("chefOfMonth", null);
+        }
         
         return "home/landing";
     }

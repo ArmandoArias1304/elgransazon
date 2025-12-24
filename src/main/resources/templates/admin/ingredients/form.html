@@ -505,8 +505,7 @@
                   <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    <span
-                      class="material-symbols-outlined text-sm align-middle"
+                    <span class="material-symbols-outlined text-sm align-middle"
                       >inventory</span
                     >
                     Cantidad a Agregar *
@@ -535,8 +534,7 @@
                   <label
                     class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    <span
-                      class="material-symbols-outlined text-sm align-middle"
+                    <span class="material-symbols-outlined text-sm align-middle"
                       >payments</span
                     >
                     Costo por Unidad ($) *
@@ -657,11 +655,14 @@
       // Calcular costo total en tiempo real para agregar stock
       const quantityToAddInput = document.getElementById("quantityToAdd");
       const costPerUnitAddInput = document.getElementById("costPerUnitAdd");
-      const totalCostDisplayElement = document.getElementById(
-        "totalCostDisplay"
-      );
+      const totalCostDisplayElement =
+        document.getElementById("totalCostDisplay");
 
-      if (quantityToAddInput && costPerUnitAddInput && totalCostDisplayElement) {
+      if (
+        quantityToAddInput &&
+        costPerUnitAddInput &&
+        totalCostDisplayElement
+      ) {
         function calculateTotal() {
           const quantity = parseFloat(quantityToAddInput.value) || 0;
           const cost = parseFloat(costPerUnitAddInput.value) || 0;

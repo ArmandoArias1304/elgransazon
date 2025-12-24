@@ -488,6 +488,379 @@
         border-radius: 0 !important;
       }
 
+      /* Encabezado de Sección Empleados del Mes */
+      .employee-section-header {
+        text-align: center;
+        padding: 0 20px;
+      }
+
+      .employee-section-title {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #38e07b;
+        letter-spacing: 2px;
+        margin-bottom: 15px;
+        text-shadow: 0 4px 10px rgba(56, 224, 123, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+      }
+
+      .employee-section-title i {
+        font-size: 2rem;
+        color: #ffd700;
+        animation: sparkle 2s ease-in-out infinite;
+      }
+
+      .employee-section-subtitle {
+        font-size: 1.3rem;
+        color: #ffffff;
+        font-weight: 400;
+        font-style: italic;
+        opacity: 0.9;
+        max-width: 700px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+
+      @keyframes sparkle {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.2);
+          opacity: 0.8;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .employee-section-title {
+          font-size: 2rem;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .employee-section-title i {
+          font-size: 1.5rem;
+        }
+
+        .employee-section-subtitle {
+          font-size: 1.1rem;
+        }
+      }
+
+      /* Estilos para Empleados del Mes - Modo Oscuro */
+      .employee-card {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+        min-height: 380px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 2px solid #38e07b;
+      }
+
+      .employee-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(56, 224, 123, 0.4);
+        border-color: #2dd46f;
+      }
+
+      .employee-badge {
+        position: absolute;
+        top: 20px;
+        right: -35px;
+        background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+        color: #2d2d2d;
+        padding: 8px 50px;
+        font-weight: bold;
+        font-size: 0.85rem;
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transform: rotate(45deg);
+        width: 200px;
+        text-align: center;
+      }
+
+      .employee-badge i {
+        font-size: 1rem;
+      }
+
+      .chef-badge {
+        background: linear-gradient(135deg, #38e07b 0%, #2dd46f 100%);
+        color: white;
+      }
+
+      .employee-photo-container {
+        width: 150px;
+        height: 150px;
+        margin: 30px auto 20px;
+        position: relative;
+      }
+
+      .employee-photo {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 5px solid #38e07b;
+        box-shadow: 0 8px 20px rgba(56, 224, 123, 0.3);
+      }
+
+      .employee-photo-default {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #38e07b 0%, #2dd46f 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 4rem;
+        border: 5px solid #2dd46f;
+        box-shadow: 0 8px 20px rgba(56, 224, 123, 0.3);
+      }
+
+      .chef-photo {
+        background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+        border-color: #ffd700;
+        box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+        color: #2d2d2d;
+      }
+
+      .employee-name {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 15px;
+      }
+
+      .employee-role {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: rgba(56, 224, 123, 0.15);
+        border-radius: 15px;
+        padding: 12px 25px;
+        margin-top: 15px;
+        color: #38e07b;
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+
+      .employee-role i {
+        font-size: 1.3rem;
+      }
+
+      .employee-stats {
+        background: rgba(56, 224, 123, 0.1);
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 10px;
+      }
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .stat-item i {
+        color: #38e07b;
+        font-size: 1.3rem;
+      }
+
+      .stat-label {
+        color: #999;
+        font-weight: 500;
+      }
+
+      .stat-value {
+        color: #38e07b;
+        font-size: 1.8rem;
+        font-weight: bold;
+      }
+
+      .employee-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        color: #666;
+      }
+
+      .employee-empty-state i {
+        font-size: 4rem;
+        color: #444;
+        margin-bottom: 20px;
+      }
+
+      .employee-empty-state p {
+        font-size: 1.2rem;
+        font-weight: 500;
+        margin-bottom: 5px;
+        color: #999;
+      }
+
+      .employee-empty-state small {
+        color: #666;
+        font-size: 0.9rem;
+      }
+
+      /* Modal de Felicitaciones */
+      .congratulations-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .congratulations-modal.show {
+        display: flex;
+      }
+
+      .congratulations-content {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        border: 3px solid #38e07b;
+        border-radius: 25px;
+        padding: 50px 40px;
+        text-align: center;
+        max-width: 500px;
+        position: relative;
+        animation: scaleIn 0.4s ease;
+        box-shadow: 0 20px 60px rgba(56, 224, 123, 0.3);
+      }
+
+      .congratulations-content h2 {
+        color: #38e07b;
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 20px;
+      }
+
+      .congratulations-content p {
+        color: #ffffff;
+        font-size: 1.3rem;
+        margin-bottom: 30px;
+        line-height: 1.6;
+      }
+
+      .congratulations-content .trophy-icon {
+        font-size: 5rem;
+        color: #ffd700;
+        margin-bottom: 20px;
+        animation: bounce 1s infinite;
+      }
+
+      .congratulations-close {
+        background: linear-gradient(135deg, #38e07b 0%, #2dd46f 100%);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 25px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .congratulations-close:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 20px rgba(56, 224, 123, 0.4);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes scaleIn {
+        from {
+          transform: scale(0.8);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .employee-card {
+          min-height: 320px;
+        }
+
+        .employee-badge {
+          font-size: 0.8rem;
+          padding: 8px 15px;
+        }
+
+        .employee-photo-container {
+          width: 120px;
+          height: 120px;
+        }
+
+        .employee-name {
+          font-size: 1.3rem;
+        }
+
+        .employee-role {
+          font-size: 1rem;
+          padding: 10px 20px;
+        }
+
+        .congratulations-content {
+          margin: 20px;
+          padding: 40px 30px;
+        }
+
+        .congratulations-content h2 {
+          font-size: 2rem;
+        }
+
+        .congratulations-content p {
+          font-size: 1.1rem;
+        }
+      }
+
       .offer-section {
         padding: 60px 20px;
         background: linear-gradient(135deg, #e8fdf1 0%, #d4f8e3 100%);
@@ -2815,7 +3188,7 @@
                   alt="Postres"
                 />
                 <div class="carousel-caption">
-                  <h2 class="carousel-title">Postres Exquisitos</h2>
+                  <h2 class="carousel-title">isitos</h2>
                   <p class="carousel-subtitle">
                     Dulces tentaciones hechas en casa para endulzar tu día
                   </p>
@@ -2853,6 +3226,105 @@
                 cuidadosamente elaborada por nuestro equipo de chefs con años de
                 experiencia internacional.
               </p>
+            </div>
+          </div>
+
+          <!-- Sección Empleados del Mes -->
+          <div
+            class="employee-section-header"
+            style="margin-top: 60px; margin-bottom: 50px"
+          >
+            <h2 class="employee-section-title">Empleados del Mes</h2>
+            <p class="employee-section-subtitle">
+              Reconocemos el esfuerzo y dedicación de nuestro equipo excepcional
+            </p>
+          </div>
+
+          <div class="row mb-5" style="padding: 0 40px">
+            <!-- Mesero del Mes -->
+            <div class="col-lg-6 mb-4 fade-in-left">
+              <div class="employee-card">
+                <div class="employee-badge">
+                  <i class="fas fa-trophy"></i>
+                  <span>Mesero del Mes</span>
+                </div>
+
+                <div th:if="${waiterOfMonth != null}">
+                  <div class="employee-photo-container">
+                    <div class="employee-photo-default">
+                      <span
+                        th:text="${waiterOfMonth.employee.initials}"
+                        style="font-size: 3rem; font-weight: bold"
+                        >NN</span
+                      >
+                    </div>
+                  </div>
+
+                  <h4
+                    class="employee-name"
+                    th:text="${waiterOfMonth.employee.nombre + ' ' + waiterOfMonth.employee.apellido}"
+                  >
+                    Nombre del Empleado
+                  </h4>
+
+                  <div class="employee-role">
+                    <i class="fas fa-concierge-bell"></i>
+                    <span>Mesero</span>
+                  </div>
+                </div>
+
+                <div
+                  th:if="${waiterOfMonth == null}"
+                  class="employee-empty-state"
+                >
+                  <i class="fas fa-award"></i>
+                  <p>Aún no hay mesero del mes</p>
+                  <small>Las estadísticas se actualizarán pronto</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chef del Mes -->
+            <div class="col-lg-6 mb-4 fade-in-right">
+              <div class="employee-card">
+                <div class="employee-badge chef-badge">
+                  <i class="fas fa-trophy"></i>
+                  <span>Chef del Mes</span>
+                </div>
+
+                <div th:if="${chefOfMonth != null}">
+                  <div class="employee-photo-container">
+                    <div class="employee-photo-default chef-photo">
+                      <span
+                        th:text="${chefOfMonth.employee.initials}"
+                        style="font-size: 3rem; font-weight: bold"
+                        >NN</span
+                      >
+                    </div>
+                  </div>
+
+                  <h4
+                    class="employee-name"
+                    th:text="${chefOfMonth.employee.nombre + ' ' + chefOfMonth.employee.apellido}"
+                  >
+                    Nombre del Empleado
+                  </h4>
+
+                  <div class="employee-role">
+                    <i class="fas fa-hat-chef"></i>
+                    <span>Chef</span>
+                  </div>
+                </div>
+
+                <div
+                  th:if="${chefOfMonth == null}"
+                  class="employee-empty-state"
+                >
+                  <i class="fas fa-award"></i>
+                  <p>Aún no hay chef del mes</p>
+                  <small>Las estadísticas se actualizarán pronto</small>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -4436,6 +4908,23 @@
     </div>
     <!-- Fin Contenido Principal -->
 
+    <!-- Modal de Felicitaciones -->
+    <div id="congratulationsModal" class="congratulations-modal">
+      <div class="congratulations-content">
+        <div class="trophy-icon">
+          <i class="fas fa-trophy"></i>
+        </div>
+        <h2>¡Felicidades!</h2>
+        <p>
+          Eres el empleado del mes. Tu dedicación y esfuerzo hacen la
+          diferencia. ¡Sigue así!
+        </p>
+        <button class="congratulations-close" onclick="closeCongratulations()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       // Funcionalidad mejorada para cambiar entre categorías con animación
@@ -4814,6 +5303,29 @@
               }
             });
           }
+        }
+      });
+
+      // ========== MODAL DE FELICITACIONES ==========
+      function showCongratulations() {
+        const modal = document.getElementById("congratulationsModal");
+        modal.classList.add("show");
+      }
+
+      function closeCongratulations() {
+        const modal = document.getElementById("congratulationsModal");
+        modal.classList.remove("show");
+      }
+
+      // Cerrar modal al hacer clic fuera del contenido
+      document.addEventListener("DOMContentLoaded", function () {
+        const modal = document.getElementById("congratulationsModal");
+        if (modal) {
+          modal.addEventListener("click", function (e) {
+            if (e.target === modal) {
+              closeCongratulations();
+            }
+          });
         }
       });
     </script>

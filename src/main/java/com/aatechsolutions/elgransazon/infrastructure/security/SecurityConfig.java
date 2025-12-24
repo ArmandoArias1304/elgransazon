@@ -69,7 +69,7 @@ public class SecurityConfig {
                                 "/images/**", "/promotions/**").permitAll()
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/waiter/**").hasRole("WAITER")
-                        .requestMatchers("/chef/**").hasRole("CHEF")
+                        .requestMatchers("/chef/**").hasAnyRole("CHEF", "BARISTA")
                         .requestMatchers("/cashier/**").hasRole("CASHIER")
                         .requestMatchers("/delivery/**").hasRole("DELIVERY")
                         .requestMatchers("/client/**").hasRole("CLIENT")

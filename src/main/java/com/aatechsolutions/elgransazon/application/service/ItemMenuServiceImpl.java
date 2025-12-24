@@ -203,11 +203,13 @@ public class ItemMenuServiceImpl implements ItemMenuService {
         existing.setPrice(item.getPrice());
         existing.setImageUrl(item.getImageUrl());
         existing.setActive(item.getActive());
-        existing.setRequiresPreparation(item.getRequiresPreparation()); // ✅ AGREGADO
+        existing.setRequiresPreparation(item.getRequiresPreparation());
+        existing.setRequiresBaristaPreparation(item.getRequiresBaristaPreparation());
         existing.setUpdatedAt(LocalDateTime.now());
 
         ItemMenu updated = itemMenuRepository.save(existing);
         log.info("🔍 requiresPreparation value after save: {}", updated.getRequiresPreparation());
+        log.info("🔍 requiresBaristaPreparation value after save: {}", updated.getRequiresBaristaPreparation());
 
         // Update recipe if provided
         if (recipe != null) {

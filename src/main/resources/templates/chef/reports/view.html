@@ -7,7 +7,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mis Reportes - El Gran Sazón</title>
+    <title th:text="'Mis Reportes (' + ${role} + ') - El Gran Sazón'">
+      Mis Reportes - El Gran Sazón
+    </title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,7 +20,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -187,7 +189,10 @@
               Panel de Reportes
             </h1>
             <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              Estadísticas y análisis de tu desempeño
+              <span
+                th:text="'Estadísticas y análisis de tu desempeño como ' + ${role}"
+                >Estadísticas y análisis de tu desempeño</span
+              >
             </p>
           </div>
         </div>
@@ -514,7 +519,7 @@
         },
       });
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

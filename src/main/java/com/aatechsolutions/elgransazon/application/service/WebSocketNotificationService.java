@@ -22,63 +22,188 @@ public class WebSocketNotificationService {
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
-     * Notifies all chefs about a new order
+     * Notifies about a new order
+     * Only notifies the roles (chef/barista) that have items to prepare
      */
     public void notifyNewOrder(Order order) {
+        if (order.getOrderDetails() == null || order.getOrderDetails().isEmpty()) {
+            log.warn("notifyNewOrder called with order without items: {}", order.getOrderNumber());
+            return;
+        }
+        
+        // Detect what type of items the order has
+        boolean hasChefItems = order.getOrderDetails().stream()
+            .anyMatch(detail -> detail.getItemMenu() != null && 
+                Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation()));
+        
+        boolean hasBaristaItems = order.getOrderDetails().stream()
+            .anyMatch(detail -> detail.getItemMenu() != null && 
+                Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation()));
+        
         OrderNotificationDTO notification = buildOrderNotification(order, "NEW_ORDER", 
             "Nuevo pedido #" + order.getOrderNumber());
         
-        // Send to all connected chefs
-        messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+        // Only notify CHEF if order has chef items
+        if (hasChefItems) {
+            messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+            log.info("👨‍🍳 WebSocket: Notifying CHEF - New order {} with chef items", order.getOrderNumber());
+        }
         
-        // Send to admin kitchen view
+        // Only notify BARISTA if order has barista items
+        if (hasBaristaItems) {
+            messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+            log.info("☕ WebSocket: Notifying BARISTA - New order {} with barista items", order.getOrderNumber());
+        }
+        
+        // Always send to admin kitchen view
         messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
         
-        log.info("WebSocket: New order notification sent - {}", order.getOrderNumber());
+        log.info("🔔 WebSocket: New order notification sent - {} - Chef: {}, Barista: {}", 
+            order.getOrderNumber(), hasChefItems, hasBaristaItems);
     }
 
     /**
      * Notifies about order status change
+     * Sends to both chef and barista channels so all roles can update their views
      */
     public void notifyOrderStatusChange(Order order, String message) {
+        notifyOrderStatusChange(order, message, null);
+    }
+
+    /**
+     * Notifies about order status change
+     * Only notifies the role that made the change (chef or barista)
+     * 
+     * @param order The order that changed status
+     * @param message The status change message
+     * @param roleWhoChanged The role that triggered the change ("chef", "barista", or null for all)
+     */
+    public void notifyOrderStatusChange(Order order, String message, String roleWhoChanged) {
         OrderNotificationDTO notification = buildOrderNotification(order, "STATUS_CHANGE", message);
         
-        // Send to all chefs
-        messagingTemplate.convertAndSend("/topic/chef/orders", notification);
-        
-        // Send to admin kitchen
-        messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
-        
-        // If chef assigned, send personal notification
-        if (order.getPreparedBy() != null) {
-            messagingTemplate.convertAndSendToUser(
-                order.getPreparedBy().getUsername(),
-                "/queue/orders",
-                notification
-            );
+        // If roleWhoChanged is specified, only notify that role
+        // Otherwise, notify all roles that have items in the order
+        if (roleWhoChanged != null) {
+            // Only notify the role that made the change
+            if ("chef".equalsIgnoreCase(roleWhoChanged)) {
+                messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+                log.debug("👨‍🍳 WebSocket: Notifying CHEF ONLY - Order {} status changed by chef", order.getOrderNumber());
+                
+                // Send personal notification to assigned chef
+                if (order.getPreparedBy() != null) {
+                    messagingTemplate.convertAndSendToUser(
+                        order.getPreparedBy().getUsername(),
+                        "/queue/orders",
+                        notification
+                    );
+                }
+            } else if ("barista".equalsIgnoreCase(roleWhoChanged)) {
+                messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+                log.debug("☕ WebSocket: Notifying BARISTA ONLY - Order {} status changed by barista", order.getOrderNumber());
+                
+                // Send personal notification to assigned barista
+                if (order.getPreparedByBarista() != null) {
+                    messagingTemplate.convertAndSendToUser(
+                        order.getPreparedByBarista().getUsername(),
+                        "/queue/orders",
+                        notification
+                    );
+                }
+            }
+        } else {
+            // Original logic: notify all roles that have items
+            boolean hasChefItems = order.getOrderDetails() != null && order.getOrderDetails().stream()
+                .anyMatch(detail -> detail.getItemMenu() != null && 
+                    Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation()));
+            
+            boolean hasBaristaItems = order.getOrderDetails() != null && order.getOrderDetails().stream()
+                .anyMatch(detail -> detail.getItemMenu() != null && 
+                    Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation()));
+            
+            // Notify chef if order has chef items
+            if (hasChefItems) {
+                messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+                log.debug("👨‍🍳 WebSocket: Notifying CHEF - Order {} status changed", order.getOrderNumber());
+                
+                if (order.getPreparedBy() != null) {
+                    messagingTemplate.convertAndSendToUser(
+                        order.getPreparedBy().getUsername(),
+                        "/queue/orders",
+                        notification
+                    );
+                }
+            }
+            
+            // Notify barista if order has barista items
+            if (hasBaristaItems) {
+                messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+                log.debug("☕ WebSocket: Notifying BARISTA - Order {} status changed", order.getOrderNumber());
+                
+                if (order.getPreparedByBarista() != null) {
+                    messagingTemplate.convertAndSendToUser(
+                        order.getPreparedByBarista().getUsername(),
+                        "/queue/orders",
+                        notification
+                    );
+                }
+            }
         }
+        
+        // Always send to admin kitchen
+        messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
         
         log.debug("WebSocket: Order status change - {} - {}", order.getOrderNumber(), message);
     }
 
     /**
      * Notifies when items are added to an existing order
+     * Only notifies the roles (chef/barista) that have items added for them
+     * 
+     * @param order The order with new items
+     * @param newItems The list of new OrderDetails that were added
      */
-    public void notifyItemsAdded(Order order, int itemCount) {
-        String message = String.format("Se agregaron %d item(s) al pedido %s", itemCount, order.getOrderNumber());
+    public void notifyItemsAdded(Order order, java.util.List<com.aatechsolutions.elgransazon.domain.entity.OrderDetail> newItems) {
+        if (newItems == null || newItems.isEmpty()) {
+            log.warn("notifyItemsAdded called with empty items list");
+            return;
+        }
+        
+        // Detect what type of items were added
+        boolean hasChefItems = newItems.stream()
+            .anyMatch(detail -> detail.getItemMenu() != null && 
+                Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation()));
+        
+        boolean hasBaristaItems = newItems.stream()
+            .anyMatch(detail -> detail.getItemMenu() != null && 
+                Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation()));
+        
+        String message = String.format("Se agregaron %d item(s) al pedido %s", newItems.size(), order.getOrderNumber());
         OrderNotificationDTO notification = buildOrderNotification(order, "ITEMS_ADDED", message);
         
-        // Send to all chefs - order returns to pending
-        messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+        // Only notify CHEF if chef items were added
+        if (hasChefItems) {
+            messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+            log.info("👨‍🍳 WebSocket: Notifying CHEF - {} chef items added to order {}", 
+                newItems.stream().filter(d -> Boolean.TRUE.equals(d.getItemMenu().getRequiresPreparation())).count(),
+                order.getOrderNumber());
+        }
         
-        // Send to all roles to update their views
-        messagingTemplate.convertAndSend("/topic/orders", notification);
+        // Only notify BARISTA if barista items were added
+        if (hasBaristaItems) {
+            messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+            log.info("☕ WebSocket: Notifying BARISTA - {} barista items added to order {}", 
+                newItems.stream().filter(d -> Boolean.TRUE.equals(d.getItemMenu().getRequiresBaristaPreparation())).count(),
+                order.getOrderNumber());
+        }
         
-        // Send to admin kitchen
+        // Always send to admin kitchen
         messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
         
-        // If chef assigned, send personal notification
-        if (order.getPreparedBy() != null) {
+        // Send to all roles to update their views (order list updates)
+        messagingTemplate.convertAndSend("/topic/orders", notification);
+        
+        // If chef assigned and chef items added, send personal notification
+        if (hasChefItems && order.getPreparedBy() != null) {
             messagingTemplate.convertAndSendToUser(
                 order.getPreparedBy().getUsername(),
                 "/queue/orders",
@@ -86,7 +211,17 @@ public class WebSocketNotificationService {
             );
         }
         
-        log.info("WebSocket: Items added notification - {} - {} items", order.getOrderNumber(), itemCount);
+        // If barista assigned and barista items added, send personal notification
+        if (hasBaristaItems && order.getPreparedByBarista() != null) {
+            messagingTemplate.convertAndSendToUser(
+                order.getPreparedByBarista().getUsername(),
+                "/queue/orders",
+                notification
+            );
+        }
+        
+        log.info("🔔 WebSocket: Items added notification sent - Order {} - Chef items: {}, Barista items: {}", 
+            order.getOrderNumber(), hasChefItems, hasBaristaItems);
     }
 
     /**

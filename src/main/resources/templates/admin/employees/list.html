@@ -621,9 +621,16 @@
                   id="modalUsername"
                 ></p>
               </div>
-              <div
-                class="md:col-span-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl"
-              >
+              <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  Edad:
+                </p>
+                <p
+                  class="font-medium text-gray-900 dark:text-white"
+                  id="modalAge"
+                ></p>
+              </div>
+              <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
                   Supervisor:
                 </p>
@@ -702,17 +709,6 @@
                 ></p>
               </div>
               <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                  Correo:
-                </p>
-                <p
-                  class="font-medium text-gray-900 dark:text-white"
-                  id="modalEmail"
-                ></p>
-              </div>
-              <div
-                class="md:col-span-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl"
-              >
                 <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
                   Último Acceso:
                 </p>
@@ -941,7 +937,7 @@
               document.getElementById("modalSalary").textContent = emp.salario;
               document.getElementById("modalTelefono").textContent =
                 emp.telefono || "No disponible";
-              document.getElementById("modalEmail").textContent = emp.email;
+              document.getElementById("modalAge").textContent = emp.edad ? emp.edad + ' años' : 'No especificada';
               document.getElementById("modalLastAccess").textContent =
                 emp.lastAccess;
 

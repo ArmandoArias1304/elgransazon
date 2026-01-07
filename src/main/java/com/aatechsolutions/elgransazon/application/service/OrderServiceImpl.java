@@ -5,6 +5,7 @@ import com.aatechsolutions.elgransazon.domain.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -39,6 +40,7 @@ public class OrderServiceImpl implements OrderService {
     private final RestaurantTableService restaurantTableService;
     private final WebSocketNotificationService wsNotificationService;
     private final EmployeeMonthlyStatsService monthlyStatsService;
+    private final DailyOrderCounterRepository dailyOrderCounterRepository;
 
     @Override
     public Order create(Order order, List<OrderDetail> orderDetails) {
@@ -885,51 +887,24 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public synchronized String generateOrderNumber() {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String generateOrderNumber() {
         LocalDate today = LocalDate.now();
         String datePrefix = String.format("ORD-%04d%02d%02d-", 
                                          today.getYear(), 
                                          today.getMonthValue(), 
                                          today.getDayOfMonth());
 
-        // Get the last order number for today and extract the sequence
-        Optional<String> lastOrderNumber = orderRepository.findLastOrderNumberToday();
+        // Use atomic counter with pessimistic lock to prevent duplicates in high concurrency
+        DailyOrderCounter counter = dailyOrderCounterRepository.findByDate(today)
+            .orElseGet(() -> new DailyOrderCounter(today, 0));
         
-        int sequence = 1; // Default to 1 for the first order of the day
+        // Update sequence
+        int nextSequence = counter.getLastSequence() + 1;
+        counter.setLastSequence(nextSequence);
+        dailyOrderCounterRepository.save(counter);
         
-        if (lastOrderNumber.isPresent()) {
-            String lastNumber = lastOrderNumber.get();
-            try {
-                // Extract the sequence number from the last order number
-                // Format: ORD-YYYYMMDD-XXX
-                String sequencePart = lastNumber.substring(lastNumber.lastIndexOf('-') + 1);
-                int lastSequence = Integer.parseInt(sequencePart);
-                sequence = lastSequence + 1;
-            } catch (Exception e) {
-                log.warn("Error parsing last order number: {}. Using count fallback.", lastOrderNumber.get());
-                // Fallback to count method
-                Long todayCount = orderRepository.countOrdersCreatedToday();
-                sequence = todayCount.intValue() + 1;
-            }
-        }
-
-        String orderNumber = String.format("%s%03d", datePrefix, sequence);
-        
-        // Safety check: if the order number already exists, increment until we find a unique one
-        int maxAttempts = 100;
-        int attempts = 0;
-        while (orderRepository.existsByOrderNumber(orderNumber) && attempts < maxAttempts) {
-            sequence++;
-            orderNumber = String.format("%s%03d", datePrefix, sequence);
-            attempts++;
-        }
-        
-        if (attempts >= maxAttempts) {
-            throw new IllegalStateException("No se pudo generar un número de orden único después de " + maxAttempts + " intentos");
-        }
-        
-        log.debug("Generated order number: {}", orderNumber);
-        return orderNumber;
+        return String.format("%s%03d", datePrefix, nextSequence);
     }
 
     @Override

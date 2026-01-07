@@ -523,8 +523,8 @@
                     ></p>
                   </div>
 
-                  <!-- Supervisor - Only ADMIN can edit -->
-                  <div>
+                  <!-- Supervisor Section -->
+                  <div th:unless="${isAdminEmployee}"> <!-- Hide for Admins -->
                     <label
                       for="supervisor"
                       class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
@@ -540,22 +540,33 @@
                         >(Solo lectura)</span
                       >
                     </label>
-                    <select
-                      sec:authorize="hasRole('ROLE_ADMIN')"
-                      id="supervisor"
-                      name="supervisorId"
-                      class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-                    >
-                      <option value="">
-                        Seleccionar supervisor (Por defecto: Admin)...
-                      </option>
-                      <option
-                        th:each="supervisor : ${supervisors}"
-                        th:value="${supervisor.idEmpleado}"
-                        th:text="${supervisor.fullName + ' (' + supervisor.roleDisplayName + ')'}"
-                        th:selected="${employee.supervisor != null and employee.supervisor.idEmpleado == supervisor.idEmpleado}"
-                      ></option>
-                    </select>
+                    <div class="relative">
+                      <select
+                        sec:authorize="hasRole('ROLE_ADMIN')"
+                        id="supervisor"
+                        name="supervisorId"
+                        class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none"
+                      >
+                        <option value="">
+                          Seleccionar supervisor (Por defecto: Admin)...
+                        </option>
+                        <option
+                          th:each="supervisor : ${supervisors}"
+                          th:value="${supervisor.idEmpleado}"
+                          th:text="${supervisor.fullName + ' (' + supervisor.roleDisplayName + ')'}"
+                          th:selected="${employee.supervisor != null and employee.supervisor.idEmpleado == supervisor.idEmpleado}"
+                        ></option>
+                      </select>
+                      <div
+                        sec:authorize="hasRole('ROLE_ADMIN')"
+                        class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none"
+                      >
+                        <span class="material-symbols-outlined text-gray-500"
+                          >expand_more</span
+                        >
+                      </div>
+                    </div>
+
                     <!-- Read-only display for MANAGER -->
                     <input
                       sec:authorize="hasRole('ROLE_MANAGER')"
@@ -565,6 +576,7 @@
                       class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-400 cursor-not-allowed"
                     />
                     <p
+                      sec:authorize="hasRole('ROLE_ADMIN')"
                       class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"
                     >
                       <span class="material-symbols-outlined text-sm"
@@ -572,6 +584,33 @@
                       >
                       Si no se selecciona, se asignará el administrador por
                       defecto
+                    </p>
+                  </div>
+
+                  <!-- Admin Supervisor Display -->
+                  <div th:if="${isAdminEmployee}">
+                    <label
+                      class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                    >
+                      <span
+                        class="material-symbols-outlined text-lg text-primary"
+                        >supervisor_account</span
+                      >
+                      Supervisor
+                    </label>
+                    <input
+                      type="text"
+                      value="Autosupervisado (Admin)"
+                      disabled
+                      class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-400 cursor-not-allowed"
+                    />
+                    <p
+                      class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"
+                    >
+                      <span class="material-symbols-outlined text-sm"
+                        >info</span
+                      >
+                      Los administradores se supervisan a sí mismos.
                     </p>
                   </div>
 
@@ -1075,9 +1114,8 @@
           .querySelector('input[name="salario"]')
           .value.trim();
         const roleId = form.querySelector('select[name="roleId"]').value;
-        const isEdit = form
-          .querySelector('input[name="password"]')
-          ?.hasAttribute("placeholder");
+        const employeeId = form.querySelector('input[name="idEmpleado"]')?.value;
+        const isEdit = !!employeeId;
 
         // Validate username
         if (!username || username.length < 3 || username.length > 50) {

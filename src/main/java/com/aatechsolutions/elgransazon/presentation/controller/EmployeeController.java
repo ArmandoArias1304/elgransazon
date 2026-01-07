@@ -45,18 +45,24 @@ public class EmployeeController {
     public String listEmployees(Authentication authentication, Model model) {
         log.debug("Displaying employees list");
         
-        List<Employee> employees = employeeService.findAll();
-        
-        // Filter out ADMIN employees for MANAGER role
         Employee currentUser = employeeService.findByUsername(authentication.getName())
                 .orElseThrow(() -> new IllegalStateException("Usuario actual no encontrado"));
         
+        List<Employee> employees;
+        
+        // Filter employees for MANAGER role - only show supervised employees
         if (currentUser.hasRole(Role.MANAGER)) {
+            employees = employeeService.findBySupervisor(currentUser.getIdEmpleado());
+            // Double check to ensure no ADMINs are included (though they shouldn't be supervised by manager normally)
             employees = employees.stream()
                     .filter(e -> !e.hasRole(Role.ADMIN))
-                    .collect(java.util.stream.Collectors.toList());
-            log.debug("Filtered out ADMIN employees for MANAGER");
+                    .collect(Collectors.toList());
+            log.debug("Filtered employees for MANAGER (supervisor check)");
+        } else {
+            // ADMIN sees all employees
+            employees = employeeService.findAll();
         }
+        
         List<Shift> allShifts = shiftService.getAllShifts();
         List<Role> allRoles = roleRepository.findAll().stream()
                 .filter(r -> !r.getNombreRol().equals(Role.ADMIN))
@@ -114,11 +120,29 @@ public class EmployeeController {
      * Show form to edit an existing employee
      */
     @GetMapping("/{id}/edit")
-    public String editEmployeeForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+    public String editEmployeeForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes, Authentication authentication) {
         log.debug("Displaying edit form for employee ID: {}", id);
         
         return employeeService.findById(id)
                 .map(employee -> {
+                    // Check permissions: Manager can only edit their own supervised employees
+                    Employee currentUser = employeeService.findByUsername(authentication.getName())
+                            .orElseThrow(() -> new IllegalStateException("Usuario actual no encontrado"));
+                            
+                    if (currentUser.hasRole(Role.MANAGER)) {
+                        boolean isMyEmployee = employee.getSupervisor() != null && 
+                                               employee.getSupervisor().getIdEmpleado().equals(currentUser.getIdEmpleado());
+                        
+                        // Also allow editing self? Usually lists don't include self for managers in this context or self-edit is profile.
+                        // Assuming Manager manages OTHER employees. 
+                        // If the employee found is NOT supervised by current user, deny.
+                        if (!isMyEmployee) {
+                             log.warn("Manager {} tried to edit employee {} without supervision rights", currentUser.getUsername(), id);
+                             redirectAttributes.addFlashAttribute("errorMessage", "No tiene permiso para editar este empleado.");
+                             return "redirect:/admin/employees";
+                        }
+                    }
+
                     // Check if employee has ADMIN role
                     boolean isAdminEmployee = employee.hasRole(Role.ADMIN);
                     
@@ -249,7 +273,34 @@ public class EmployeeController {
         
         log.info("Updating employee with ID: {}", id);
         
-        if (bindingResult.hasErrors()) {
+        // Validation: Manager can only update their own supervised employees
+        Employee currentUser = employeeService.findByUsername(authentication.getName())
+                .orElseThrow(() -> new IllegalStateException("Usuario actual no encontrado"));
+                
+        if (currentUser.hasRole(Role.MANAGER)) {
+             Employee existingEmployee = employeeService.findById(id).orElse(null);
+             if (existingEmployee != null) {
+                 boolean isMyEmployee = existingEmployee.getSupervisor() != null && 
+                                        existingEmployee.getSupervisor().getIdEmpleado().equals(currentUser.getIdEmpleado());
+                 
+                 if (!isMyEmployee) {
+                     log.warn("Manager {} tried to update employee {} without supervision rights", currentUser.getUsername(), id);
+                     redirectAttributes.addFlashAttribute("errorMessage", "No tiene permiso para modificar este empleado.");
+                     return "redirect:/admin/employees";
+                 }
+             }
+        }
+        
+        // Check for validation errors, ignoring password field for updates (as it's handled separately)
+        boolean hasRelevantErrors = bindingResult.getAllErrors().stream()
+                .anyMatch(error -> {
+                    if (error instanceof org.springframework.validation.FieldError) {
+                        return !((org.springframework.validation.FieldError) error).getField().equals("contrasenia");
+                    }
+                    return true;
+                });
+
+        if (hasRelevantErrors) {
             prepareFormModel(model, employee, true);
             return "admin/employees/form";
         }
@@ -264,6 +315,10 @@ public class EmployeeController {
                 log.warn("Attempted to change role of ADMIN employee ID: {}", id);
                 // Preserve ADMIN role
                 employee.setRoles(existingEmployee.getRoles());
+                // Admin must be their own supervisor or null. 
+                // Requirement: "El admin solo tendrá como supervisor el mismo"
+                // We set supervisor to self (using existing entity which has the ID)
+                employee.setSupervisor(existingEmployee);
             } else {
                 // Set role (only for non-ADMIN employees)
                 if (roleId != null) {
@@ -272,17 +327,30 @@ public class EmployeeController {
                         Set<Role> roles = new HashSet<>();
                         roles.add(role.get());
                         employee.setRoles(roles);
+                        
+                        // Check if promoted to ADMIN (unlikely given UI but possible)
+                        if (role.get().getNombreRol().equals(Role.ADMIN)) {
+                            employee.setSupervisor(existingEmployee);
+                        } else {
+                             // Regular employee supervisor assignment
+                            if (supervisorId != null) {
+                                employeeService.findById(supervisorId).ifPresent(employee::setSupervisor);
+                            }
+                        }
                     }
+                } else {
+                     // No role change, preserve supervisor assignment logic
+                     if (supervisorId != null) {
+                        employeeService.findById(supervisorId).ifPresent(employee::setSupervisor);
+                     }
                 }
             }
             
             // Preserve existing password (no password change in this endpoint)
             employee.setContrasenia(existingEmployee.getContrasenia());
             
-            // Set supervisor if provided
-            if (supervisorId != null) {
-                employeeService.findById(supervisorId).ifPresent(employee::setSupervisor);
-            }
+            // Supervisor assignment is now handled above based on Role logic
+            // (Removed previous simple assignment)
             
             String currentUsername = authentication.getName();
             Employee updated = employeeService.update(id, employee, currentUsername);
@@ -398,12 +466,30 @@ public class EmployeeController {
      */
     @GetMapping("/{id}/details")
     @ResponseBody
-    public Map<String, Object> getEmployeeDetails(@PathVariable Long id) {
+    public Map<String, Object> getEmployeeDetails(@PathVariable Long id, Authentication authentication) {
         Map<String, Object> response = new HashMap<>();
         
         try {
             Employee employee = employeeService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado"));
+            
+            // Check permissions: Manager can only view details of supervised employees
+            Employee currentUser = employeeService.findByUsername(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Usuario actual no encontrado"));
+            
+            if (currentUser.hasRole(Role.MANAGER)) {
+                 // Check if it's the manager themselves (unlikely but possible) or a supervised employee
+                 boolean isMyEmployee = employee.getSupervisor() != null && 
+                                        employee.getSupervisor().getIdEmpleado().equals(currentUser.getIdEmpleado());
+                 
+                 if (!isMyEmployee) { // If manager wants to see their own details, we might allow it, but requirement implies supervised only.
+                                      // Actually usually self-detail is fine. Let's assume supervised check is what's important for "others".
+                                      // If id == currentUser.getId(), allow.
+                     if (!employee.getIdEmpleado().equals(currentUser.getIdEmpleado())) {
+                         throw new org.springframework.security.access.AccessDeniedException("No tiene permiso para ver detalles de este empleado");
+                     }
+                 }
+            }
             
             Map<String, Object> employeeData = new HashMap<>();
             employeeData.put("id", employee.getIdEmpleado());
@@ -477,8 +563,26 @@ public class EmployeeController {
      * Delete an employee
      */
     @PostMapping("/{id}/delete")
-    public String deleteEmployee(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String deleteEmployee(@PathVariable Long id, RedirectAttributes redirectAttributes, Authentication authentication) {
         log.info("Deleting employee with ID: {}", id);
+        
+        // Validation: Manager can only delete their own supervised employees (if they have delete permission)
+        Employee currentUser = employeeService.findByUsername(authentication.getName())
+                .orElseThrow(() -> new IllegalStateException("Usuario actual no encontrado"));
+                
+        if (currentUser.hasRole(Role.MANAGER)) {
+             Employee existingEmployee = employeeService.findById(id).orElse(null);
+             if (existingEmployee != null) {
+                 boolean isMyEmployee = existingEmployee.getSupervisor() != null && 
+                                        existingEmployee.getSupervisor().getIdEmpleado().equals(currentUser.getIdEmpleado());
+                 
+                 if (!isMyEmployee) {
+                     log.warn("Manager {} tried to delete employee {} without supervision rights", currentUser.getUsername(), id);
+                     redirectAttributes.addFlashAttribute("errorMessage", "No tiene permiso para eliminar este empleado.");
+                     return "redirect:/admin/employees";
+                 }
+             }
+        }
         
         try {
             Optional<Employee> employeeOpt = employeeService.findById(id);

@@ -139,16 +139,27 @@
         <!-- FILTROS -->
         <div class="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg">
           <form th:action="@{/admin/ingredients}" method="get">
-            <div class="flex flex-col md:flex-row items-stretch md:items-center gap-4">
-              <div class="relative flex-1">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                <input
-                  name="search"
-                  th:value="${search}"
-                  class="w-full h-12 pl-10 pr-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-gray-400 text-sm"
-                  placeholder="Buscar ingredientes..." type="text" />
+            <div class="space-y-4">
+              <!-- PRIMERA FILA: Búsqueda por texto + Botón Filtrar -->
+              <div class="flex items-center gap-4">
+                <div class="relative flex-1">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+                  <input
+                    name="search"
+                    th:value="${search}"
+                    class="w-full h-12 pl-10 pr-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-gray-400 text-sm"
+                    placeholder="Buscar ingredientes..." type="text" />
+                </div>
+                <button
+                  type="submit"
+                  class="h-12 px-6 flex items-center justify-center gap-2 rounded-xl bg-primary text-white hover:bg-primary-dark transition-colors font-medium whitespace-nowrap">
+                  <span class="material-symbols-outlined">search</span>
+                  Filtrar
+                </button>
               </div>
-              <div class="flex items-center gap-2">
+
+              <!-- SEGUNDA FILA: Demás filtros -->
+              <div class="flex flex-wrap items-center gap-3">
                 <select
                   name="categoryId"
                   class="h-12 px-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none text-sm">
@@ -181,12 +192,6 @@
                   <option value="true" th:selected="${active == true}">Activos</option>
                   <option value="false" th:selected="${active == false}">Inactivos</option>
                 </select>
-                <button
-                  type="submit"
-                  class="h-12 px-6 flex items-center justify-center gap-2 rounded-xl bg-primary text-white hover:bg-primary-dark transition-colors font-medium">
-                  <span class="material-symbols-outlined">search</span>
-                  Filtrar
-                </button>
               </div>
             </div>
           </form>
@@ -338,7 +343,7 @@
       <!-- SIDEBAR DE ALERTAS -->
       <div class="lg:col-span-1">
         <div
-          class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg p-6 sticky top-6">
+          class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg p-6">
           <div class="flex items-center gap-3 mb-6">
             <div class="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center">
               <span class="material-symbols-outlined text-red-500 text-xl">warning</span>
@@ -384,6 +389,97 @@
             </div>
           </div>
         </div>
+
+        <!-- CONTENEDOR DE DESCARGA DE PDF -->
+        <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-lg p-6 mt-6">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
+              <span class="material-symbols-outlined text-blue-500 text-xl">picture_as_pdf</span>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Descargar Reporte</h3>
+          </div>
+
+          <!-- DESCRIPCIÓN -->
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Selecciona los tipos de stock que deseas incluir en el reporte PDF
+          </p>
+
+          <!-- BOTONES DE SELECCIÓN -->
+          <div class="space-y-3 mb-6">
+            <!-- Inventario Completo -->
+            <button type="button" 
+                    onclick="toggleStockFilter('all')"
+                    id="filter-all"
+                    class="w-full flex items-center justify-between p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md"
+                    data-selected="false">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                  <span class="material-symbols-outlined text-blue-500 text-lg">inventory_2</span>
+                </div>
+                <span class="font-semibold text-gray-700 dark:text-gray-300">Inventario Completo</span>
+              </div>
+              <span class="material-symbols-outlined text-gray-400 check-icon hidden">check</span>
+            </button>
+
+            <!-- Stock Completo -->
+            <button type="button" 
+                    onclick="toggleStockFilter('healthy')"
+                    id="filter-healthy"
+                    class="w-full flex items-center justify-between p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md"
+                    data-selected="false">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center">
+                  <span class="material-symbols-outlined text-green-500 text-lg">check_circle</span>
+                </div>
+                <span class="font-semibold text-gray-700 dark:text-gray-300">Stock OK</span>
+              </div>
+              <span class="material-symbols-outlined text-gray-400 check-icon hidden">check</span>
+            </button>
+
+            <!-- Stock Bajo -->
+            <button type="button" 
+                    onclick="toggleStockFilter('low')"
+                    id="filter-low"
+                    class="w-full flex items-center justify-between p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md"
+                    data-selected="false">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-yellow-500/10 rounded-lg flex items-center justify-center">
+                  <span class="material-symbols-outlined text-yellow-500 text-lg">warning</span>
+                </div>
+                <span class="font-semibold text-gray-700 dark:text-gray-300">Stock Bajo</span>
+              </div>
+              <span class="material-symbols-outlined text-gray-400 check-icon hidden">check</span>
+            </button>
+
+            <!-- Stock Agotado -->
+            <button type="button" 
+                    onclick="toggleStockFilter('out')"
+                    id="filter-out"
+                    class="w-full flex items-center justify-between p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md"
+                    data-selected="false">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center">
+                  <span class="material-symbols-outlined text-red-500 text-lg">error</span>
+                </div>
+                <span class="font-semibold text-gray-700 dark:text-gray-300">Stock Agotado</span>
+              </div>
+              <span class="material-symbols-outlined text-gray-400 check-icon hidden">check</span>
+            </button>
+          </div>
+
+          <!-- BOTÓN DE DESCARGA -->
+          <button type="button"
+                  onclick="downloadStockPDF()"
+                  class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all shadow-md">
+            <span class="material-symbols-outlined text-lg">download</span>
+            Descargar PDF
+          </button>
+
+          <!-- MENSAJE DE AYUDA -->
+          <p class="text-xs text-gray-500 dark:text-gray-500 mt-4 text-center">
+            Selecciona al menos un tipo de stock para descargar
+          </p>
+        </div>
       </div>
     </div>
   </div>
@@ -392,6 +488,112 @@
 
     <!-- JAVASCRIPT -->
     <script>
+      // ============================================
+      // STOCK PDF DOWNLOAD FUNCTIONALITY
+      // ============================================
+      let selectedFilters = {
+        all: false,
+        healthy: false,
+        low: false,
+        out: false
+      };
+
+      function toggleStockFilter(filterType) {
+        selectedFilters[filterType] = !selectedFilters[filterType];
+        const button = document.getElementById('filter-' + filterType);
+        const checkIcon = button.querySelector('.check-icon');
+        
+        // Si se selecciona "Inventario Completo"
+        if (filterType === 'all') {
+          if (selectedFilters.all) {
+            // Deshabilitar los otros botones
+            disableOtherFilters(true);
+            // Deseleccionar los otros filtros
+            selectedFilters.healthy = false;
+            selectedFilters.low = false;
+            selectedFilters.out = false;
+            updateButtonState('healthy', false);
+            updateButtonState('low', false);
+            updateButtonState('out', false);
+          } else {
+            // Habilitar los otros botones
+            disableOtherFilters(false);
+          }
+        } else {
+          // Si se selecciona cualquier otro filtro, deshabilitar "Inventario Completo"
+          if (selectedFilters[filterType]) {
+            if (!selectedFilters.all) {
+              document.getElementById('filter-all').disabled = true;
+              document.getElementById('filter-all').classList.add('opacity-50', 'cursor-not-allowed');
+            }
+          } else {
+            // Si no hay ningún filtro seleccionado, habilitar "Inventario Completo"
+            if (!selectedFilters.healthy && !selectedFilters.low && !selectedFilters.out) {
+              document.getElementById('filter-all').disabled = false;
+              document.getElementById('filter-all').classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+          }
+        }
+        
+        updateButtonState(filterType, selectedFilters[filterType]);
+      }
+
+      function updateButtonState(filterType, isSelected) {
+        const button = document.getElementById('filter-' + filterType);
+        const checkIcon = button.querySelector('.check-icon');
+        
+        if (isSelected) {
+          // Agregar clases de selección
+          button.classList.add('border-primary', 'dark:border-primary', 'bg-primary/5', 'dark:bg-primary/10');
+          button.classList.remove('border-gray-200', 'dark:border-gray-700');
+          checkIcon.classList.remove('hidden');
+          checkIcon.classList.add('text-primary');
+        } else {
+          // Remover clases de selección
+          button.classList.remove('border-primary', 'dark:border-primary', 'bg-primary/5', 'dark:bg-primary/10');
+          button.classList.add('border-gray-200', 'dark:border-gray-700');
+          checkIcon.classList.add('hidden');
+          checkIcon.classList.remove('text-primary');
+        }
+      }
+
+      function disableOtherFilters(disable) {
+        const filters = ['healthy', 'low', 'out'];
+        filters.forEach(filter => {
+          const btn = document.getElementById('filter-' + filter);
+          btn.disabled = disable;
+          if (disable) {
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+          } else {
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+          }
+        });
+      }
+
+      function downloadStockPDF() {
+        // Verificar que al menos un filtro esté seleccionado
+        if (!selectedFilters.all && !selectedFilters.healthy && !selectedFilters.low && !selectedFilters.out) {
+          alert('Por favor selecciona al menos un tipo de stock para descargar');
+          return;
+        }
+
+        // Construir los parámetros de la URL
+        const params = new URLSearchParams();
+        if (selectedFilters.all) {
+          params.append('includeAll', 'true');
+        } else {
+          if (selectedFilters.healthy) params.append('includeHealthy', 'true');
+          if (selectedFilters.low) params.append('includeLow', 'true');
+          if (selectedFilters.out) params.append('includeOut', 'true');
+        }
+
+        // Redirigir a la URL de descarga del PDF
+        window.location.href = '/admin/ingredients/download-stock-pdf?' + params.toString();
+      }
+
+      // ============================================
+      // AUTO-HIDE ALERTS
+      // ============================================
       // Auto-hide alerts after 5 seconds
       document.addEventListener('DOMContentLoaded', function() {
         // Buscar alertas por su contenido de clase CSS

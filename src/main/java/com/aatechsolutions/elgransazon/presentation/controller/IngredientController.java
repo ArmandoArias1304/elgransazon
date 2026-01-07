@@ -24,6 +24,34 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.ArrayList;
+import java.io.ByteArrayOutputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Div;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.layout.properties.UnitValue;
+import com.itextpdf.layout.properties.VerticalAlignment;
+import com.itextpdf.layout.borders.Border;
+import com.itextpdf.layout.borders.SolidBorder;
+import com.itextpdf.kernel.colors.ColorConstants;
+import com.itextpdf.kernel.colors.DeviceRgb;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.io.font.constants.StandardFonts;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Controller for Ingredient management
@@ -415,5 +443,410 @@ public class IngredientController {
             redirectAttributes.addFlashAttribute("errorMessage", "Error al cargar el historial: " + e.getMessage());
             return "redirect:/admin/ingredients";
         }
+    }
+
+    /**
+     * Download PDF report of ingredients based on stock status
+     */
+    @GetMapping("/download-stock-pdf")
+    public ResponseEntity<byte[]> downloadStockPDF(
+            @RequestParam(required = false) Boolean includeAll,
+            @RequestParam(required = false) Boolean includeHealthy,
+            @RequestParam(required = false) Boolean includeLow,
+            @RequestParam(required = false) Boolean includeOut) {
+
+        log.info("Generating stock PDF - includeAll: {}, includeHealthy: {}, includeLow: {}, includeOut: {}", 
+                includeAll, includeHealthy, includeLow, includeOut);
+
+        try {
+            // Obtener todos los ingredientes activos
+            List<Ingredient> allIngredients = ingredientService.searchWithAllFilters(null, null, null, null, true);
+            List<Ingredient> filteredIngredients;
+
+            // Si se solicita el inventario completo, incluir todos los ingredientes
+            if (Boolean.TRUE.equals(includeAll)) {
+                filteredIngredients = new ArrayList<>(allIngredients);
+            } else {
+                // Filtrar según los parámetros específicos
+                filteredIngredients = new ArrayList<>();
+                for (Ingredient ingredient : allIngredients) {
+                    boolean shouldInclude = false;
+
+                    if (Boolean.TRUE.equals(includeHealthy) && ingredient.isHealthyStock()) {
+                        shouldInclude = true;
+                    }
+                    if (Boolean.TRUE.equals(includeLow) && ingredient.isLowStock()) {
+                        shouldInclude = true;
+                    }
+                    if (Boolean.TRUE.equals(includeOut) && ingredient.isOutOfStock()) {
+                        shouldInclude = true;
+                    }
+
+                    if (shouldInclude) {
+                        filteredIngredients.add(ingredient);
+                    }
+                }
+            }
+
+            // Generar el PDF con diseño profesional
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(baos);
+            PdfDocument pdfDoc = new PdfDocument(writer);
+            Document document = new Document(pdfDoc, PageSize.LETTER);
+            document.setMargins(40, 40, 40, 40);
+
+            // Colores del tema
+            DeviceRgb primaryColor = new DeviceRgb(56, 224, 123); // #38e07b
+            DeviceRgb primaryDark = new DeviceRgb(43, 200, 102); // #2bc866
+            DeviceRgb darkColor = new DeviceRgb(45, 45, 45);
+            DeviceRgb grayColor = new DeviceRgb(107, 114, 128);
+            DeviceRgb lightGray = new DeviceRgb(249, 250, 251);
+
+            // Fuentes
+            PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
+            PdfFont regularFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+
+            // ========== HEADER ==========
+            Table headerTable = new Table(UnitValue.createPercentArray(new float[]{1, 3}));
+            headerTable.setWidth(UnitValue.createPercentValue(100));
+            headerTable.setBorder(Border.NO_BORDER);
+
+            // Generar iniciales dinámicas según el tipo de descarga
+            StringBuilder logoInitials = new StringBuilder("S"); // "S" de Stock
+            if (Boolean.TRUE.equals(includeAll)) {
+                // Solo "S" para inventario completo
+            } else {
+                // Agregar iniciales según los filtros
+                if (Boolean.TRUE.equals(includeHealthy)) {
+                    logoInitials.append("O"); // "O" de OK
+                }
+                if (Boolean.TRUE.equals(includeLow)) {
+                    logoInitials.append("B"); // "B" de Bajo
+                }
+                if (Boolean.TRUE.equals(includeOut)) {
+                    logoInitials.append("A"); // "A" de Agotado
+                }
+            }
+
+            // Ajustar tamaño de fuente según la cantidad de letras
+            int fontSize = logoInitials.length() <= 2 ? 36 : (logoInitials.length() == 3 ? 28 : 24);
+
+            // Logo/Icon placeholder (left column)
+            Cell logoCell = new Cell()
+                    .add(new Paragraph(logoInitials.toString())
+                            .setFont(boldFont)
+                            .setFontSize(fontSize)
+                            .setFontColor(ColorConstants.WHITE)
+                            .setTextAlignment(TextAlignment.CENTER))
+                    .setBackgroundColor(primaryColor)
+                    .setWidth(60)
+                    .setHeight(60)
+                    .setVerticalAlignment(VerticalAlignment.MIDDLE)
+                    .setBorder(Border.NO_BORDER);
+            headerTable.addCell(logoCell);
+
+            // Title and subtitle (right column)
+            Div titleDiv = new Div();
+            titleDiv.add(new Paragraph("REPORTE DE INVENTARIO")
+                    .setFont(boldFont)
+                    .setFontSize(20)
+                    .setFontColor(darkColor)
+                    .setMarginBottom(2));
+            titleDiv.add(new Paragraph("Control de Stock de Ingredientes")
+                    .setFont(regularFont)
+                    .setFontSize(11)
+                    .setFontColor(grayColor));
+
+            Cell titleCell = new Cell()
+                    .add(titleDiv)
+                    .setVerticalAlignment(VerticalAlignment.MIDDLE)
+                    .setBorder(Border.NO_BORDER)
+                    .setPaddingLeft(15);
+            headerTable.addCell(titleCell);
+
+            document.add(headerTable);
+
+            // Divider line
+            document.add(new Paragraph()
+                    .setBorderTop(new SolidBorder(primaryColor, 2))
+                    .setMarginTop(10)
+                    .setMarginBottom(20));
+
+            // ========== FECHA Y FILTROS ==========
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+            
+            // Fecha de generación
+            Paragraph dateTime = new Paragraph()
+                    .add(new Paragraph("Fecha de generación: ")
+                            .setFont(boldFont)
+                            .setFontSize(10)
+                            .setFontColor(darkColor))
+                    .add(new Paragraph(LocalDateTime.now().format(formatter))
+                            .setFont(regularFont)
+                            .setFontSize(10)
+                            .setFontColor(grayColor))
+                    .setMarginBottom(8);
+            document.add(dateTime);
+
+            // Filtros aplicados
+            StringBuilder filtersApplied = new StringBuilder();
+            List<String> filterNames = new ArrayList<>();
+            if (Boolean.TRUE.equals(includeAll)) {
+                filterNames.add("Inventario Completo");
+            } else {
+                if (Boolean.TRUE.equals(includeHealthy)) filterNames.add("Stock OK");
+                if (Boolean.TRUE.equals(includeLow)) filterNames.add("Stock Bajo");
+                if (Boolean.TRUE.equals(includeOut)) filterNames.add("Stock Agotado");
+            }
+            filtersApplied.append(String.join(", ", filterNames));
+
+            Paragraph filters = new Paragraph()
+                    .add(new Paragraph("Filtros aplicados: ")
+                            .setFont(boldFont)
+                            .setFontSize(10)
+                            .setFontColor(darkColor))
+                    .add(new Paragraph(filtersApplied.toString())
+                            .setFont(regularFont)
+                            .setFontSize(10)
+                            .setFontColor(primaryDark))
+                    .setMarginBottom(20);
+            document.add(filters);
+
+            // ========== RESUMEN ESTADÍSTICO ==========
+            // Calcular estadísticas
+            int totalIngredients = filteredIngredients.size();
+            long healthyCount = filteredIngredients.stream().filter(Ingredient::isHealthyStock).count();
+            long lowCount = filteredIngredients.stream().filter(Ingredient::isLowStock).count();
+            long outCount = filteredIngredients.stream().filter(Ingredient::isOutOfStock).count();
+
+            // Tabla de resumen
+            Table summaryTable = new Table(new float[]{1, 1, 1, 1});
+            summaryTable.setWidth(UnitValue.createPercentValue(100));
+            summaryTable.setMarginBottom(20);
+
+            addSummaryCard(summaryTable, boldFont, regularFont, "Total Ingredientes", 
+                    String.valueOf(totalIngredients), primaryColor);
+            addSummaryCard(summaryTable, boldFont, regularFont, "Stock OK", 
+                    String.valueOf(healthyCount), new DeviceRgb(34, 197, 94)); // green-500
+            addSummaryCard(summaryTable, boldFont, regularFont, "Stock Bajo", 
+                    String.valueOf(lowCount), new DeviceRgb(251, 191, 36)); // yellow-400
+            addSummaryCard(summaryTable, boldFont, regularFont, "Agotados", 
+                    String.valueOf(outCount), new DeviceRgb(239, 68, 68)); // red-500
+
+            document.add(summaryTable);
+
+            // ========== SECCIÓN: DETALLE DE INGREDIENTES ==========
+            addSectionTitle(document, boldFont, darkColor, primaryColor, "Detalle de Ingredientes");
+
+            // ========== TABLA DE INGREDIENTES ==========
+            float[] columnWidths = {3.5f, 2f, 1.5f, 1.5f, 1.5f, 2f};
+            Table table = new Table(UnitValue.createPercentArray(columnWidths));
+            table.setWidth(UnitValue.createPercentValue(100));
+
+            // Encabezados con diseño moderno
+            String[] headers = {"Ingrediente", "Categoría", "Stock Actual", "Stock Mín.", "Unidad", "Estado"};
+            for (String header : headers) {
+                Cell headerCell = new Cell()
+                        .add(new Paragraph(header)
+                                .setFont(boldFont)
+                                .setFontSize(9)
+                                .setFontColor(ColorConstants.WHITE))
+                        .setBackgroundColor(primaryDark)
+                        .setTextAlignment(TextAlignment.CENTER)
+                        .setPadding(8)
+                        .setBorder(Border.NO_BORDER);
+                table.addHeaderCell(headerCell);
+            }
+
+            // Filas de datos con alternancia de colores
+            boolean alternate = false;
+            for (Ingredient ingredient : filteredIngredients) {
+                DeviceRgb rowColor = alternate ? lightGray : new DeviceRgb(255, 255, 255);
+                
+                // Nombre
+                table.addCell(createStyledCell(ingredient.getName(), regularFont, 
+                        TextAlignment.LEFT, rowColor, darkColor));
+                
+                // Categoría
+                String categoryName = ingredient.getCategory() != null ? 
+                        ingredient.getCategory().getName() : "Sin categoría";
+                table.addCell(createStyledCell(categoryName, regularFont, 
+                        TextAlignment.LEFT, rowColor, grayColor));
+                
+                // Stock Actual
+                table.addCell(createStyledCell(ingredient.getCurrentStock().toString(), 
+                        regularFont, TextAlignment.CENTER, rowColor, darkColor));
+                
+                // Stock Mínimo
+                table.addCell(createStyledCell(ingredient.getMinStock().toString(), 
+                        regularFont, TextAlignment.CENTER, rowColor, grayColor));
+                
+                // Unidad
+                table.addCell(createStyledCell(ingredient.getUnitOfMeasure(), 
+                        regularFont, TextAlignment.CENTER, rowColor, grayColor));
+                
+                // Estado con badge colorido
+                table.addCell(createStatusBadge(ingredient, boldFont, rowColor));
+                
+                alternate = !alternate;
+            }
+
+            document.add(table);
+
+            // ========== RESUMEN FINAL ==========
+            document.add(new Paragraph("\n"));
+            Table footerSummary = new Table(1);
+            footerSummary.setWidth(UnitValue.createPercentValue(100));
+            footerSummary.setBorder(Border.NO_BORDER);
+            
+            Cell summaryCell = new Cell()
+                    .add(new Paragraph("RESUMEN: ")
+                            .setFont(boldFont)
+                            .setFontSize(10)
+                            .setFontColor(darkColor)
+                            .add(new Paragraph("Total de " + filteredIngredients.size() + 
+                                    " ingrediente(s) en este reporte")
+                                    .setFont(regularFont)
+                                    .setFontColor(grayColor)))
+                    .setBackgroundColor(lightGray)
+                    .setPadding(10)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setBorder(Border.NO_BORDER);
+            footerSummary.addCell(summaryCell);
+            document.add(footerSummary);
+
+            // ========== FOOTER ==========
+            document.add(new Paragraph()
+                    .setBorderTop(new SolidBorder(lightGray, 1))
+                    .setMarginTop(20)
+                    .setMarginBottom(10));
+
+            Paragraph footer = new Paragraph()
+                    .add(new Paragraph("El Gran Sazón - Sistema de Gestión de Inventario\n")
+                            .setFont(boldFont)
+                            .setFontSize(8)
+                            .setFontColor(darkColor))
+                    .add(new Paragraph("Generado automáticamente el " + 
+                            LocalDateTime.now().format(formatter))
+                            .setFont(regularFont)
+                            .setFontSize(7)
+                            .setFontColor(grayColor))
+                    .setTextAlignment(TextAlignment.CENTER);
+            document.add(footer);
+
+            // Cerrar el documento
+            document.close();
+
+            // Configurar la respuesta HTTP
+            HttpHeaders responseHeaders = new HttpHeaders();
+            responseHeaders.setContentType(MediaType.APPLICATION_PDF);
+            String filename = "Reporte_Inventario_" + 
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".pdf";
+            responseHeaders.setContentDispositionFormData("attachment", filename);
+
+            return ResponseEntity.ok()
+                    .headers(responseHeaders)
+                    .body(baos.toByteArray());
+
+        } catch (Exception e) {
+            log.error("Error generating PDF: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Helper method to add summary cards
+     */
+    private void addSummaryCard(Table table, PdfFont boldFont, PdfFont regularFont, 
+                                String label, String value, DeviceRgb color) {
+        Cell cell = new Cell()
+                .add(new Paragraph(value)
+                        .setFont(boldFont)
+                        .setFontSize(20)
+                        .setFontColor(color)
+                        .setTextAlignment(TextAlignment.CENTER)
+                        .setMarginBottom(5))
+                .add(new Paragraph(label)
+                        .setFont(regularFont)
+                        .setFontSize(9)
+                        .setFontColor(new DeviceRgb(107, 114, 128))
+                        .setTextAlignment(TextAlignment.CENTER))
+                .setBackgroundColor(new DeviceRgb(249, 250, 251))
+                .setPadding(15)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setBorder(Border.NO_BORDER);
+        table.addCell(cell);
+    }
+
+    /**
+     * Helper method to add section titles
+     */
+    private void addSectionTitle(Document document, PdfFont boldFont, 
+                                 DeviceRgb darkColor, DeviceRgb primaryColor, String title) {
+        Div titleDiv = new Div();
+        titleDiv.add(new Paragraph(title)
+                .setFont(boldFont)
+                .setFontSize(14)
+                .setFontColor(darkColor)
+                .setMarginBottom(5));
+        titleDiv.add(new Paragraph()
+                .setBorderBottom(new SolidBorder(primaryColor, 2))
+                .setWidth(UnitValue.createPercentValue(100))
+                .setMarginBottom(15));
+        document.add(titleDiv);
+    }
+
+    /**
+     * Helper method to create styled cells for the table
+     */
+    private Cell createStyledCell(String content, PdfFont font, TextAlignment alignment, 
+                                  DeviceRgb bgColor, DeviceRgb textColor) {
+        return new Cell()
+                .add(new Paragraph(content)
+                        .setFont(font)
+                        .setFontSize(9)
+                        .setFontColor(textColor))
+                .setBackgroundColor(bgColor)
+                .setTextAlignment(alignment)
+                .setPadding(8)
+                .setBorder(Border.NO_BORDER);
+    }
+
+    /**
+     * Helper method to create status badge with colors
+     */
+    private Cell createStatusBadge(Ingredient ingredient, PdfFont boldFont, DeviceRgb bgColor) {
+        String status = ingredient.getStockStatus();
+        DeviceRgb badgeColor;
+        DeviceRgb textColor;
+
+        if (ingredient.isOutOfStock()) {
+            badgeColor = new DeviceRgb(254, 226, 226); // red-100
+            textColor = new DeviceRgb(220, 38, 38); // red-600
+        } else if (ingredient.isLowStock()) {
+            badgeColor = new DeviceRgb(254, 249, 195); // yellow-100
+            textColor = new DeviceRgb(202, 138, 4); // yellow-600
+        } else {
+            badgeColor = new DeviceRgb(220, 252, 231); // green-100
+            textColor = new DeviceRgb(22, 163, 74); // green-600
+        }
+
+        Paragraph badge = new Paragraph(status)
+                .setFont(boldFont)
+                .setFontSize(8)
+                .setFontColor(textColor)
+                .setBackgroundColor(badgeColor)
+                .setPadding(4)
+                .setPaddingLeft(8)
+                .setPaddingRight(8)
+                .setTextAlignment(TextAlignment.CENTER);
+
+        return new Cell()
+                .add(badge)
+                .setBackgroundColor(bgColor)
+                .setTextAlignment(TextAlignment.CENTER)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE)
+                .setPadding(8)
+                .setBorder(Border.NO_BORDER);
     }
 }

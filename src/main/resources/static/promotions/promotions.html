@@ -22,7 +22,7 @@
       }
 
       body {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #38e07b 0%, #2bc866 100%);
         min-height: 100vh;
         padding: 20px;
         font-family: "Montserrat", sans-serif;
@@ -321,7 +321,7 @@
         z-index: 100;
         padding-bottom: 15px;
         margin-bottom: 20px;
-        border-bottom: 3px solid #667eea;
+        border-bottom: 3px solid #38e07b;
       }
 
       .tabs-container {
@@ -355,7 +355,7 @@
       }
 
       .tab-button.active {
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #38e07b, #2bc866);
         color: white;
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
       }
@@ -385,7 +385,7 @@
         padding: 18px;
         background: #f8f9fa;
         border-radius: 10px;
-        border-left: 4px solid #667eea;
+        border-left: 4px solid #38e07b;
         transition: all 0.3s;
       }
 
@@ -412,7 +412,7 @@
       }
 
       .btn-edit {
-        background: #667eea;
+        background: #38e07b;
         color: white;
       }
 
@@ -476,7 +476,7 @@
       .range-value {
         display: inline-block;
         padding: 5px 15px;
-        background: #667eea;
+        background: #38e07b;
         color: white;
         border-radius: 5px;
         font-weight: bold;
@@ -490,7 +490,7 @@
       }
 
       .section-title {
-        background: linear-gradient(135deg, #667eea, #764ba2);
+        background: linear-gradient(135deg, #38e07b, #2bc866);
         color: white;
         padding: 10px 15px;
         border-radius: 8px;
@@ -517,7 +517,7 @@
       }
 
       .editor-panel::-webkit-scrollbar-thumb {
-        background: #667eea;
+        background: #38e07b;
         border-radius: 10px;
       }
 
@@ -550,14 +550,14 @@
 
       .icon-option:hover {
         background: #f8f9fa;
-        border-color: #667eea;
+        border-color: #38e07b;
         transform: scale(1.1);
       }
 
       .icon-option.selected {
-        background: #667eea;
+        background: #38e07b;
         color: white;
-        border-color: #667eea;
+        border-color: #38e07b;
       }
 
       .add-icon-btn {
@@ -728,12 +728,12 @@
       }
 
       .wave-pattern-preview:hover {
-        border-color: #667eea;
+        border-color: #38e07b;
         transform: scale(1.1);
       }
 
       .wave-pattern-preview.active {
-        border-color: #667eea;
+        border-color: #38e07b;
         border-width: 3px;
         box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
       }
@@ -751,12 +751,12 @@
       }
 
       .torn-edge-preview:hover {
-        border-color: #667eea;
+        border-color: #38e07b;
         transform: scale(1.02);
       }
 
       .torn-edge-preview.active {
-        border-color: #667eea;
+        border-color: #38e07b;
         border-width: 3px;
         box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
       }
@@ -799,13 +799,13 @@
       }
 
       .font-option:hover {
-        border-color: #667eea;
+        border-color: #38e07b;
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
 
       .font-option.selected {
-        border-color: #667eea;
+        border-color: #38e07b;
         background: #f0f4ff;
         border-width: 3px;
       }
@@ -846,13 +846,13 @@
       }
 
       .flaticon-item:hover {
-        border-color: #667eea;
+        border-color: #38e07b;
         transform: scale(1.05);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
 
       .flaticon-item.selected {
-        border-color: #667eea;
+        border-color: #38e07b;
         background: #f0f4ff;
         border-width: 3px;
       }
@@ -862,9 +862,45 @@
         max-height: 60px;
         object-fit: contain;
       }
+
+      /* Botón de Regreso */
+      .btn-back {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: linear-gradient(135deg, #38e07b 0%, #2bc866 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px rgba(56, 224, 123, 0.3);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn-back:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(56, 224, 123, 0.4);
+      }
+
+      .btn-back i {
+        font-size: 18px;
+      }
     </style>
   </head>
   <body>
+    <!-- Botón de Regreso -->
+    <button class="btn-back" onclick="window.history.back()">
+      <i class="fas fa-arrow-left"></i>
+      Regresar
+    </button>
+
     <div class="container-main">
       <div class="flyer-container">
         <div class="text-center mb-4">

@@ -13,6 +13,7 @@
       rel="stylesheet"
     />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
@@ -278,7 +279,9 @@
                   >
                   <input
                     type="date"
-                    th:field="*{startDate}"
+                    name="startDate"
+                    id="startDate"
+                    th:value="${promotion.startDate != null ? #temporals.format(promotion.startDate, 'yyyy-MM-dd') : ''}"
                     required
                     class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
@@ -295,7 +298,9 @@
                   >
                   <input
                     type="date"
-                    th:field="*{endDate}"
+                    name="endDate"
+                    id="endDate"
+                    th:value="${promotion.endDate != null ? #temporals.format(promotion.endDate, 'yyyy-MM-dd') : ''}"
                     required
                     class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                   />
@@ -465,7 +470,23 @@
 
         // Validate that at least one day is selected
         if (selectedDays.length === 0) {
-          alert("Por favor, seleccione al menos un día de la semana");
+          Swal.fire({
+            title: "Días requeridos",
+            text: "Por favor, seleccione al menos un día de la semana",
+            icon: "error",
+            confirmButtonColor: "#38e07b",
+            confirmButtonText: "Entendido",
+            background: document.documentElement.classList.contains("dark")
+              ? "#1f2937"
+              : "#ffffff",
+            color: document.documentElement.classList.contains("dark")
+              ? "#f3f4f6"
+              : "#1f2937",
+            customClass: {
+              popup: "rounded-2xl",
+              confirmButton: "rounded-lg px-4 py-2",
+            },
+          });
           return false;
         }
 
@@ -474,7 +495,23 @@
         const endDate = document.getElementById("endDate").value;
 
         if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-          alert("La fecha de inicio no puede ser posterior a la fecha de fin");
+          Swal.fire({
+            title: "Fechas inválidas",
+            text: "La fecha de inicio no puede ser posterior a la fecha de fin",
+            icon: "error",
+            confirmButtonColor: "#38e07b",
+            confirmButtonText: "Entendido",
+            background: document.documentElement.classList.contains("dark")
+              ? "#1f2937"
+              : "#ffffff",
+            color: document.documentElement.classList.contains("dark")
+              ? "#f3f4f6"
+              : "#1f2937",
+            customClass: {
+              popup: "rounded-2xl",
+              confirmButton: "rounded-lg px-4 py-2",
+            },
+          });
           return false;
         }
 
@@ -497,16 +534,43 @@
         const validForToday = selectedDays.includes(dayOfWeek);
 
         if (withinDateRange && !validForToday) {
-          const confirmation = confirm(
-            "⚠️ ADVERTENCIA: Esta promoción está dentro del rango de fechas pero HOY (" +
-              getDayName(dayOfWeek) +
-              ") NO está en los días válidos.\n\n" +
-              "La promoción NO se aplicará hasta: " +
-              selectedDays.map((d) => getDayName(d)).join(", ") +
-              ".\n\n" +
-              "¿Desea continuar?"
-          );
-          return confirmation;
+          // Show SweetAlert warning
+          Swal.fire({
+            title: "⚠️ Advertencia",
+            html: `
+              <div class="text-left">
+                <p class="mb-3">Esta promoción está dentro del rango de fechas pero <strong>HOY (${getDayName(
+                  dayOfWeek
+                )})</strong> NO está en los días válidos.</p>
+                <p class="mb-3">La promoción NO se aplicará hasta: <strong>${selectedDays
+                  .map((d) => getDayName(d))
+                  .join(", ")}</strong>.</p>
+                <p>¿Desea continuar?</p>
+              </div>
+            `,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#f97316",
+            cancelButtonColor: "#6b7280",
+            confirmButtonText: "Sí, continuar",
+            cancelButtonText: "Cancelar",
+            background: document.documentElement.classList.contains("dark")
+              ? "#1f2937"
+              : "#ffffff",
+            color: document.documentElement.classList.contains("dark")
+              ? "#f3f4f6"
+              : "#1f2937",
+            customClass: {
+              popup: "rounded-2xl",
+              confirmButton: "rounded-lg px-4 py-2",
+              cancelButton: "rounded-lg px-4 py-2",
+            },
+          }).then((result) => {
+            if (result.isConfirmed) {
+              document.getElementById("promotionForm").submit();
+            }
+          });
+          return false;
         }
 
         return true;

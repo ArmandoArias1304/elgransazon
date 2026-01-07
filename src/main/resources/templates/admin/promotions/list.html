@@ -359,8 +359,10 @@
                           th:if="${promo.active}"
                           th:action="@{/admin/promotions/{id}/deactivate(id=${promo.idPromotion})}"
                           method="post"
-                          class="inline"
-                          onsubmit="return confirm('¿Desactivar esta promoción?')"
+                          class="inline toggle-form"
+                          th:data-promo-name="${promo.name}"
+                          data-action="deactivate"
+                          onsubmit="return confirmToggle(event, this)"
                         >
                           <button
                             type="submit"
@@ -377,8 +379,10 @@
                           th:unless="${promo.active}"
                           th:action="@{/admin/promotions/{id}/activate(id=${promo.idPromotion})}"
                           method="post"
-                          class="inline"
-                          onsubmit="return confirm('¿Activar esta promoción?')"
+                          class="inline toggle-form"
+                          th:data-promo-name="${promo.name}"
+                          data-action="activate"
+                          onsubmit="return confirmToggle(event, this)"
                         >
                           <button
                             type="submit"
@@ -394,8 +398,9 @@
                         <form
                           th:action="@{/admin/promotions/{id}/delete(id=${promo.idPromotion})}"
                           method="post"
-                          class="inline"
-                          onsubmit="return confirm('¿Eliminar esta promoción permanentemente?')"
+                          class="inline delete-form"
+                          th:data-promo-name="${promo.name}"
+                          onsubmit="return confirmDelete(event, this)"
                         >
                           <button
                             type="submit"
@@ -422,5 +427,82 @@
     <div th:replace="~{fragments/sidebar :: sidebarScripts}"></div>
     <!-- Theme Script -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
+
+    <script>
+      function confirmDelete(event, form) {
+        event.preventDefault();
+
+        const promoName = form.getAttribute("data-promo-name");
+
+        Swal.fire({
+          title: "¿Eliminar promoción?",
+          html: `¿Estás seguro de que deseas eliminar la promoción <strong>"${promoName}"</strong>?<br><br><span class="text-sm text-gray-600 dark:text-gray-400">Esta acción no se puede deshacer.</span>`,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#ef4444",
+          cancelButtonColor: "#6b7280",
+          confirmButtonText:
+            '<span class="flex items-center gap-2"><span class="material-symbols-outlined text-lg">delete</span> Sí, eliminar</span>',
+          cancelButtonText: "Cancelar",
+          background: document.documentElement.classList.contains("dark")
+            ? "#1f2937"
+            : "#ffffff",
+          color: document.documentElement.classList.contains("dark")
+            ? "#f3f4f6"
+            : "#1f2937",
+          customClass: {
+            popup: "rounded-2xl",
+            confirmButton: "rounded-lg px-4 py-2",
+            cancelButton: "rounded-lg px-4 py-2",
+          },
+        }).then((result) => {
+          if (result.isConfirmed) {
+            form.submit();
+          }
+        });
+
+        return false;
+      }
+
+      function confirmToggle(event, form) {
+        event.preventDefault();
+
+        const promoName = form.getAttribute("data-promo-name");
+        const action = form.getAttribute("data-action");
+        const isActivate = action === "activate";
+
+        Swal.fire({
+          title: isActivate ? "¿Activar promoción?" : "¿Desactivar promoción?",
+          html: `¿Estás seguro de que deseas ${
+            isActivate ? "activar" : "desactivar"
+          } la promoción <strong>"${promoName}"</strong>?`,
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonColor: isActivate ? "#22c55e" : "#f97316",
+          cancelButtonColor: "#6b7280",
+          confirmButtonText: `<span class="flex items-center gap-2"><span class="material-symbols-outlined text-lg">${
+            isActivate ? "toggle_on" : "toggle_off"
+          }</span> Sí, ${isActivate ? "activar" : "desactivar"}</span>`,
+          cancelButtonText: "Cancelar",
+          background: document.documentElement.classList.contains("dark")
+            ? "#1f2937"
+            : "#ffffff",
+          color: document.documentElement.classList.contains("dark")
+            ? "#f3f4f6"
+            : "#1f2937",
+          customClass: {
+            popup: "rounded-2xl",
+            confirmButton: "rounded-lg px-4 py-2",
+            cancelButton: "rounded-lg px-4 py-2",
+          },
+        }).then((result) => {
+          if (result.isConfirmed) {
+            form.submit();
+          }
+        });
+
+        return false;
+      }
+    </script>
   </body>
 </html>

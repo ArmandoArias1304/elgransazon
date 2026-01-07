@@ -281,23 +281,37 @@ public class Promotion implements Serializable {
 
     /**
      * Calculate price for Buy X Pay Y promotion
+     * Example: 3x2 (Buy 3, Pay 2) means customer buys 3 items but only pays for 2
      */
     private BigDecimal calculateBuyXPayY(BigDecimal originalPrice, int quantity) {
         if (buyQuantity == null || payQuantity == null || buyQuantity <= 0 || payQuantity <= 0) {
             return originalPrice.multiply(BigDecimal.valueOf(quantity));
         }
 
+        // Validate configuration: buyQuantity must be greater than payQuantity
+        if (buyQuantity <= payQuantity) {
+            // Invalid configuration, return full price
+            return originalPrice.multiply(BigDecimal.valueOf(quantity));
+        }
+
         // Calculate how many complete "sets" of the promotion
+        // Example: 3x2 with 7 items = 2 complete sets (6 items) + 1 remaining
         int promotionSets = quantity / buyQuantity;
         int remainingItems = quantity % buyQuantity;
 
-        // Price = (sets * payQuantity * price) + (remaining * price)
-        BigDecimal promotionPrice = originalPrice
-            .multiply(BigDecimal.valueOf(promotionSets * payQuantity));
-        BigDecimal remainingPrice = originalPrice
-            .multiply(BigDecimal.valueOf(remainingItems));
+        // For each complete set, customer pays for only 'payQuantity' items
+        // Example: 2 sets × 2 items to pay = 4 items at full price
+        int itemsToPay = promotionSets * payQuantity;
 
-        return promotionPrice.add(remainingPrice);
+        // Add remaining items (not enough for a full set) at full price
+        // Example: 1 remaining item = 1 more at full price
+        // Total to pay: 4 + 1 = 5 items at full price for 7 items purchased
+
+        BigDecimal totalPrice = originalPrice
+            .multiply(BigDecimal.valueOf(itemsToPay + remainingItems))
+            .setScale(2, RoundingMode.HALF_UP);
+
+        return totalPrice;
     }
 
     /**

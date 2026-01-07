@@ -1385,10 +1385,11 @@
 
       .promociones-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(3, 350px);
         gap: 30px;
         max-width: 1200px;
         margin: 0 auto;
+        justify-content: center;
       }
 
       .promo-card {
@@ -1517,10 +1518,17 @@
 
         .promociones-grid {
           grid-template-columns: 1fr;
+          max-width: 350px;
         }
 
         .promo-price-new {
           font-size: 1.6rem;
+        }
+      }
+
+      @media (min-width: 769px) and (max-width: 1100px) {
+        .promociones-grid {
+          grid-template-columns: repeat(2, 350px);
         }
       }
 
@@ -4979,7 +4987,7 @@
         const splashScreen = document.getElementById("splashScreen");
         const mainContent = document.getElementById("mainContent");
 
-        // Después de 3.5 segundos, comenzar a ocultar splash
+        // Después de 1.5 segundos, comenzar a ocultar splash
         setTimeout(function () {
           splashScreen.classList.add("fade-out");
 
@@ -4988,8 +4996,8 @@
             splashScreen.style.display = "none";
             mainContent.style.display = "block";
             mainContent.classList.add("fade-in");
-          }, 1000); // Tiempo del fade-out
-        }, 3500); // Duración total del splash
+          }, 800); // Tiempo del fade-out
+        }, 1500); // Duración total del splash
       });
 
       // ========== ANIMACIONES AL HACER SCROLL ==========
@@ -5022,7 +5030,7 @@
       // Inicializar animaciones cuando el contenido principal sea visible
       setTimeout(() => {
         animateOnScroll();
-      }, 4500); // Después de que termine el splash screen
+      }, 2300); // Después de que termine el splash screen
 
       // ========== TARJETA 3D INTERACTIVA ==========
       // Variables globales para la tarjeta 3D

@@ -9,6 +9,7 @@ import com.aatechsolutions.elgransazon.domain.entity.Ingredient;
 import com.aatechsolutions.elgransazon.domain.entity.IngredientCategory;
 import com.aatechsolutions.elgransazon.domain.entity.IngredientStockHistory;
 import com.aatechsolutions.elgransazon.domain.entity.Supplier;
+import com.aatechsolutions.elgransazon.domain.repository.IngredientStockHistoryRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class IngredientController {
     private final IngredientCategoryService categoryService;
     private final SupplierService supplierService;
     private final EmployeeService employeeService;
+    private final IngredientStockHistoryRepository stockHistoryRepository;
 
     /**
      * List all ingredients with optional filters
@@ -156,16 +158,25 @@ public class IngredientController {
                 try {
                     String username = authentication.getName();
                     Employee currentEmployee = employeeService.findByUsername(username)
-                            .orElse(null);
+                            .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
                     
-                    ingredientService.addStock(
-                            savedIngredient.getIdIngredient(),
+                    // Create initial stock history record WITHOUT adding more stock
+                    // (stock was already set during ingredient creation)
+                    IngredientStockHistory initialHistory = IngredientStockHistory.builder()
+                            .ingredient(savedIngredient)
+                            .quantityAdded(savedIngredient.getCurrentStock())
+                            .costPerUnit(savedIngredient.getCostPerUnit())
+                            .previousStock(BigDecimal.ZERO)
+                            .newStock(savedIngredient.getCurrentStock())
+                            .addedBy(currentEmployee)
+                            .build();
+                    
+                    stockHistoryRepository.save(initialHistory);
+                    
+                    log.info("Initial stock history record created for ingredient: {} - Stock: {} - Cost: ${}",
+                            savedIngredient.getName(), 
                             savedIngredient.getCurrentStock(),
-                            savedIngredient.getCostPerUnit(),
-                            currentEmployee
-                    );
-                    
-                    log.info("Initial stock history record created for ingredient: {}", savedIngredient.getName());
+                            initialHistory.getTotalCost());
                 } catch (Exception e) {
                     log.warn("Could not create initial stock history for ingredient {}: {}", 
                             savedIngredient.getName(), e.getMessage());
@@ -349,6 +360,21 @@ public class IngredientController {
 
             Employee currentEmployee = employeeService.findByUsername(authentication.getName())
                     .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+            // Get current ingredient to check stock levels
+            Ingredient ingredient = ingredientService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Ingrediente no encontrado"));
+            
+            // Calculate what the new stock will be
+            BigDecimal newStock = ingredient.getCurrentStock().add(quantityToAdd);
+            
+            // If new stock exceeds maxStock, update maxStock
+            if (ingredient.getMaxStock() != null && newStock.compareTo(ingredient.getMaxStock()) > 0) {
+                ingredient.setMaxStock(newStock);
+                ingredientService.update(id, ingredient);
+                log.info("Stock máximo actualizado automáticamente a {} para el ingrediente {}", 
+                        newStock, ingredient.getName());
+            }
 
             ingredientService.addStock(id, quantityToAdd, costPerUnit, currentEmployee);
 

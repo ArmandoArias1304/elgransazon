@@ -298,6 +298,8 @@
                   th:field="*{maxStock}"
                   min="0"
                   step="0.01"
+                  th:disabled="${ingredient.idIngredient != null}"
+                  th:classappend="${ingredient.idIngredient != null ? 'bg-gray-200 dark:bg-gray-700 cursor-not-allowed opacity-75' : ''}"
                   class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
                   placeholder="0.00"
                 />
@@ -306,7 +308,17 @@
                   th:errors="*{maxStock}"
                   class="mt-1 text-sm text-red-600 dark:text-red-400"
                 ></p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p
+                  th:if="${ingredient.idIngredient != null}"
+                  class="mt-1 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1"
+                >
+                  <span class="material-symbols-outlined text-sm">info</span>
+                  Se ajustará automáticamente al agregar stock
+                </p>
+                <p
+                  th:if="${ingredient.idIngredient == null}"
+                  class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+                >
                   Capacidad máxima (opcional)
                 </p>
               </div>
@@ -326,6 +338,8 @@
                   required
                   min="0"
                   step="0.01"
+                  th:disabled="${ingredient.idIngredient != null}"
+                  th:classappend="${ingredient.idIngredient != null ? 'bg-gray-200 dark:bg-gray-700 cursor-not-allowed opacity-75' : ''}"
                   class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
                   placeholder="0.00"
                 />
@@ -335,6 +349,14 @@
                   class="mt-1 text-sm text-red-600 dark:text-red-400"
                 ></p>
                 <p
+                  th:if="${ingredient.idIngredient != null}"
+                  class="mt-1 text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1"
+                >
+                  <span class="material-symbols-outlined text-sm">info</span>
+                  Para agregar más stock, utiliza la sección "Agregar Stock Adicional" más abajo
+                </p>
+                <p
+                  th:if="${ingredient.idIngredient == null}"
                   id="stockWarning"
                   class="mt-1 text-xs text-yellow-600 dark:text-yellow-400 hidden"
                 >

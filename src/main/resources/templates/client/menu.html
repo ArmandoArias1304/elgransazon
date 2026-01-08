@@ -577,7 +577,7 @@
       async function loadPromotions() {
         try {
           console.log("Loading promotions from server...");
-          const response = await fetch('/client/promotions/active');
+          const response = await fetch("/client/promotions/active");
           if (response.ok) {
             activePromotions = await response.json();
 
@@ -645,9 +645,11 @@
       function updateOrderType(newType) {
         orderData.orderType = newType;
         console.log("Order type updated to:", newType);
-        
+
         // Show/hide delivery references field based on order type
-        const deliveryReferencesContainer = document.getElementById("deliveryReferencesContainer");
+        const deliveryReferencesContainer = document.getElementById(
+          "deliveryReferencesContainer"
+        );
         if (newType === "DELIVERY") {
           deliveryReferencesContainer.classList.remove("hidden");
         } else {
@@ -1253,15 +1255,17 @@
 
         // Render cart items (estilo de menu.html con imagen y botones de cantidad)
         const cartHTML = cart
-          .map(
-            (item, index) => {
-              console.log(`=== RENDERING ITEM ${index} ===`);
-              console.log("Item:", item);
-              console.log("Has promotionAppliedPrice?", item.promotionAppliedPrice);
-              console.log("Has promotionLabel?", item.promotionLabel);
-              console.log("============================");
-              
-              return `
+          .map((item, index) => {
+            console.log(`=== RENDERING ITEM ${index} ===`);
+            console.log("Item:", item);
+            console.log(
+              "Has promotionAppliedPrice?",
+              item.promotionAppliedPrice
+            );
+            console.log("Has promotionLabel?", item.promotionLabel);
+            console.log("============================");
+
+            return `
           <div class="order-item rounded-lg p-3 border border-slate-100 dark:border-slate-800">
             <div class="flex items-center gap-3">
               ${
@@ -1342,8 +1346,7 @@
             }
           </div>
         `;
-            }
-          )
+          })
           .join("");
 
         cartItemsContainer.innerHTML = cartHTML;
@@ -1402,13 +1405,13 @@
 
         // Validate delivery address for DELIVERY orders
         if (orderData.orderType === "DELIVERY") {
-          const customerAddress = /*[[${customer.address}]]*/ '';
-          if (!customerAddress || customerAddress.trim() === '') {
+          const customerAddress = /*[[${customer.address}]]*/ "";
+          if (!customerAddress || customerAddress.trim() === "") {
             Swal.fire({
               icon: "error",
               title: "Dirección requerida",
               html: "Para pedidos a domicilio necesitas tener una dirección registrada en tu perfil.<br><br><a href='/client/profile' class='text-primary hover:underline font-semibold'>Ir a mi perfil</a>",
-              confirmButtonText: "Entendido"
+              confirmButtonText: "Entendido",
             });
             return;
           }
@@ -1433,9 +1436,10 @@
         }));
 
         // Get delivery references if DELIVERY order type
-        const deliveryReferences = orderData.orderType === "DELIVERY" 
-          ? document.getElementById("deliveryReferences")?.value || ""
-          : null;
+        const deliveryReferences =
+          orderData.orderType === "DELIVERY"
+            ? document.getElementById("deliveryReferences")?.value || ""
+            : null;
 
         // Prepare request body
         const requestData = {
@@ -1497,11 +1501,13 @@
       // Initialize cart UI on page load
       document.addEventListener("DOMContentLoaded", function () {
         updateCartUI();
-        
+
         // Show/hide delivery references based on initial order type
         const orderTypeSelector = document.getElementById("orderTypeSelector");
         if (orderTypeSelector && orderTypeSelector.value === "DELIVERY") {
-          document.getElementById("deliveryReferencesContainer").classList.remove("hidden");
+          document
+            .getElementById("deliveryReferencesContainer")
+            .classList.remove("hidden");
         }
       });
     </script>

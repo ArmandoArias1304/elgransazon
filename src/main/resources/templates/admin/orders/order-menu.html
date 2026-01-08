@@ -1382,33 +1382,33 @@
         }
 
         console.log("=== SUBMITTING ORDER (ASYNC) ===");
-        
+
         // Show loading state
         Swal.fire({
-          title: 'Procesando pedido...',
-          text: 'Por favor espere',
+          title: "Procesando pedido...",
+          text: "Por favor espere",
           allowOutsideClick: false,
           didOpen: () => {
             Swal.showLoading();
-          }
+          },
         });
 
         const formData = new FormData();
         const role = "admin"; // Hardcoded for this template
-        
+
         let url = "";
 
         // Set action based on mode
         if (isAddItemsMode) {
-           // Fallback to sync form for add-items as we didn't add async endpoint for that yet
-           // Or assume normal form submit for add-items if user didn't complain about that specifically
-           // User specifically mentioned "creating two orders", so creating is the priority.
-           // However, to be consistent, we should use form submit for add-items OR implement async there too.
-           // Let's stick to the form creation request for now using the new endpoint.
-           
-           // existing logic for add-items (sync)
-           prepareAndSubmitSyncForm();
-           return;
+          // Fallback to sync form for add-items as we didn't add async endpoint for that yet
+          // Or assume normal form submit for add-items if user didn't complain about that specifically
+          // User specifically mentioned "creating two orders", so creating is the priority.
+          // However, to be consistent, we should use form submit for add-items OR implement async there too.
+          // Let's stick to the form creation request for now using the new endpoint.
+
+          // existing logic for add-items (sync)
+          prepareAndSubmitSyncForm();
+          return;
         } else {
           url = `/${role}/orders/create-async`;
         }
@@ -1416,18 +1416,19 @@
         // Add employee ID (only for new orders)
         const employeeId = /*[[${employee?.idEmpleado}]]*/ null;
         if (employeeId) {
-            formData.append("employeeId", employeeId);
+          formData.append("employeeId", employeeId);
         }
 
         // Add payment method (only for new orders)
-        const paymentMethod = document.getElementById("paymentMethod")?.value || "CASH";
+        const paymentMethod =
+          document.getElementById("paymentMethod")?.value || "CASH";
         formData.append("paymentMethod", paymentMethod);
 
         // Add order data (only for new orders)
         Object.keys(orderData).forEach((key) => {
-            if (orderData[key] !== null) {
-                formData.append(key, orderData[key]);
-            }
+          if (orderData[key] !== null) {
+            formData.append(key, orderData[key]);
+          }
         });
 
         // Add cart items
@@ -1442,99 +1443,106 @@
         // Add CSRF token if Spring Security is enabled
         // Usually handled by meta tags, let's try to find headers
         const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
-        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
-        
+        const csrfHeader = document.querySelector(
+          'meta[name="_csrf_header"]'
+        )?.content;
+
         const headers = {};
         if (csrfToken && csrfHeader) {
-            headers[csrfHeader] = csrfToken;
+          headers[csrfHeader] = csrfToken;
         }
 
         fetch(url, {
-            method: 'POST',
-            body: formData,
-            headers: headers
+          method: "POST",
+          body: formData,
+          headers: headers,
         })
-        .then(response => response.json())
-        .then(data => {
+          .then((response) => response.json())
+          .then((data) => {
             if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Pedido creado!',
-                    text: data.message,
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => {
-                    window.location.href = data.redirectUrl;
-                });
+              Swal.fire({
+                icon: "success",
+                title: "¡Pedido creado!",
+                text: data.message,
+                timer: 1500,
+                showConfirmButton: false,
+              }).then(() => {
+                window.location.href = data.redirectUrl;
+              });
             } else {
-                // Handle Error
-                if (data.errorType === 'STOCK_ERROR' || (data.message && data.message.includes('Stock insuficiente'))) {
-                    handleStockError(data.message);
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Ocurrió un error al crear el pedido'
-                    });
-                }
+              // Handle Error
+              if (
+                data.errorType === "STOCK_ERROR" ||
+                (data.message && data.message.includes("Stock insuficiente"))
+              ) {
+                handleStockError(data.message);
+              } else {
+                Swal.fire({
+                  icon: "error",
+                  title: "Error",
+                  text: data.message || "Ocurrió un error al crear el pedido",
+                });
+              }
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
             Swal.fire({
-                icon: 'error',
-                title: 'Error de conexión',
-                text: 'No se pudo conectar con el servidor. Intente nuevamente.'
+              icon: "error",
+              title: "Error de conexión",
+              text: "No se pudo conectar con el servidor. Intente nuevamente.",
             });
-        });
-      }
-      
-      function handleStockError(message) {
-          // Parse message to find items: "Stock insufficient... : CocaCola 4L, Pepsi. ¡Te invitamos..."
-          let itemsToRemove = [];
-          let itemsStr = "";
-          if (message.includes(': ')) {
-              let itemPart = message.split(': ')[1];
-              // Remove the invitation text suffix if present so we get just the items
-              if (itemPart.includes('. ¡Te invitamos')) {
-                  itemPart = itemPart.split('. ¡Te invitamos')[0];
-              }
-              
-              if (itemPart) {
-                  itemsStr = itemPart;
-                  itemsToRemove = itemPart.split(', ').map(s => s.trim());
-              }
-          }
-          
-          Swal.fire({
-              icon: 'warning',
-              title: '¡Lo sentimos mucho!',
-              html: `No tenemos suficiente stock de <b>${itemsStr}</b> en este momento.<br><br>Pero seguro encuentras otras opciones deliciosas en nuestro menú.`,
-              confirmButtonText: 'Ver otras opciones',
-              confirmButtonColor: '#ff9f43'
-          }).then(() => {
-              // Remove items from cart
-              if (itemsToRemove.length > 0) {
-                  const initialLength = cart.length;
-                  cart = cart.filter(cartItem => !itemsToRemove.includes(cartItem.name));
-                  
-                  if (cart.length < initialLength) {
-                      updateCartUI();
-                      // Show toast
-                      const Toast = Swal.mixin({
-                          toast: true,
-                          position: 'top-end',
-                          showConfirmButton: false,
-                          timer: 3000,
-                          timerProgressBar: true
-                      });
-                      Toast.fire({
-                          icon: 'info',
-                          title: 'Items eliminados del carrito por falta de stock'
-                      });
-                  }
-              }
           });
+      }
+
+      function handleStockError(message) {
+        // Parse message to find items: "Stock insufficient... : CocaCola 4L, Pepsi. ¡Te invitamos..."
+        let itemsToRemove = [];
+        let itemsStr = "";
+        if (message.includes(": ")) {
+          let itemPart = message.split(": ")[1];
+          // Remove the invitation text suffix if present so we get just the items
+          if (itemPart.includes(". ¡Te invitamos")) {
+            itemPart = itemPart.split(". ¡Te invitamos")[0];
+          }
+
+          if (itemPart) {
+            itemsStr = itemPart;
+            itemsToRemove = itemPart.split(", ").map((s) => s.trim());
+          }
+        }
+
+        Swal.fire({
+          icon: "warning",
+          title: "¡Lo sentimos mucho!",
+          html: `No tenemos suficiente stock de <b>${itemsStr}</b> en este momento.<br><br>Pero seguro encuentras otras opciones deliciosas en nuestro menú.`,
+          confirmButtonText: "Ver otras opciones",
+          confirmButtonColor: "#ff9f43",
+        }).then(() => {
+          // Remove items from cart
+          if (itemsToRemove.length > 0) {
+            const initialLength = cart.length;
+            cart = cart.filter(
+              (cartItem) => !itemsToRemove.includes(cartItem.name)
+            );
+
+            if (cart.length < initialLength) {
+              updateCartUI();
+              // Show toast
+              const Toast = Swal.mixin({
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+              });
+              Toast.fire({
+                icon: "info",
+                title: "Items eliminados del carrito por falta de stock",
+              });
+            }
+          }
+        });
       }
 
       function prepareAndSubmitSyncForm() {
@@ -1544,7 +1552,7 @@
 
         // Set action based on mode
         form.action = "/admin/orders/" + existingOrderId + "/add-items";
-           
+
         // Add cart items
         cart.forEach((item, index) => {
           const itemIdInput = document.createElement("input");

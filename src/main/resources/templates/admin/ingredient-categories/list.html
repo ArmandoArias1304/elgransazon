@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300;400;500;600;700"
       rel="stylesheet"
     />
-    
+
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -133,7 +133,9 @@
                   >
                     Categorías de Ingredientes
                   </h1>
-                  <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  <p
+                    class="text-xs sm:text-sm text-gray-600 dark:text-gray-400"
+                  >
                     Gestión y clasificación de ingredientes
                   </p>
                 </div>
@@ -190,7 +192,9 @@
                 >
               </div>
               <div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Total Categorías</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  Total Categorías
+                </p>
                 <p
                   class="text-2xl font-bold text-gray-900 dark:text-white"
                   th:text="${totalCount}"
@@ -236,7 +240,9 @@
                 >
               </div>
               <div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Inactivas</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  Inactivas
+                </p>
                 <p
                   class="text-2xl font-bold text-gray-900 dark:text-white"
                   th:text="${inactiveCount}"
@@ -347,7 +353,9 @@
                           >category</span
                         >
                       </div>
-                      <p class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      <p
+                        class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1"
+                      >
                         No hay categorías registradas
                       </p>
                       <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -532,7 +540,7 @@
         });
       }
     </script>
-      
+
     <!-- Script del Sistema de Temas -->
     <div th:replace="~{fragments/theme :: themeScript}"></div>
   </body>

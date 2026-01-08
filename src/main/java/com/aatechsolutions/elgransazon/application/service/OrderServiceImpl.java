@@ -226,6 +226,14 @@ public class OrderServiceImpl implements OrderService {
         // Validate customer information based on order type
         validateCustomerInformation(updatedOrder);
 
+        // Capture existing state to preserve status and preparer info
+        Map<Long, Queue<OrderDetail>> previousStateMap = new HashMap<>();
+        for (OrderDetail detail : existingOrder.getOrderDetails()) {
+            Long itemId = detail.getItemMenu().getIdItemMenu();
+            previousStateMap.putIfAbsent(itemId, new LinkedList<>());
+            previousStateMap.get(itemId).add(detail);
+        }
+
         // Return stock for old items
         returnStockForOrder(existingOrder);
 
@@ -253,6 +261,32 @@ public class OrderServiceImpl implements OrderService {
             // Set current price
             newDetail.setUnitPrice(item.getPrice());
             newDetail.calculateSubtotal();
+
+            // Restore state if match found
+            Long itemId = item.getIdItemMenu();
+            if (previousStateMap.containsKey(itemId) && !previousStateMap.get(itemId).isEmpty()) {
+                OrderDetail oldDetail = previousStateMap.get(itemId).poll();
+                
+                // Restore status and responsible info
+                newDetail.setItemStatus(oldDetail.getItemStatus());
+                newDetail.setPreparedBy(oldDetail.getPreparedBy());
+                newDetail.setIsNewItem(oldDetail.getIsNewItem());
+                newDetail.setAddedAt(oldDetail.getAddedAt());
+                
+                log.info("Restored state for item '{}': status={}, preparedBy={}", 
+                        item.getName(), oldDetail.getItemStatus(), oldDetail.getPreparedBy());
+            } else {
+                // Initialize as new/pending if no match found
+                newDetail.setItemStatus(OrderStatus.PENDING);
+                
+                // Auto-advance logic (same as create)
+                boolean requiresChefPreparation = Boolean.TRUE.equals(item.getRequiresPreparation());
+                boolean requiresBaristaPreparation = Boolean.TRUE.equals(item.getRequiresBaristaPreparation());
+                
+                if (!requiresChefPreparation && !requiresBaristaPreparation) {
+                    newDetail.setItemStatus(OrderStatus.READY);
+                }
+            }
 
             // Deduct stock
             deductStockForItem(item, newDetail.getQuantity());

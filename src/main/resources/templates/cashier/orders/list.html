@@ -555,15 +555,14 @@
                         </button>
 
                         <!-- Pay (CASHIER can collect ALL payment methods) -->
-                        <button
+                        <a
                           th:if="${order.status.name() == 'DELIVERED'}"
-                          class="btn-mark-paid p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-all"
-                          th:data-order-id="${order.idOrder}"
-                          th:data-order-number="${order.orderNumber}"
-                          title="Marcar como Pagado"
+                          th:href="@{/cashier/payments/form/{id}(id=${order.idOrder})}"
+                          class="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-all"
+                          title="Cobrar pedido"
                         >
-                          <i class="fas fa-dollar-sign"></i>
-                        </button>
+                          <i class="fas fa-hand-holding-usd"></i>
+                        </a>
 
                         <!-- Cancel (only PENDING status) -->
                         <button

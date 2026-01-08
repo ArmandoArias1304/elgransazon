@@ -72,8 +72,9 @@ public class OrderServiceImpl implements OrderService {
         Map<Long, String> stockErrors = validateStock(orderDetails);
         if (!stockErrors.isEmpty()) {
             throw new IllegalStateException(
-                "Stock insuficiente para los siguientes items: " + 
-                String.join(", ", stockErrors.values())
+                "¡Lo sentimos! No tenemos suficiente stock de los siguientes items: " + 
+                String.join(", ", stockErrors.values()) + 
+                ". ¡Te invitamos a seguir descubriendo las deliciosas opciones de nuestro menú!"
             );
         }
 
@@ -232,8 +233,9 @@ public class OrderServiceImpl implements OrderService {
         Map<Long, String> stockErrors = validateStock(newOrderDetails);
         if (!stockErrors.isEmpty()) {
             throw new IllegalStateException(
-                "Stock insuficiente para los siguientes items: " + 
-                String.join(", ", stockErrors.values())
+                "¡Lo sentimos! No tenemos suficiente stock de los siguientes items: " + 
+                String.join(", ", stockErrors.values()) + 
+                ". ¡Te invitamos a seguir descubriendo las deliciosas opciones de nuestro menú!"
             );
         }
 
@@ -561,8 +563,9 @@ public class OrderServiceImpl implements OrderService {
         Map<Long, String> stockErrors = validateStock(newItems);
         if (!stockErrors.isEmpty()) {
             throw new IllegalStateException(
-                "Stock insuficiente para los siguientes items: " + 
-                String.join(", ", stockErrors.values())
+                "¡Lo sentimos! No tenemos suficiente stock de los siguientes items: " + 
+                String.join(", ", stockErrors.values()) + 
+                ". ¡Te invitamos a seguir descubriendo las deliciosas opciones de nuestro menú!"
             );
         }
 

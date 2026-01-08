@@ -13,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -733,6 +734,91 @@ public class OrderController {
         model.addAttribute("currentRole", role);
 
         return role + "/orders/form";
+    }
+
+    /**
+     * Create a new order (AJAX version)
+     */
+    @PostMapping(value = "/create-async", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> createOrderAsync(
+            @PathVariable String role,
+            @ModelAttribute("order") Order order,
+            @RequestParam(value = "employeeId", required = true) Long employeeId,
+            @RequestParam(value = "tableId", required = false) Long tableId,
+            @RequestParam(value = "itemIds", required = false) List<Long> itemIds,
+            @RequestParam(value = "quantities", required = false) List<Integer> quantities,
+            @RequestParam(value = "comments", required = false) List<String> comments,
+            @RequestParam(value = "promotionPrices", required = false) List<String> promotionPrices,
+            @RequestParam(value = "promotionIds", required = false) List<String> promotionIds,
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        log.info("Creating new order ASYNC by user: {} (role: {})", username, role);
+        
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            validateRole(role, authentication);
+            OrderService orderService = getOrderService(role);
+
+            // Validate payment method
+            SystemConfiguration config = systemConfigurationService.getConfiguration();
+            if (!config.isPaymentMethodEnabled(order.getPaymentMethod())) {
+                throw new IllegalArgumentException("El método de pago seleccionado no está habilitado: " + order.getPaymentMethod().getDisplayName());
+            }
+            
+            Employee employee = employeeService.findById(employeeId)
+                .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado con ID: " + employeeId));
+            order.setEmployee(employee);
+            
+            if (tableId != null) {
+                RestaurantTable table = restaurantTableService.findById(tableId)
+                    .orElseThrow(() -> new IllegalArgumentException("Mesa no encontrada con ID: " + tableId));
+                order.setTable(table);
+            }
+            
+            if (order.getOrderType() == null) {
+                order.setOrderType(OrderType.DINE_IN);
+            }
+            
+            order.setCreatedBy(username);
+            order.setStatus(OrderStatus.PENDING);
+
+            List<OrderDetail> orderDetails = buildOrderDetails(itemIds, quantities, comments, promotionPrices, promotionIds);
+
+            if (orderDetails.isEmpty()) {
+                throw new IllegalArgumentException("Debe agregar al menos un item al pedido");
+            }
+
+            Order createdOrder = orderService.create(order, orderDetails);
+
+            response.put("success", true);
+            response.put("message", "Pedido creado exitosamente No. " + createdOrder.getOrderNumber());
+            response.put("redirectUrl", "/" + role + "/orders");
+            
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            log.warn("Validation error creating order async: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            if (e.getMessage() != null && (e.getMessage().contains("Stock insuficiente") || e.getMessage().contains("No tenemos suficiente stock"))) {
+                 response.put("errorType", "STOCK_ERROR");
+            }
+            return ResponseEntity.badRequest().body(response);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            log.warn("Optimistic locking failure creating order async: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", "El stock de los ingredientes ha cambiado mientras realizaba el pedido. Por favor intente nuevamente.");
+            response.put("errorType", "CONCURRENCY_ERROR");
+            return ResponseEntity.status(409).body(response);
+        } catch (Exception e) {
+            log.error("Error creating order async", e);
+            response.put("success", false);
+            response.put("message", "Error al crear el pedido: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
     }
 
     /**

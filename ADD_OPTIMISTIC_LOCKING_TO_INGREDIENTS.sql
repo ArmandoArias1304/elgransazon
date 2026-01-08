@@ -1,0 +1,1 @@
+ALTER TABLE ingredients ADD COLUMN version BIGINT DEFAULT 0;

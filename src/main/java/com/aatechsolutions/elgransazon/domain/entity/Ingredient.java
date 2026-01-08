@@ -89,6 +89,10 @@ public class Ingredient implements Serializable {
     @Builder.Default
     private Boolean active = true;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     // ========== Category Relationship ==========
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -1273,86 +1273,157 @@
           return;
         }
 
-        console.log("=== SUBMITTING ORDER ===");
-        console.log("Is Add Items Mode:", isAddItemsMode);
-        console.log("Existing Order ID:", existingOrderId);
-        console.log("Cart:", cart);
-        console.log("Order Data:", orderData);
+        console.log("=== SUBMITTING ORDER (ASYNC) ===");
+        
+        // Show loading state
+        Swal.fire({
+          title: 'Procesando pedido...',
+          text: 'Por favor espere',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
 
-        // Prepare form data
-        const form = document.createElement("form");
-        form.method = "POST";
+        const formData = new FormData();
+        const role = "cashier"; // Hardcoded for this template
+        
+        let url = "";
 
         // Set action based on mode
         if (isAddItemsMode) {
-          form.action = "/cashier/orders/" + existingOrderId + "/add-items";
+           prepareAndSubmitSyncForm();
+           return;
         } else {
-          form.action = "/cashier/orders";
+          url = `/${role}/orders/create-async`;
         }
 
         // Add employee ID (only for new orders)
-        if (!isAddItemsMode) {
-          const employeeId = /*[[${employee?.idEmpleado}]]*/ null;
-          console.log("Employee ID:", employeeId);
-          if (employeeId) {
-            const employeeInput = document.createElement("input");
-            employeeInput.type = "hidden";
-            employeeInput.name = "employeeId";
-            employeeInput.value = employeeId;
-            form.appendChild(employeeInput);
-          }
+        const employeeId = /*[[${employee?.idEmpleado}]]*/ null;
+        if (employeeId) {
+            formData.append("employeeId", employeeId);
         }
 
         // Add payment method (only for new orders)
-        if (!isAddItemsMode) {
-          const paymentMethod =
-            document.getElementById("paymentMethod")?.value || "CASH";
-          console.log("Payment Method:", paymentMethod);
-          const paymentInput = document.createElement("input");
-          paymentInput.type = "hidden";
-          paymentInput.name = "paymentMethod";
-          paymentInput.value = paymentMethod;
-          form.appendChild(paymentInput);
-        }
+        const paymentMethod = document.getElementById("paymentMethod")?.value || "CASH";
+        formData.append("paymentMethod", paymentMethod);
 
-        // Add order data (skip tableId, it goes as separate param) - only for new orders
-        if (!isAddItemsMode) {
-          Object.keys(orderData).forEach((key) => {
-            if (orderData[key] !== null && key !== "tableId") {
-              console.log(`Adding ${key}:`, orderData[key]);
-              const input = document.createElement("input");
-              input.type = "hidden";
-              input.name = key;
-              input.value = orderData[key];
-              form.appendChild(input);
+        // Add order data (only for new orders)
+        Object.keys(orderData).forEach((key) => {
+            if (orderData[key] !== null) {
+                formData.append(key, orderData[key]);
             }
-          });
-
-          // Add tableId as separate parameter (required by @RequestParam)
-          if (orderData.tableId !== null) {
-            console.log("Adding tableId param:", orderData.tableId);
-            const tableInput = document.createElement("input");
-            tableInput.type = "hidden";
-            tableInput.name = "tableId";
-            tableInput.value = orderData.tableId;
-            form.appendChild(tableInput);
-          }
-        }
+        });
 
         // Add cart items
-        const itemIds = [];
-        const quantities = [];
-        const comments = [];
-        const promotionPrices = [];
-        const promotionIds = [];
+        cart.forEach((item) => {
+          formData.append("itemIds", item.id);
+          formData.append("quantities", item.quantity);
+          formData.append("comments", item.comments || "");
+          formData.append("promotionPrices", item.promotionAppliedPrice || "");
+          formData.append("promotionIds", item.appliedPromotionId || "");
+        });
 
+        // Add CSRF
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+        
+        const headers = {};
+        if (csrfToken && csrfHeader) {
+            headers[csrfHeader] = csrfToken;
+        }
+
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: headers
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Pedido creado!',
+                    text: data.message,
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.href = data.redirectUrl;
+                });
+            } else {
+                // Handle Error
+                if (data.errorType === 'STOCK_ERROR' || (data.message && data.message.includes('Stock insuficiente'))) {
+                    handleStockError(data.message);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Ocurrió un error al crear el pedido'
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de conexión',
+                text: 'No se pudo conectar con el servidor. Intente nuevamente.'
+            });
+        });
+      }
+      
+      function handleStockError(message) {
+          let itemsToRemove = [];
+          let itemsStr = "";
+          if (message.includes(': ')) {
+              let itemPart = message.split(': ')[1];
+              // Remove the invitation text suffix if present so we get just the items
+              if (itemPart.includes('. ¡Te invitamos')) {
+                  itemPart = itemPart.split('. ¡Te invitamos')[0];
+              }
+
+              if (itemPart) {
+                  itemsStr = itemPart;
+                  itemsToRemove = itemPart.split(', ').map(s => s.trim());
+              }
+          }
+          
+          Swal.fire({
+              icon: 'warning',
+              title: '¡Lo sentimos mucho!',
+              html: `No tenemos suficiente stock de <b>${itemsStr}</b> en este momento.<br><br>Pero seguro encuentras otras opciones deliciosas en nuestro menú.`,
+              confirmButtonText: 'Ver otras opciones',
+              confirmButtonColor: '#ff9f43'
+          }).then(() => {
+              if (itemsToRemove.length > 0) {
+                  const initialLength = cart.length;
+                  cart = cart.filter(cartItem => !itemsToRemove.includes(cartItem.name));
+                  
+                  if (cart.length < initialLength) {
+                      updateCartUI();
+                      const Toast = Swal.mixin({
+                          toast: true,
+                          position: 'top-end',
+                          showConfirmButton: false,
+                          timer: 3000,
+                          timerProgressBar: true
+                      });
+                      Toast.fire({
+                          icon: 'info',
+                          title: 'Items eliminados del carrito por falta de stock'
+                      });
+                  }
+              }
+          });
+      }
+
+      function prepareAndSubmitSyncForm() {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = "/cashier/orders/" + existingOrderId + "/add-items";
+           
         cart.forEach((item, index) => {
-          itemIds.push(item.id);
-          quantities.push(item.quantity);
-          comments.push(item.comments || "");
-          promotionPrices.push(item.promotionAppliedPrice || "");
-          promotionIds.push(item.appliedPromotionId || "");
-
           const itemIdInput = document.createElement("input");
           itemIdInput.type = "hidden";
           itemIdInput.name = "itemIds";
@@ -1383,14 +1454,6 @@
           promotionIdInput.value = item.appliedPromotionId || "";
           form.appendChild(promotionIdInput);
         });
-
-        console.log("Item IDs:", itemIds);
-        console.log("Quantities:", quantities);
-        console.log("Comments:", comments);
-        console.log("Promotion Prices:", promotionPrices);
-        console.log("Promotion IDs:", promotionIds);
-        console.log("Total items in cart:", cart.length);
-        console.log("========================");
 
         document.body.appendChild(form);
         form.submit();

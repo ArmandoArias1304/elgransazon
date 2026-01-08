@@ -170,6 +170,14 @@ public class ItemMenuController {
             itemMenu.setRequiresBaristaPreparation(requiresBaristaPreparationParam);
         }
 
+        // Validate mutual exclusion
+        if (Boolean.TRUE.equals(itemMenu.getRequiresPreparation()) && Boolean.TRUE.equals(itemMenu.getRequiresBaristaPreparation())) {
+             model.addAttribute("errorMessage", "Un item no puede ser preparado por Chef y Barista simultáneamente. Seleccione solo uno.");
+             List<ItemIngredient> recipe = buildRecipe(ingredientIds, quantities, units);
+             loadFormData(model, itemMenu, recipe);
+             return "admin/menu-items/form";
+        }
+
         if (bindingResult.hasErrors()) {
             loadFormData(model, itemMenu, new ArrayList<>());
             return "admin/menu-items/form";
@@ -242,6 +250,16 @@ public class ItemMenuController {
             itemMenu.setRequiresBaristaPreparation(requiresBaristaPreparationParam);
         }
 
+        // Validate mutual exclusion
+        if (Boolean.TRUE.equals(itemMenu.getRequiresPreparation()) && Boolean.TRUE.equals(itemMenu.getRequiresBaristaPreparation())) {
+             model.addAttribute("errorMessage", "Un item no puede ser preparado por Chef y Barista simultáneamente. Seleccione solo uno.");
+             List<BigDecimal> quantitiesBD = convertQuantities(quantities);
+             List<ItemIngredient> recipe = buildRecipe(ingredientIds, quantitiesBD, units);
+             loadFormData(model, itemMenu, recipe);
+             model.addAttribute("formAction", "/admin/menu-items/" + id);
+             return "admin/menu-items/form";
+        }
+
         if (bindingResult.hasErrors()) {
             loadFormData(model, itemMenu, itemMenuService.getRecipe(id));
             model.addAttribute("formAction", "/admin/menu-items/" + id);
@@ -253,21 +271,7 @@ public class ItemMenuController {
             List<ItemIngredient> recipe = null;
             if (ingredientIds != null && !ingredientIds.isEmpty()) {
                 // Convert String quantities to BigDecimal safely
-                List<BigDecimal> quantitiesBD = new ArrayList<>();
-                if (quantities != null) {
-                    for (String qty : quantities) {
-                        try {
-                            if (qty != null && !qty.trim().isEmpty()) {
-                                quantitiesBD.add(new BigDecimal(qty));
-                            } else {
-                                quantitiesBD.add(BigDecimal.ZERO);
-                            }
-                        } catch (NumberFormatException e) {
-                            log.warn("Invalid quantity format: {}", qty);
-                            quantitiesBD.add(BigDecimal.ZERO);
-                        }
-                    }
-                }
+                List<BigDecimal> quantitiesBD = convertQuantities(quantities);
                 recipe = buildRecipe(ingredientIds, quantitiesBD, units);
             }
 
@@ -465,6 +469,28 @@ public class ItemMenuController {
     }
 
     // ========== Helper Methods ==========
+
+    /**
+     * Convert String quantities to BigDecimal safely
+     */
+    private List<BigDecimal> convertQuantities(List<String> quantities) {
+        List<BigDecimal> quantitiesBD = new ArrayList<>();
+        if (quantities != null) {
+            for (String qty : quantities) {
+                try {
+                    if (qty != null && !qty.trim().isEmpty()) {
+                        quantitiesBD.add(new BigDecimal(qty));
+                    } else {
+                        quantitiesBD.add(BigDecimal.ZERO);
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid quantity format: {}", qty);
+                    quantitiesBD.add(BigDecimal.ZERO);
+                }
+            }
+        }
+        return quantitiesBD;
+    }
 
     /**
      * Build recipe from form parameters

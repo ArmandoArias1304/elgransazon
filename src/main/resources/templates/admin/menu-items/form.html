@@ -299,7 +299,7 @@
                       requiere preparación de barista.
                       <br />
                       <span class="text-orange-600 font-medium">Nota:</span> Un
-                      item puede requerir AMBAS preparaciones (chef y barista).
+                      item solo puede ser preparado por Chef O Barista, no ambos.
                     </p>
                   </div>
                 </div>
@@ -763,6 +763,44 @@
 
       // ========== Inicialización ==========
       window.addEventListener("DOMContentLoaded", function () {
+        // Mutual exclusion logic for Chef vs Barista
+        const chefCheckbox = document.getElementById('requiresPreparation');
+        const baristaCheckbox = document.getElementById('requiresBaristaPreparation');
+        
+        function updateState() {
+            if (!chefCheckbox || !baristaCheckbox) return;
+
+            if (chefCheckbox.checked) {
+                baristaCheckbox.disabled = true;
+                baristaCheckbox.parentElement.classList.add('opacity-50');
+            } else {
+                baristaCheckbox.disabled = false;
+                baristaCheckbox.parentElement.classList.remove('opacity-50');
+            }
+
+            if (baristaCheckbox.checked) {
+                chefCheckbox.disabled = true;
+                chefCheckbox.parentElement.classList.add('opacity-50');
+            } else {
+                chefCheckbox.disabled = false;
+                chefCheckbox.parentElement.classList.remove('opacity-50');
+            }
+        }
+        
+        if (chefCheckbox && baristaCheckbox) {
+          chefCheckbox.addEventListener('change', function() {
+            if (this.checked) baristaCheckbox.checked = false;
+            updateState();
+          });
+          
+          baristaCheckbox.addEventListener('change', function() {
+            if (this.checked) chefCheckbox.checked = false;
+            updateState();
+          });
+
+          // Run on load
+          updateState();
+        }
         const categorySelect = document.getElementById("categorySelect");
         const container = document.getElementById("ingredientsContainer");
         const noMessage = document.getElementById("noIngredientsMessage");

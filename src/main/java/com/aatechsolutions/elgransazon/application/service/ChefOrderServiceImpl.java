@@ -37,6 +37,7 @@ public class ChefOrderServiceImpl implements OrderService {
 
     private final OrderServiceImpl adminOrderService; // Delegate to admin service for actual operations
     private final OrderRepository orderRepository; // Direct access for optimized queries
+    private final EmployeeService employeeService; // To get current employee entity
 
     /**
      * Get current authenticated username
@@ -144,7 +145,28 @@ public class ChefOrderServiceImpl implements OrderService {
         log.info("Chef {} changing status of {} items in order {}", 
             currentUsername, itemDetailIds.size(), orderId);
         
-        return adminOrderService.changeItemsStatus(orderId, itemDetailIds, newStatus, username);
+        Order updatedOrder = adminOrderService.changeItemsStatus(orderId, itemDetailIds, newStatus, username);
+
+        // If chef is accepting their first items (PENDING -> IN_PREPARATION) and preparedBy is not set
+        if (newStatus == OrderStatus.IN_PREPARATION && updatedOrder.getPreparedBy() == null) {
+            try {
+                Employee currentEmployee = employeeService.findByUsername(currentUsername)
+                    .orElseThrow(() -> new IllegalStateException(
+                        "Empleado no encontrado: " + currentUsername
+                    ));
+                
+                updatedOrder.setPreparedBy(currentEmployee);
+                updatedOrder = orderRepository.save(updatedOrder);
+                
+                log.info("👨‍🍳 Assigned preparedBy to {} for order {}", 
+                    currentUsername, updatedOrder.getOrderNumber());
+            } catch (Exception e) {
+                log.error("Failed to assign preparedBy: {}", e.getMessage(), e);
+                // Don't fail the entire operation if this fails
+            }
+        }
+
+        return updatedOrder;
     }
 
     /**

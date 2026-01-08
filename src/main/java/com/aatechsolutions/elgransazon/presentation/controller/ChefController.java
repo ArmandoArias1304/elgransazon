@@ -202,21 +202,41 @@ public class ChefController {
         String username = authentication.getName();
         String roleDisplay = getRoleDisplayName(authentication);
         boolean isBaristaRole = isBarista(authentication);
-        OrderService orderService = getOrderService(authentication);
+        // Usamos repository directamente porque el servicio filtra solo órdenes activas
         
         log.info("{} {} viewing completed orders history", roleDisplay, username);
         
-        // Obtener todos los pedidos preparados por este chef/barista
-        // que ya no están en trabajo (diferentes de PENDING e IN_PREPARATION)
-        List<Order> completedOrders = orderService.findAll().stream()
+        // Obtener historial: Órdenes asignadas a este usuario que ya no tienen items pendientes
+        List<Order> completedOrders = orderRepository.findAll().stream()
             .filter(order -> {
+                // 1. Verificar si el usuario es el preparador asignado
                 Employee preparer = isBaristaRole ? order.getPreparedByBarista() : order.getPreparedBy();
-                return order.getStatus() != OrderStatus.PENDING &&
-                    order.getStatus() != OrderStatus.IN_PREPARATION &&
-                    preparer != null &&
-                    preparer.getUsername().equalsIgnoreCase(username);
+                if (preparer == null || !preparer.getUsername().equalsIgnoreCase(username)) {
+                    return false;
+                }
+
+                // 2. Verificar si el usuario ya terminó su parte
+                // (No debe tener items relevantes en estado PENDING o IN_PREPARATION)
+                boolean hasPendingWork = order.getOrderDetails().stream().anyMatch(detail -> {
+                    ItemMenu item = detail.getItemMenu();
+                    boolean isRelevantItem = isBaristaRole 
+                        ? Boolean.TRUE.equals(item.getRequiresBaristaPreparation())
+                        : Boolean.TRUE.equals(item.getRequiresPreparation());
+                    
+                    if (!isRelevantItem) return false;
+
+                    return detail.getItemStatus() == OrderStatus.PENDING || 
+                           detail.getItemStatus() == OrderStatus.IN_PREPARATION;
+                });
+
+                // Si NO tiene trabajo pendiente, va al historial
+                return !hasPendingWork;
             })
-            .sorted((o1, o2) -> o2.getUpdatedAt().compareTo(o1.getUpdatedAt())) // Más reciente primero
+            .sorted((o1, o2) -> {
+                LocalDateTime d1 = o1.getUpdatedAt() != null ? o1.getUpdatedAt() : o1.getCreatedAt();
+                LocalDateTime d2 = o2.getUpdatedAt() != null ? o2.getUpdatedAt() : o2.getCreatedAt();
+                return d2.compareTo(d1);
+            })
             .toList();
         
         log.info("Found {} completed orders prepared by {} {}", completedOrders.size(), roleDisplay, username);

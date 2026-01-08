@@ -306,7 +306,7 @@
                   <span class="font-medium">Preparado por:</span>
                   <span
                     class="font-semibold text-primary"
-                    th:text="${order.preparedBy != null ? order.preparedBy.fullName : 'N/A'}"
+                    th:text="${(order.preparedBy != null && order.preparedByBarista != null) ? (order.preparedBy.fullName + ' (Chef), ' + order.preparedByBarista.fullName + ' (Barista)') : ((order.preparedBy != null) ? (order.preparedBy.fullName + ' (Chef)') : ((order.preparedByBarista != null) ? (order.preparedByBarista.fullName + ' (Barista)') : 'N/A'))}"
                   ></span>
                 </div>
                 <div

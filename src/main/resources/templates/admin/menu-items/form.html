@@ -63,7 +63,7 @@
     </style>
   </head>
   <body
-    class="bg-gradient-to-br from-background-light to-gray-50 font-display text-gray-800 min-h-screen"
+    class="bg-gradient-to-br from-background-light to-gray-50 dark:from-background-dark dark:to-gray-900 font-display text-gray-800 dark:text-gray-200 min-h-screen"
   >
     <!-- Main Content Centered -->
     <div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
@@ -72,18 +72,18 @@
         <div class="text-center mb-8">
           <a
             th:href="@{/admin/menu-items}"
-            class="inline-flex items-center gap-2 text-gray-600 hover:text-primary transition-colors mb-4"
+            class="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors mb-4"
           >
             <span class="material-symbols-outlined">arrow_back</span>
             <span class="font-medium">Volver al menú</span>
           </a>
           <h1
-            class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2"
+            class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-2"
             th:text="${itemMenu.idItemMenu != null ? 'Editar Item del Menú' : 'Nuevo Item del Menú'}"
           >
             Item del Menú
           </h1>
-          <p class="text-base text-gray-600">
+          <p class="text-base text-gray-600 dark:text-gray-400">
             Complete la información del item y su receta de ingredientes
           </p>
         </div>
@@ -91,20 +91,20 @@
         <!-- Alert Messages -->
         <div
           th:if="${successMessage}"
-          class="mb-6 p-4 rounded-xl bg-green-100 border border-green-200 flex items-center gap-3"
+          class="mb-6 p-4 rounded-xl bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 flex items-center gap-3"
         >
-          <span class="material-symbols-outlined text-green-600"
+          <span class="material-symbols-outlined text-green-600 dark:text-green-400"
             >check_circle</span
           >
-          <p class="text-green-800 font-medium" th:text="${successMessage}"></p>
+          <p class="text-green-800 dark:text-green-300 font-medium" th:text="${successMessage}"></p>
         </div>
 
         <div
           th:if="${errorMessage}"
-          class="mb-6 p-4 rounded-xl bg-red-100 border border-red-200 flex items-center gap-3"
+          class="mb-6 p-4 rounded-xl bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 flex items-center gap-3"
         >
-          <span class="material-symbols-outlined text-red-600">error</span>
-          <p class="text-red-800 font-medium" th:text="${errorMessage}"></p>
+          <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+          <p class="text-red-800 dark:text-red-300 font-medium" th:text="${errorMessage}"></p>
         </div>
 
         <!-- Form -->
@@ -119,13 +119,13 @@
 
           <!-- Sección 1: Información Básica -->
           <div
-            class="bg-white rounded-2xl shadow-lg border border-gray-200 p-6"
+            class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-6"
           >
             <h2
-              class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2"
+              class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2"
             >
               <div
-                class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"
+                class="w-10 h-10 bg-primary/10 dark:bg-primary/20 rounded-xl flex items-center justify-center"
               >
                 <span class="material-symbols-outlined text-primary">info</span>
               </div>
@@ -137,7 +137,7 @@
               <div class="md:col-span-2">
                 <label
                   for="name"
-                  class="block text-sm font-semibold text-gray-700 mb-2"
+                  class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
                 >
                   Nombre del Platillo <span class="text-red-500">*</span>
                 </label>
@@ -148,7 +148,7 @@
                   required
                   maxlength="200"
                   placeholder="Ej: Hamburguesa Clásica, Coca-Cola 355ml"
-                  class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 />
               </div>
 
@@ -156,7 +156,7 @@
               <div class="md:col-span-2">
                 <label
                   for="description"
-                  class="block text-sm font-semibold text-gray-700 mb-2"
+                  class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
                 >
                   Descripción
                 </label>
@@ -166,7 +166,7 @@
                   rows="3"
                   maxlength="1000"
                   placeholder="Descripción del platillo, ingredientes destacados, etc."
-                  class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
                 ></textarea>
               </div>
 
@@ -174,13 +174,13 @@
               <div>
                 <label
                   for="price"
-                  class="block text-sm font-semibold text-gray-700 mb-2"
+                  class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
                 >
                   Precio <span class="text-red-500">*</span>
                 </label>
                 <div class="relative">
                   <span
-                    class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold"
+                    class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-semibold"
                     >$</span
                   >
                   <input
@@ -191,7 +191,7 @@
                     step="0.01"
                     min="0"
                     placeholder="0.00"
-                    class="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    class="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                   />
                 </div>
               </div>
@@ -200,7 +200,7 @@
               <div>
                 <label
                   for="imageUrl"
-                  class="block text-sm font-semibold text-gray-700 mb-2"
+                  class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
                 >
                   URL de la Imagen
                 </label>
@@ -210,22 +210,22 @@
                   th:field="*{imageUrl}"
                   maxlength="500"
                   placeholder="https://ejemplo.com/imagen.jpg"
-                  class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 />
               </div>
 
               <!-- Estado Activo -->
               <div class="md:col-span-2">
                 <div
-                  class="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-200"
+                  class="flex items-center gap-3 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
                 >
                   <input
                     type="checkbox"
                     id="active"
                     th:field="*{active}"
-                    class="w-5 h-5 text-primary bg-white border-gray-300 rounded focus:ring-2 focus:ring-primary"
+                    class="w-5 h-5 text-primary bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-primary"
                   />
-                  <label for="active" class="text-sm font-medium text-gray-700">
+                  <label for="active" class="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Item activo y visible en el menú
                   </label>
                 </div>
@@ -234,7 +234,7 @@
               <!-- Requiere Preparación del Chef -->
               <div class="md:col-span-2">
                 <div
-                  class="flex items-center gap-3 p-4 rounded-xl bg-orange-50 border border-orange-200"
+                  class="flex items-center gap-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800"
                 >
                   <!-- Spring MVC checkbox convention: hidden field with prefix _ -->
                   <input type="hidden" name="_requiresPreparation" value="on" />
@@ -243,16 +243,16 @@
                     id="requiresPreparation"
                     name="requiresPreparation"
                     th:checked="${itemMenu.requiresPreparation}"
-                    class="w-5 h-5 text-orange-600 bg-white border-gray-300 rounded focus:ring-2 focus:ring-orange-500"
+                    class="w-5 h-5 text-orange-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-orange-500"
                   />
                   <div>
                     <label
                       for="requiresPreparation"
-                      class="text-sm font-semibold text-gray-900 block"
+                      class="text-sm font-semibold text-gray-900 dark:text-white block"
                     >
                       ¿Requiere preparación del chef?
                     </label>
-                    <p class="text-xs text-gray-600 mt-1">
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
                       <span class="font-medium">Marcado:</span> El chef debe
                       preparar este item (pizzas, hamburguesas, platos
                       calientes).
@@ -268,7 +268,7 @@
               <!-- Requiere Preparación del Barista -->
               <div class="md:col-span-2">
                 <div
-                  class="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200"
+                  class="flex items-center gap-3 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
                 >
                   <!-- Spring MVC checkbox convention: hidden field with prefix _ -->
                   <input
@@ -281,16 +281,16 @@
                     id="requiresBaristaPreparation"
                     name="requiresBaristaPreparation"
                     th:checked="${itemMenu.requiresBaristaPreparation}"
-                    class="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    class="w-5 h-5 text-blue-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
                   <div>
                     <label
                       for="requiresBaristaPreparation"
-                      class="text-sm font-semibold text-gray-900 block"
+                      class="text-sm font-semibold text-gray-900 dark:text-white block"
                     >
                       ¿Requiere preparación del barista?
                     </label>
-                    <p class="text-xs text-gray-600 mt-1">
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
                       <span class="font-medium">Marcado:</span> El barista debe
                       preparar este item (café, espresso, cappuccino, smoothies,
                       bebidas especiales).
@@ -309,15 +309,15 @@
 
           <!-- Sección 2: Categoría -->
           <div
-            class="bg-white rounded-2xl shadow-lg border border-gray-200 p-6"
+            class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-6"
           >
             <h2
-              class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2"
+              class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2"
             >
               <div
-                class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center"
+                class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center"
               >
-                <span class="material-symbols-outlined text-purple-600"
+                <span class="material-symbols-outlined text-purple-600 dark:text-purple-400"
                   >category</span
                 >
               </div>
@@ -327,7 +327,7 @@
             <div>
               <label
                 for="categorySelect"
-                class="block text-sm font-semibold text-gray-700 mb-2"
+                class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
               >
                 Seleccione la Categoría <span class="text-red-500">*</span>
               </label>
@@ -335,7 +335,7 @@
                 id="categorySelect"
                 th:field="*{category.idCategory}"
                 required
-                class="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
               >
                 <option value="">-- Seleccione una categoría --</option>
                 <option
@@ -352,16 +352,16 @@
 
           <!-- Sección 3: Ingredientes (Receta) -->
           <div
-            class="bg-white rounded-2xl shadow-lg border border-gray-200 p-6"
+            class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-6"
           >
             <div class="flex items-center justify-between mb-6">
               <h2
-                class="text-xl font-bold text-gray-900 flex items-center gap-2"
+                class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"
               >
                 <div
-                  class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center"
+                  class="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center"
                 >
-                  <span class="material-symbols-outlined text-orange-600"
+                  <span class="material-symbols-outlined text-orange-600 dark:text-orange-400"
                     >restaurant</span
                   >
                 </div>
@@ -382,7 +382,7 @@
               <!-- Mensaje cuando no hay ingredientes -->
               <div
                 id="noIngredientsMessage"
-                class="text-center py-8 text-gray-500"
+                class="text-center py-8 text-gray-500 dark:text-gray-400"
               >
                 <span class="material-symbols-outlined text-5xl mb-2"
                   >restaurant</span
@@ -466,10 +466,10 @@
               <!-- Template para nuevos ingredientes (hidden) -->
               <div
                 id="ingredientTemplate"
-                class="ingredient-row hidden grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
+                class="ingredient-row hidden grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
               >
                 <div class="md:col-span-5 relative">
-                  <label class="block text-xs font-medium text-gray-700 mb-1"
+                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >Ingrediente</label
                   >
                   <!-- Hidden input for ingredient ID -->
@@ -483,12 +483,12 @@
                   <div class="relative">
                     <input
                       type="text"
-                      class="ingredient-search w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                      class="ingredient-search w-full px-3 py-2 pr-8 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                       placeholder="Buscar ingrediente..."
                       autocomplete="off"
                     />
                     <span
-                      class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"
+                      class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-sm pointer-events-none"
                     >
                       search
                     </span>
@@ -496,14 +496,14 @@
 
                   <!-- Dropdown results -->
                   <div
-                    class="ingredient-dropdown hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                    class="ingredient-dropdown hidden absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                   >
                     <!-- Results will be inserted here dynamically -->
                   </div>
                 </div>
 
                 <div class="md:col-span-3">
-                  <label class="block text-xs font-medium text-gray-700 mb-1"
+                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >Cantidad</label
                   >
                   <input
@@ -512,12 +512,12 @@
                     step="0.01"
                     min="0.01"
                     placeholder="0.00"
-                    class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                    class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
                 </div>
 
                 <div class="md:col-span-3">
-                  <label class="block text-xs font-medium text-gray-700 mb-1"
+                  <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >Unidad</label
                   >
                   <input
@@ -525,7 +525,7 @@
                     name="units"
                     readonly
                     placeholder="kg, L, pz"
-                    class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-100 text-gray-900 text-sm"
+                    class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
                   />
                 </div>
 
@@ -533,10 +533,10 @@
                   <button
                     type="button"
                     onclick="removeIngredientRow(this)"
-                    class="w-full p-2 rounded-lg hover:bg-red-100 transition-colors"
+                    class="w-full p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                     title="Eliminar"
                   >
-                    <span class="material-symbols-outlined text-red-600"
+                    <span class="material-symbols-outlined text-red-600 dark:text-red-400"
                       >delete</span
                     >
                   </button>
@@ -560,7 +560,7 @@
 
             <a
               th:href="@{/admin/menu-items}"
-              class="flex-1 sm:flex-none px-8 py-3 bg-white border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              class="flex-1 sm:flex-none px-8 py-3 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <span class="material-symbols-outlined">cancel</span>
               <span>Cancelar</span>

@@ -213,7 +213,7 @@
                 >
                   Imagen del Platillo
                 </label>
-                
+
                 <div class="flex justify-center">
                   <div class="relative w-full max-w-sm">
                     <!-- Área de carga de imagen (se oculta cuando hay preview) -->
@@ -222,35 +222,49 @@
                       for="imageFile"
                       class="flex flex-col items-center justify-center w-full h-64 px-4 py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-all group"
                     >
-                      <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors">
+                      <span
+                        class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors"
+                      >
                         upload
                       </span>
-                      <span class="text-base font-medium text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors mt-3">
+                      <span
+                        class="text-base font-medium text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors mt-3"
+                      >
                         Click para seleccionar imagen
                       </span>
-                      <span class="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                      <span
+                        class="text-sm text-gray-500 dark:text-gray-500 mt-2"
+                      >
                         JPG, PNG, GIF o WEBP - Máximo 5MB
                       </span>
                     </label>
-                    
+
                     <!-- Preview de la imagen (oculto por defecto) -->
                     <div id="imagePreviewContainer" class="hidden">
-                      <div class="relative w-full h-64 rounded-xl overflow-hidden border-2 border-primary dark:border-primary bg-gray-100 dark:bg-gray-800">
-                        <img 
-                          id="imagePreview" 
+                      <div
+                        class="relative w-full h-64 rounded-xl overflow-hidden border-2 border-primary dark:border-primary bg-gray-100 dark:bg-gray-800"
+                      >
+                        <img
+                          id="imagePreview"
                           alt="Preview"
                           class="w-full h-full object-contain"
                         />
                         <!-- Overlay con botones -->
-                        <div class="absolute inset-0 bg-black/0 hover:bg-black/40 transition-all group">
-                          <div class="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div
+                          class="absolute inset-0 bg-black/0 hover:bg-black/40 transition-all group"
+                        >
+                          <div
+                            class="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
                             <button
                               type="button"
                               onclick="clearImagePreview()"
                               class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-1 text-sm font-medium transition-colors shadow-lg"
                               title="Eliminar imagen"
                             >
-                              <span class="material-symbols-outlined text-base">delete</span>
+                              <span class="material-symbols-outlined text-base"
+                                >delete</span
+                              >
                               <span>Eliminar</span>
                             </button>
                             <label
@@ -258,15 +272,20 @@
                               class="px-3 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg flex items-center gap-1 text-sm font-medium transition-colors shadow-lg cursor-pointer"
                               title="Cambiar imagen"
                             >
-                              <span class="material-symbols-outlined text-base">sync</span>
+                              <span class="material-symbols-outlined text-base"
+                                >sync</span
+                              >
                               <span>Cambiar</span>
                             </label>
                           </div>
                         </div>
                       </div>
-                      <p id="imageFileName" class="text-xs text-gray-600 dark:text-gray-400 mt-2 text-center"></p>
+                      <p
+                        id="imageFileName"
+                        class="text-xs text-gray-600 dark:text-gray-400 mt-2 text-center"
+                      ></p>
                     </div>
-                    
+
                     <input
                       type="file"
                       id="imageFile"
@@ -277,9 +296,13 @@
                     />
                   </div>
                 </div>
-                
+
                 <!-- Hidden field para mantener la URL actual si no se sube nueva imagen -->
-                <input type="hidden" th:field="*{imageUrl}" id="currentImageUrl" />
+                <input
+                  type="hidden"
+                  th:field="*{imageUrl}"
+                  id="currentImageUrl"
+                />
               </div>
 
               <!-- Estado Activo -->
@@ -427,7 +450,9 @@
           <div
             class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-6"
           >
-            <div class="flex items-center justify-between mb-6">
+            <div
+              class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6"
+            >
               <h2
                 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"
               >
@@ -444,7 +469,7 @@
               <button
                 type="button"
                 onclick="addIngredientRow()"
-                class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all"
+                class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-primary-dark text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all"
               >
                 <span class="material-symbols-outlined text-lg">add</span>
                 <span>Agregar Ingrediente</span>
@@ -846,67 +871,78 @@
           // Validar tamaño
           const maxSize = 5 * 1024 * 1024; // 5MB
           if (file.size > maxSize) {
-            alert('La imagen es demasiado grande. El tamaño máximo es 5MB.');
+            alert("La imagen es demasiado grande. El tamaño máximo es 5MB.");
             clearImagePreview();
             return;
           }
-          
+
           // Validar tipo
-          const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+          const validTypes = [
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "image/webp",
+          ];
           if (!validTypes.includes(file.type)) {
-            alert('Tipo de archivo no válido. Solo se permiten JPG, PNG, GIF o WEBP.');
+            alert(
+              "Tipo de archivo no válido. Solo se permiten JPG, PNG, GIF o WEBP."
+            );
             clearImagePreview();
             return;
           }
-          
+
           // Mostrar preview
           const reader = new FileReader();
-          reader.onload = function(e) {
-            const preview = document.getElementById('imagePreview');
-            const container = document.getElementById('imagePreviewContainer');
-            const uploadArea = document.getElementById('uploadArea');
-            const fileName = document.getElementById('imageFileName');
-            
+          reader.onload = function (e) {
+            const preview = document.getElementById("imagePreview");
+            const container = document.getElementById("imagePreviewContainer");
+            const uploadArea = document.getElementById("uploadArea");
+            const fileName = document.getElementById("imageFileName");
+
             preview.src = e.target.result;
             fileName.textContent = file.name;
-            
+
             // Ocultar área de carga y mostrar preview
-            uploadArea.classList.add('hidden');
-            container.classList.remove('hidden');
+            uploadArea.classList.add("hidden");
+            container.classList.remove("hidden");
           };
           reader.readAsDataURL(file);
         }
       }
-      
+
       function clearImagePreview() {
-        const input = document.getElementById('imageFile');
-        const preview = document.getElementById('imagePreview');
-        const container = document.getElementById('imagePreviewContainer');
-        const uploadArea = document.getElementById('uploadArea');
-        const fileName = document.getElementById('imageFileName');
-        
-        input.value = '';
-        preview.src = '';
-        fileName.textContent = '';
-        
+        const input = document.getElementById("imageFile");
+        const preview = document.getElementById("imagePreview");
+        const container = document.getElementById("imagePreviewContainer");
+        const uploadArea = document.getElementById("uploadArea");
+        const fileName = document.getElementById("imageFileName");
+
+        input.value = "";
+        preview.src = "";
+        fileName.textContent = "";
+
         // Mostrar área de carga y ocultar preview
-        container.classList.add('hidden');
-        uploadArea.classList.remove('hidden');
+        container.classList.add("hidden");
+        uploadArea.classList.remove("hidden");
       }
-      
+
       // Cargar imagen actual si existe (modo edición)
-      window.addEventListener('DOMContentLoaded', function() {
-        const currentImageUrl = document.getElementById('currentImageUrl');
-        const preview = document.getElementById('imagePreview');
-        const container = document.getElementById('imagePreviewContainer');
-        const uploadArea = document.getElementById('uploadArea');
-        const fileName = document.getElementById('imageFileName');
-        
-        if (currentImageUrl && currentImageUrl.value && currentImageUrl.value.trim() !== '') {
+      window.addEventListener("DOMContentLoaded", function () {
+        const currentImageUrl = document.getElementById("currentImageUrl");
+        const preview = document.getElementById("imagePreview");
+        const container = document.getElementById("imagePreviewContainer");
+        const uploadArea = document.getElementById("uploadArea");
+        const fileName = document.getElementById("imageFileName");
+
+        if (
+          currentImageUrl &&
+          currentImageUrl.value &&
+          currentImageUrl.value.trim() !== ""
+        ) {
           preview.src = currentImageUrl.value;
-          fileName.textContent = 'Imagen actual del producto';
-          uploadArea.classList.add('hidden');
-          container.classList.remove('hidden');
+          fileName.textContent = "Imagen actual del producto";
+          uploadArea.classList.add("hidden");
+          container.classList.remove("hidden");
         }
       });
 

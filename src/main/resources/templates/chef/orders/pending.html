@@ -921,6 +921,20 @@
               handleOrderNotification(notification);
             });
 
+            // Subscribe to personal queue for assigned orders
+            stompClient.subscribe("/user/queue/orders", function (message) {
+              console.log(
+                "🔌 [PENDING] Personal notification received:",
+                message.body
+              );
+              const notification = JSON.parse(message.body);
+              console.log(
+                "🔌 [PENDING] Parsed personal notification:",
+                notification
+              );
+              handleOrderNotification(notification);
+            });
+
             // Subscribe to kitchen stats
             stompClient.subscribe("/topic/kitchen/stats", function (message) {
               const stats = JSON.parse(message.body);
@@ -1000,14 +1014,18 @@
           // Another chef/barista accepted this order - hide it from current view
           const currentUser = /*[[${currentChef}]]*/ "";
           const acceptedBy = notification.chefName;
-          
+
           // If it wasn't me who accepted it, hide the order
           if (acceptedBy !== currentUser) {
-            console.log(`🚫 Order ${notification.orderNumber} accepted by ${acceptedBy}, hiding from view`);
-            const orderCard = document.querySelector(`[data-order-id="${notification.orderId}"]`);
+            console.log(
+              `🚫 Order ${notification.orderNumber} accepted by ${acceptedBy}, hiding from view`
+            );
+            const orderCard = document.querySelector(
+              `[data-order-id="${notification.orderId}"]`
+            );
             if (orderCard) {
-              orderCard.style.opacity = '0';
-              orderCard.style.transition = 'opacity 0.5s ease-out';
+              orderCard.style.opacity = "0";
+              orderCard.style.transition = "opacity 0.5s ease-out";
               setTimeout(() => {
                 orderCard.remove();
                 // Update empty state if no orders left
@@ -1017,7 +1035,7 @@
                 }
               }, 500);
             }
-            
+
             title = "ℹ️ Orden Asignada";
             message = `Pedido #${notification.orderNumber} fue aceptado por ${acceptedBy}`;
             icon = "info";

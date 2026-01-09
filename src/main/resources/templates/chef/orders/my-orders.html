@@ -382,6 +382,20 @@
               console.log("🔌 [MY-ORDERS] Parsed notification:", notification);
               handleOrderNotification(notification);
             });
+
+            // Subscribe to personal queue for assigned orders
+            stompClient.subscribe("/user/queue/orders", function (message) {
+              console.log(
+                "🔌 [MY-ORDERS] Personal notification received:",
+                message.body
+              );
+              const notification = JSON.parse(message.body);
+              console.log(
+                "🔌 [MY-ORDERS] Parsed personal notification:",
+                notification
+              );
+              handleOrderNotification(notification);
+            });
           },
           function (error) {
             console.error("WebSocket Error:", error);

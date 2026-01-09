@@ -458,6 +458,16 @@
               const notification = JSON.parse(message.body);
               handleDashboardNotification(notification);
             });
+
+            // Subscribe to personal queue for assigned orders
+            stompClient.subscribe("/user/queue/orders", function (message) {
+              console.log(
+                "🔌 [DASHBOARD] Personal notification received:",
+                message.body
+              );
+              const notification = JSON.parse(message.body);
+              handleDashboardNotification(notification);
+            });
           },
           function (error) {
             console.error("WebSocket Error:", error);

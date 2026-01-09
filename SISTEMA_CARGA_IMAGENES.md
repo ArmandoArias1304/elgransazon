@@ -7,19 +7,24 @@ Se ha implementado exitosamente un sistema completo para subir imágenes de íte
 ## ✅ Componentes Implementados
 
 ### 1. **Dependencias (pom.xml)**
+
 - ✅ **thumbnailator 0.4.20**: Para procesamiento y compresión de imágenes
 - ✅ **webp-imageio 0.1.6**: Para conversión a formato WEBP
 
 ### 2. **Servicios Backend**
 
 #### ImageStorageService.java (Interface)
+
 Define los métodos para:
+
 - `saveImage()`: Guardar y convertir imágenes a WEBP
 - `deleteImage()`: Eliminar imágenes del sistema
 - `isValidImage()`: Validar tipo y tamaño de archivo
 
 #### ImageStorageServiceImpl.java (Implementación)
+
 Características:
+
 - ✅ Validación de tipo de archivo (JPG, PNG, GIF, WEBP)
 - ✅ Validación de tamaño máximo (5MB)
 - ✅ Conversión automática a formato WEBP con 80% de calidad
@@ -30,12 +35,14 @@ Características:
 ### 3. **Controller (ItemMenuController.java)**
 
 #### Modificaciones en createMenuItem():
+
 - ✅ Acepta `MultipartFile imageFile` como parámetro
 - ✅ Valida la imagen antes de guardarla
 - ✅ Guarda la imagen y obtiene la ruta
 - ✅ Asigna la ruta al campo `imageUrl` de ItemMenu
 
 #### Modificaciones en updateMenuItem():
+
 - ✅ Acepta `MultipartFile imageFile` como parámetro
 - ✅ Valida la nueva imagen
 - ✅ **Elimina automáticamente la imagen anterior** antes de guardar la nueva
@@ -44,6 +51,7 @@ Características:
 ### 4. **Vista (form.html)**
 
 #### Cambios en el formulario:
+
 - ✅ Agregado `enctype="multipart/form-data"` al formulario
 - ✅ Reemplazado input de URL por input de tipo file
 - ✅ Preview de la imagen actual (si existe)
@@ -53,6 +61,7 @@ Características:
 - ✅ Interfaz visual mejorada con drag & drop visual
 
 #### Funcionalidades JavaScript:
+
 ```javascript
 - previewImage(event): Muestra preview de la imagen seleccionada
 - clearImagePreview(): Limpia la selección de imagen
@@ -63,6 +72,7 @@ Características:
 ### 5. **Configuración**
 
 #### application.properties
+
 ```properties
 # File Upload Configuration
 spring.servlet.multipart.enabled=true
@@ -72,11 +82,13 @@ file.upload.base-path=src/main/resources/static
 ```
 
 #### WebConfig.java
+
 - ✅ Configuración de resource handler para servir imágenes desde `/uploads/**`
 - ✅ Mapeo de rutas físicas a URLs accesibles
 - ✅ Compatible con rutas absolutas en Windows y Linux
 
 ### 6. **Estructura de Directorios**
+
 ```
 src/main/resources/static/
 └── uploads/
@@ -85,12 +97,14 @@ src/main/resources/static/
 ```
 
 ### 7. **.gitignore**
+
 - ✅ Configurado para ignorar imágenes subidas
 - ✅ Mantiene la estructura de directorios con `.gitkeep`
 
 ## 🔄 Flujo de Trabajo
 
 ### Al Crear un Nuevo Item:
+
 1. Usuario selecciona una imagen desde su computadora
 2. JavaScript muestra un preview de la imagen
 3. Al enviar el formulario:
@@ -101,19 +115,21 @@ src/main/resources/static/
    - Almacena la ruta en la base de datos
 
 ### Al Editar un Item:
+
 1. Se muestra la imagen actual (si existe)
 2. Usuario puede seleccionar una nueva imagen (opcional)
 3. Preview de la nueva imagen seleccionada
 4. Al enviar el formulario:
    - Si hay nueva imagen:
-     * Elimina la imagen anterior automáticamente
-     * Guarda y procesa la nueva imagen
+     - Elimina la imagen anterior automáticamente
+     - Guarda y procesa la nueva imagen
    - Si no hay nueva imagen:
-     * Mantiene la imagen actual sin cambios
+     - Mantiene la imagen actual sin cambios
 
 ## 🎨 Características de la UI
 
 ### Diseño Visual:
+
 - ✅ Área de carga con diseño drag-and-drop visual
 - ✅ Iconos Material Symbols
 - ✅ Efectos hover y transiciones suaves
@@ -124,6 +140,7 @@ src/main/resources/static/
 - ✅ Soporte completo de modo oscuro
 
 ### Validaciones Cliente:
+
 - ✅ Solo acepta: JPG, PNG, GIF, WEBP
 - ✅ Tamaño máximo: 5MB
 - ✅ Alertas visuales si hay errores
@@ -131,14 +148,17 @@ src/main/resources/static/
 ## 📊 Especificaciones Técnicas
 
 ### Formatos Soportados:
+
 - **Entrada**: JPG, JPEG, PNG, GIF, WEBP
 - **Salida**: WEBP (80% calidad)
 
 ### Límites:
+
 - **Tamaño máximo por archivo**: 5MB
 - **Tamaño máximo de request**: 10MB
 
 ### Almacenamiento:
+
 - **Ubicación física**: `src/main/resources/static/uploads/menu-items/`
 - **URL accesible**: `/uploads/menu-items/[uuid].webp`
 - **Nomenclatura**: UUID + extensión `.webp`
@@ -146,6 +166,7 @@ src/main/resources/static/
 ## 🔒 Seguridad
 
 ### Validaciones Implementadas:
+
 1. ✅ Validación de tipo MIME
 2. ✅ Validación de extensión de archivo
 3. ✅ Validación de tamaño
@@ -155,6 +176,7 @@ src/main/resources/static/
 ## 🚀 Próximos Pasos
 
 ### Para Usar el Sistema:
+
 1. Reiniciar la aplicación Spring Boot
 2. Ir a "Nuevo Item del Menú" o editar uno existente
 3. Hacer clic en el área de carga de imagen
@@ -162,7 +184,9 @@ src/main/resources/static/
 5. Ver el preview y guardar
 
 ### Migraci��n de Datos Existentes:
+
 Si tienes items con URLs externas, puedes:
+
 - Opción 1: Mantenerlos como están (el sistema los mostrará correctamente)
 - Opción 2: Editarlos uno por uno y subir imágenes locales
 - Opción 3: Crear un script de migración que descargue las URLs y las guarde localmente
@@ -170,12 +194,14 @@ Si tienes items con URLs externas, puedes:
 ## 📁 Archivos Modificados/Creados
 
 ### Nuevos Archivos:
+
 1. `ImageStorageService.java` - Interface del servicio
 2. `ImageStorageServiceImpl.java` - Implementación del servicio
 3. `WebConfig.java` - Configuración de recursos estáticos
 4. `uploads/menu-items/.gitkeep` - Mantener estructura en Git
 
 ### Archivos Modificados:
+
 1. `pom.xml` - Dependencias añadidas
 2. `ItemMenuController.java` - Soporte para MultipartFile
 3. `form.html` - Input de archivo y JavaScript de preview
@@ -185,6 +211,7 @@ Si tienes items con URLs externas, puedes:
 ## 🎉 Beneficios
 
 ### Ventajas del Nuevo Sistema:
+
 - ✅ **Control total**: Imágenes almacenadas localmente
 - ✅ **Rendimiento**: Formato WEBP optimizado (menor peso)
 - ✅ **Disponibilidad**: No depende de servicios externos

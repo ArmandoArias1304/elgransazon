@@ -236,10 +236,12 @@
         <div
           th:if="${!orders.isEmpty()}"
           class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+          id="ordersGrid"
         >
           <!-- ORDER CARD -->
           <div
             th:each="order : ${orders}"
+            th:attr="data-order-id=${order.idOrder}"
             class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-md hover:shadow-2xl flex flex-col overflow-hidden transition-all duration-300 h-[490px]"
             th:classappend="${order.status.name() == 'PENDING'} ? 'relative' : ''"
           >
@@ -993,6 +995,36 @@
             "Nuevo Pedido",
             `Pedido #${notification.orderNumber} - ${notification.itemCount} items`
           );
+        } else if (notification.notificationType === "ORDER_ACCEPTED") {
+          console.log("✅ [PENDING] Processing ORDER_ACCEPTED");
+          // Another chef/barista accepted this order - hide it from current view
+          const currentUser = /*[[${currentChef}]]*/ "";
+          const acceptedBy = notification.chefName;
+          
+          // If it wasn't me who accepted it, hide the order
+          if (acceptedBy !== currentUser) {
+            console.log(`🚫 Order ${notification.orderNumber} accepted by ${acceptedBy}, hiding from view`);
+            const orderCard = document.querySelector(`[data-order-id="${notification.orderId}"]`);
+            if (orderCard) {
+              orderCard.style.opacity = '0';
+              orderCard.style.transition = 'opacity 0.5s ease-out';
+              setTimeout(() => {
+                orderCard.remove();
+                // Update empty state if no orders left
+                const ordersGrid = document.getElementById("ordersGrid");
+                if (ordersGrid && ordersGrid.children.length === 0) {
+                  location.reload();
+                }
+              }, 500);
+            }
+            
+            title = "ℹ️ Orden Asignada";
+            message = `Pedido #${notification.orderNumber} fue aceptado por ${acceptedBy}`;
+            icon = "info";
+          } else {
+            // I accepted it, no need to do anything (it's already in my view)
+            return;
+          }
         } else if (notification.notificationType === "ORDER_CANCELLED") {
           console.log("⚠️ [PENDING] Processing ORDER_CANCELLED");
           title = "⚠️ Pedido Cancelado";

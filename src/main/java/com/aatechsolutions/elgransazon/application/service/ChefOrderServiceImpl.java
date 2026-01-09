@@ -38,6 +38,7 @@ public class ChefOrderServiceImpl implements OrderService {
     private final OrderServiceImpl adminOrderService; // Delegate to admin service for actual operations
     private final OrderRepository orderRepository; // Direct access for optimized queries
     private final EmployeeService employeeService; // To get current employee entity
+    private final WebSocketNotificationService wsNotificationService; // WebSocket notifications
 
     /**
      * Get current authenticated username
@@ -160,6 +161,13 @@ public class ChefOrderServiceImpl implements OrderService {
                 
                 log.info("👨‍🍳 Assigned preparedBy to {} for order {}", 
                     currentUsername, updatedOrder.getOrderNumber());
+                
+                // Send WebSocket notification that this order was accepted
+                // This will hide it from other chefs
+                wsNotificationService.notifyOrderAccepted(updatedOrder, currentUsername, "chef");
+                log.info("🔔 WebSocket sent: Order {} accepted by chef {}", 
+                    updatedOrder.getOrderNumber(), currentUsername);
+                
             } catch (Exception e) {
                 log.error("Failed to assign preparedBy: {}", e.getMessage(), e);
                 // Don't fail the entire operation if this fails

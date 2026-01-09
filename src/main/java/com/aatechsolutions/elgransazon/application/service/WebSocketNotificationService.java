@@ -241,6 +241,37 @@ public class WebSocketNotificationService {
     }
 
     /**
+     * Notifies when an order is accepted by a chef or barista
+     * This will hide the order from other chefs/baristas who didn't accept it
+     * 
+     * @param order The order that was accepted
+     * @param acceptedBy The username of who accepted it
+     * @param role The role ("chef" or "barista")
+     */
+    public void notifyOrderAccepted(Order order, String acceptedBy, String role) {
+        OrderNotificationDTO notification = buildOrderNotification(order, "ORDER_ACCEPTED",
+            "Pedido #" + order.getOrderNumber() + " fue aceptado por " + acceptedBy);
+        notification.setChefName(acceptedBy);
+        
+        // Send to the appropriate channel so OTHER chefs/baristas hide it
+        if ("chef".equalsIgnoreCase(role)) {
+            messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+            log.info("👨‍🍳 WebSocket: Notifying ALL CHEFS - Order {} accepted by chef {}", 
+                order.getOrderNumber(), acceptedBy);
+        } else if ("barista".equalsIgnoreCase(role)) {
+            messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+            log.info("☕ WebSocket: Notifying ALL BARISTAS - Order {} accepted by barista {}", 
+                order.getOrderNumber(), acceptedBy);
+        }
+        
+        // Send to admin kitchen
+        messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
+        
+        log.info("🔔 WebSocket: Order accepted notification sent - {} by {} ({})", 
+            order.getOrderNumber(), acceptedBy, role);
+    }
+
+    /**
      * Updates kitchen statistics in real-time
      */
     public void updateKitchenStats(KitchenStatsDTO stats) {

@@ -13,9 +13,19 @@
       rel="stylesheet"
     />
     <link
+      href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
       href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Inline&family=Bungee+Shade&family=Montserrat:wght@400;700;900&family=Anton&family=Bebas+Neue&family=Righteous&family=Staatliches&family=Patua+One&family=Russo+One&family=Alfa+Slab+One&family=Black+Ops+One&family=Fredoka+One&family=Titan+One&display=swap"
       rel="stylesheet"
     />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
     <style>
       * {
         box-sizing: border-box;
@@ -25,7 +35,12 @@
         background: linear-gradient(135deg, #38e07b 0%, #2bc866 100%);
         min-height: 100vh;
         padding: 20px;
-        font-family: "Montserrat", sans-serif;
+        font-family: "Work Sans", sans-serif;
+        transition: background 0.3s ease;
+      }
+
+      body.dark {
+        background: linear-gradient(135deg, #0f1713 0%, #1a2520 100%);
       }
 
       .container-main {
@@ -38,6 +53,12 @@
         border-radius: 15px;
         padding: 30px;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        transition: background 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      body.dark .flyer-container {
+        background: #1e293b;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
       }
 
       #flyerCanvas {
@@ -312,6 +333,12 @@
         margin-top: 20px;
         max-height: 85vh;
         overflow-y: auto;
+        transition: background 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      body.dark .editor-panel {
+        background: #1e293b;
+        box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
       }
 
       .editor-header {
@@ -322,6 +349,11 @@
         padding-bottom: 15px;
         margin-bottom: 20px;
         border-bottom: 3px solid #38e07b;
+        transition: background 0.3s ease;
+      }
+
+      body.dark .editor-header {
+        background: #1e293b;
       }
 
       .tabs-container {
@@ -349,9 +381,18 @@
         gap: 6px;
       }
 
+      body.dark .tab-button {
+        background: #334155;
+        color: #cbd5e1;
+      }
+
       .tab-button:hover {
         background: #e9ecef;
         transform: translateY(-2px);
+      }
+
+      body.dark .tab-button:hover {
+        background: #475569;
       }
 
       .tab-button.active {
@@ -389,9 +430,17 @@
         transition: all 0.3s;
       }
 
+      body.dark .control-group {
+        background: #334155;
+      }
+
       .control-group:hover {
         background: #e9ecef;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+
+      body.dark .control-group:hover {
+        background: #475569;
       }
 
       .control-group label {
@@ -399,6 +448,10 @@
         margin-bottom: 8px;
         display: block;
         color: #495057;
+      }
+
+      body.dark .control-group label {
+        color: #cbd5e1;
       }
 
       .btn-custom {
@@ -496,6 +549,10 @@
         border-radius: 8px;
         margin-bottom: 15px;
         font-weight: 700;
+      }
+
+      body.dark .section-title {
+        background: linear-gradient(135deg, #2bc866, #22a555);
       }
 
       .layer-indicator {
@@ -810,6 +867,17 @@
         border-width: 3px;
       }
 
+      body.dark .font-option {
+        background: #334155;
+        border-color: #475569;
+        color: #cbd5e1;
+      }
+
+      body.dark .font-option.selected {
+        border-color: #38e07b;
+        background: #1e3a2f;
+      }
+
       .custom-font-input {
         margin-top: 15px;
       }
@@ -818,6 +886,18 @@
         font-size: 0.9em;
         color: #666;
         margin-top: 5px;
+      }
+
+      body.dark .font-preview-text {
+        color: #94a3b8;
+      }
+
+      .text-muted {
+        color: #6c757d;
+      }
+
+      body.dark .text-muted {
+        color: #94a3b8;
       }
 
       .flaticon-results {
@@ -832,6 +912,10 @@
         margin-top: 10px;
       }
 
+      body.dark .flaticon-results {
+        background: #334155;
+      }
+
       .flaticon-item {
         background: white;
         border: 2px solid #ddd;
@@ -843,6 +927,11 @@
         align-items: center;
         justify-content: center;
         min-height: 80px;
+      }
+
+      body.dark .flaticon-item {
+        background: #1e293b;
+        border-color: #475569;
       }
 
       .flaticon-item:hover {
@@ -892,6 +981,45 @@
       .btn-back i {
         font-size: 18px;
       }
+
+      /* Dark mode para elementos de Bootstrap */
+      body.dark .form-control,
+      body.dark .form-select {
+        background: #334155;
+        border-color: #475569;
+        color: #cbd5e1;
+      }
+
+      body.dark .form-control:focus,
+      body.dark .form-select:focus {
+        background: #334155;
+        border-color: #38e07b;
+        color: #cbd5e1;
+      }
+
+      body.dark .alert-info {
+        background: #1e3a5f;
+        border-color: #3b82f6;
+        color: #93c5fd;
+      }
+
+      body.dark h3,
+      body.dark h4,
+      body.dark h5 {
+        color: #e2e8f0;
+      }
+
+      body.dark h1 {
+        color: #ffffff !important;
+      }
+
+      body.dark .text-dark {
+        color: #ffffff !important;
+      }
+
+      body.dark p.text-muted {
+        color: #cbd5e1 !important;
+      }
     </style>
   </head>
   <body>
@@ -904,11 +1032,12 @@
     <div class="container-main">
       <div class="flyer-container">
         <div class="text-center mb-4">
-          <h1 class="display-4 fw-bold text-dark">
-            <i class="fas fa-layer-group"></i> Editor de Flyers con Capas
+          <h1 class="display-4 fw-bold text-dark dark:text-white">
+            <i class="fas fa-layer-group"></i> Creador de Flyers
           </h1>
-          <p class="text-muted">
-            Diseño profesional con control total de capas y elementos
+          <p class="text-muted dark:text-gray-300">
+            Crea tus diseños de flyers promocionales personalizados de manera
+            fácil.
           </p>
         </div>
 
@@ -1250,7 +1379,7 @@
                 <div class="content-layer">
                   <div class="product-container">
                     <img
-                      src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&h=800&fit=crop"
+                      src="/uploads/menu-items/cangreburguer.png"
                       alt="Producto"
                       class="product-image"
                       id="productImage"
@@ -3546,6 +3675,45 @@ Hamburguesas Artesanales</textarea
 
         // Fin del DOMContentLoaded
       }); // <-- Cierre del DOMContentLoaded
+    </script>
+
+    <!-- Script para detectar y aplicar el tema desde localStorage -->
+    <script>
+      // Función para aplicar el tema
+      function applyTheme() {
+        const theme = localStorage.getItem("elgransazon-theme") || "light";
+        if (theme === "dark") {
+          document.body.classList.add("dark");
+        } else {
+          document.body.classList.remove("dark");
+        }
+      }
+
+      // Aplicar tema al cargar la página
+      applyTheme();
+
+      // Escuchar cambios en el localStorage (cuando se cambia desde otra pestaña/ventana)
+      window.addEventListener("storage", function (e) {
+        if (e.key === "elgransazon-theme") {
+          applyTheme();
+        }
+      });
+
+      // Observar cambios en el localStorage de la misma pestaña
+      const originalSetItem = localStorage.setItem;
+      localStorage.setItem = function (key, value) {
+        const event = new Event("localStorageChange");
+        event.key = key;
+        event.newValue = value;
+        window.dispatchEvent(event);
+        originalSetItem.apply(this, arguments);
+      };
+
+      window.addEventListener("localStorageChange", function (e) {
+        if (e.key === "elgransazon-theme") {
+          applyTheme();
+        }
+      });
     </script>
   </body>
 </html>

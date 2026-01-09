@@ -800,32 +800,6 @@
         // Get promotions for this item
         const itemPromotions = itemPromotionsMap.get(parseInt(itemId)) || [];
 
-        console.log("=== OPENING MODAL ===");
-        console.log("Item ID:", itemId);
-        console.log("Promotions for this item:", itemPromotions.length);
-        console.log("Promotion details:", itemPromotions);
-        console.log("itemPromotionsMap size:", itemPromotionsMap.size);
-        console.log("All map keys:", Array.from(itemPromotionsMap.keys()));
-        console.log("====================");
-
-        // FORCE ALERT to show promotion info
-        alert(
-          "Item ID: " +
-            itemId +
-            "\n" +
-            "parseInt(itemId): " +
-            parseInt(itemId) +
-            "\n" +
-            "Promociones encontradas: " +
-            itemPromotions.length +
-            "\n" +
-            "Total items con promo en Map: " +
-            itemPromotionsMap.size +
-            "\n" +
-            "IDs en Map: " +
-            Array.from(itemPromotionsMap.keys()).join(", ")
-        );
-
         // Default image if not provided
         const imageUrl =
           itemImage && itemImage !== "null" && itemImage !== ""

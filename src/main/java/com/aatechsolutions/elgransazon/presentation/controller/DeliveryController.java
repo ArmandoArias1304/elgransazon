@@ -228,6 +228,12 @@ public class DeliveryController {
             if (order.getPaymentMethod() != PaymentMethodType.CASH) {
                 throw new IllegalStateException("Solo puedes cobrar pedidos con pago en efectivo");
             }
+
+            // Get system configuration to validate payment method is enabled
+            SystemConfiguration config = configurationService.getConfiguration();
+            if (!config.isPaymentMethodEnabled(PaymentMethodType.CASH)) {
+                throw new IllegalStateException("El pago en efectivo está deshabilitado en la configuración del sistema");
+            }
             
             // Validate tip
             if (tip == null) {

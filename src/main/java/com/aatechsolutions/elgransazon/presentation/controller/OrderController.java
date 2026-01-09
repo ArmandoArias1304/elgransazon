@@ -1057,6 +1057,18 @@ public class OrderController {
         OrderService orderService = getOrderService(role);
 
         try {
+            // Verify payment method is enabled in configuration if it's being set
+            if (order.getPaymentMethod() != null) {
+                SystemConfigurationService configService = systemConfigurationService; // Accessed via field
+                SystemConfiguration config = configService.getConfiguration();
+                if (!config.isPaymentMethodEnabled(order.getPaymentMethod())) {
+                    // Use redirect to preserve the order data on reload
+                    redirectAttributes.addFlashAttribute("errorMessage", 
+                        "El método de pago seleccionado (" + order.getPaymentMethod().getDisplayName() + ") está deshabilitado en la configuración");
+                    return "redirect:/" + role + "/orders/edit/" + id;
+                }
+            }
+
             // Build order details from form data
             List<OrderDetail> orderDetails = buildOrderDetails(itemIds, quantities, comments, promotionPrices, promotionIds);
 

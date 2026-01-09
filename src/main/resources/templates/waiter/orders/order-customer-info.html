@@ -254,7 +254,7 @@
                           for="customerPhone"
                           class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                         >
-                          Teléfono
+                          Teléfono (10 dígitos)
                           <span
                             th:if="${orderType.name() != 'DINE_IN'}"
                             class="text-red-500"
@@ -276,11 +276,16 @@
                             id="customerPhone"
                             name="customerPhone"
                             th:required="${orderType.name() != 'DINE_IN'}"
-                            class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all"
-                            placeholder="Ej: (123) 456-7890"
-                            oninput="this.value = this.value.replace(/[^0-9+\-()\s]/g, '')"
-                            maxlength="20"
+                            pattern="[0-9]{10}"
+                            class="w-full pl-10 pr-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all"
+                            placeholder="Ej: 1234567890"
+                            oninput="validatePhoneNumber(this)"
+                            maxlength="10"
+                            title="El teléfono debe tener exactamente 10 dígitos"
                           />
+                          <p id="phoneCounter" class="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                            0/10 dígitos
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -424,5 +429,40 @@
         </div>
       </main>
     </div>
+
+    <!-- Phone Validation Script -->
+    <script>
+      function validatePhoneNumber(input) {
+        // Solo permitir números
+        input.value = input.value.replace(/[^0-9]/g, '').substring(0, 10);
+        
+        const length = input.value.length;
+        const counter = document.getElementById('phoneCounter');
+        
+        // Actualizar contador
+        counter.textContent = `${length}/10 dígitos`;
+        
+        // Cambiar color según validación
+        if (length === 0) {
+          // Sin entrada - estado neutral
+          input.classList.remove('!border-red-500', '!border-primary', 'focus:!ring-red-500', 'focus:!ring-primary');
+          input.classList.add('border-gray-300', 'dark:border-gray-600', 'focus:ring-primary-500', 'focus:border-primary-500');
+          counter.classList.remove('text-red-500', 'text-primary', 'font-semibold');
+          counter.classList.add('text-gray-500', 'dark:text-gray-400');
+        } else if (length < 10) {
+          // Incompleto - rojo
+          input.classList.remove('border-gray-300', 'dark:border-gray-600', '!border-primary', 'focus:ring-primary-500', 'focus:border-primary-500', 'focus:!ring-primary');
+          input.classList.add('!border-red-500', 'focus:!ring-red-500');
+          counter.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-primary');
+          counter.classList.add('text-red-500', 'font-semibold');
+        } else {
+          // Completo - verde (primary)
+          input.classList.remove('border-gray-300', 'dark:border-gray-600', '!border-red-500', 'focus:ring-primary-500', 'focus:border-primary-500', 'focus:!ring-red-500');
+          input.classList.add('!border-primary', 'focus:!ring-primary');
+          counter.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-red-500');
+          counter.classList.add('text-primary', 'font-semibold');
+        }
+      }
+    </script>
   </body>
 </html>

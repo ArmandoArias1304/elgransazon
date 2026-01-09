@@ -627,14 +627,14 @@
               dropdown.innerHTML = filtered
                 .map(
                   (ing) => `
-                <div class="ingredient-option px-3 py-2 hover:bg-primary/10 cursor-pointer flex items-center justify-between border-b border-gray-100 last:border-b-0"
+                <div class="ingredient-option px-3 py-2 hover:bg-primary/10 dark:hover:bg-primary/20 cursor-pointer flex items-center justify-between border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                      data-id="${ing.idIngredient}"
                      data-name="${ing.name}"
                      data-unit="${ing.unitOfMeasure}"
                      data-stock="${ing.currentStock}">
                   <div>
-                    <div class="font-medium text-gray-900 text-sm">${ing.name}</div>
-                    <div class="text-xs text-gray-500">Stock: ${ing.currentStock} ${ing.unitOfMeasure}</div>
+                    <div class="font-medium text-gray-900 dark:text-white text-sm">${ing.name}</div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">Stock: ${ing.currentStock} ${ing.unitOfMeasure}</div>
                   </div>
                   <span class="material-symbols-outlined text-primary text-sm">add_circle</span>
                 </div>
@@ -667,8 +667,8 @@
                 });
             } else {
               dropdown.innerHTML = `
-                <div class="px-3 py-4 text-center text-gray-500 text-sm">
-                  <span class="material-symbols-outlined text-gray-400 block mb-1">search_off</span>
+                <div class="px-3 py-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+                  <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 block mb-1">search_off</span>
                   No se encontraron ingredientes
                 </div>
               `;

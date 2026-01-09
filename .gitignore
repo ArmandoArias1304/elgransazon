@@ -36,3 +36,9 @@ build/
 .env
 .env.local
 .env.*.local
+
+### Uploaded Files ###
+# Ignorar imágenes subidas pero mantener la estructura de directorios
+src/main/resources/static/uploads/*
+!src/main/resources/static/uploads/.gitkeep
+!src/main/resources/static/uploads/**/.gitkeep

@@ -121,6 +121,7 @@
           th:action="${formAction}"
           method="post"
           th:object="${itemMenu}"
+          enctype="multipart/form-data"
           class="space-y-6"
         >
           <!-- Hidden ID Field -->
@@ -205,22 +206,80 @@
                 </div>
               </div>
 
-              <!-- URL de Imagen -->
-              <div>
+              <!-- Imagen del Platillo -->
+              <div class="md:col-span-2">
                 <label
-                  for="imageUrl"
-                  class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
+                  class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 text-center"
                 >
-                  URL de la Imagen
+                  Imagen del Platillo
                 </label>
-                <input
-                  type="url"
-                  id="imageUrl"
-                  th:field="*{imageUrl}"
-                  maxlength="500"
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  class="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                />
+                
+                <div class="flex justify-center">
+                  <div class="relative w-full max-w-sm">
+                    <!-- Área de carga de imagen (se oculta cuando hay preview) -->
+                    <label
+                      id="uploadArea"
+                      for="imageFile"
+                      class="flex flex-col items-center justify-center w-full h-64 px-4 py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-all group"
+                    >
+                      <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors">
+                        upload
+                      </span>
+                      <span class="text-base font-medium text-gray-600 dark:text-gray-400 group-hover:text-primary transition-colors mt-3">
+                        Click para seleccionar imagen
+                      </span>
+                      <span class="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                        JPG, PNG, GIF o WEBP - Máximo 5MB
+                      </span>
+                    </label>
+                    
+                    <!-- Preview de la imagen (oculto por defecto) -->
+                    <div id="imagePreviewContainer" class="hidden">
+                      <div class="relative w-full h-64 rounded-xl overflow-hidden border-2 border-primary dark:border-primary bg-gray-100 dark:bg-gray-800">
+                        <img 
+                          id="imagePreview" 
+                          alt="Preview"
+                          class="w-full h-full object-contain"
+                        />
+                        <!-- Overlay con botones -->
+                        <div class="absolute inset-0 bg-black/0 hover:bg-black/40 transition-all group">
+                          <div class="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onclick="clearImagePreview()"
+                              class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center gap-1 text-sm font-medium transition-colors shadow-lg"
+                              title="Eliminar imagen"
+                            >
+                              <span class="material-symbols-outlined text-base">delete</span>
+                              <span>Eliminar</span>
+                            </button>
+                            <label
+                              for="imageFile"
+                              class="px-3 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg flex items-center gap-1 text-sm font-medium transition-colors shadow-lg cursor-pointer"
+                              title="Cambiar imagen"
+                            >
+                              <span class="material-symbols-outlined text-base">sync</span>
+                              <span>Cambiar</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      <p id="imageFileName" class="text-xs text-gray-600 dark:text-gray-400 mt-2 text-center"></p>
+                    </div>
+                    
+                    <input
+                      type="file"
+                      id="imageFile"
+                      name="imageFile"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      class="hidden"
+                      onchange="previewImage(event)"
+                    />
+                  </div>
+                </div>
+                
+                <!-- Hidden field para mantener la URL actual si no se sube nueva imagen -->
+                <input type="hidden" th:field="*{imageUrl}" id="currentImageUrl" />
               </div>
 
               <!-- Estado Activo -->
@@ -779,6 +838,77 @@
           noMessage.style.display = "block";
         }
       }
+
+      // ========== Funciones para Preview de Imagen ==========
+      function previewImage(event) {
+        const file = event.target.files[0];
+        if (file) {
+          // Validar tamaño
+          const maxSize = 5 * 1024 * 1024; // 5MB
+          if (file.size > maxSize) {
+            alert('La imagen es demasiado grande. El tamaño máximo es 5MB.');
+            clearImagePreview();
+            return;
+          }
+          
+          // Validar tipo
+          const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+          if (!validTypes.includes(file.type)) {
+            alert('Tipo de archivo no válido. Solo se permiten JPG, PNG, GIF o WEBP.');
+            clearImagePreview();
+            return;
+          }
+          
+          // Mostrar preview
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const preview = document.getElementById('imagePreview');
+            const container = document.getElementById('imagePreviewContainer');
+            const uploadArea = document.getElementById('uploadArea');
+            const fileName = document.getElementById('imageFileName');
+            
+            preview.src = e.target.result;
+            fileName.textContent = file.name;
+            
+            // Ocultar área de carga y mostrar preview
+            uploadArea.classList.add('hidden');
+            container.classList.remove('hidden');
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+      
+      function clearImagePreview() {
+        const input = document.getElementById('imageFile');
+        const preview = document.getElementById('imagePreview');
+        const container = document.getElementById('imagePreviewContainer');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileName = document.getElementById('imageFileName');
+        
+        input.value = '';
+        preview.src = '';
+        fileName.textContent = '';
+        
+        // Mostrar área de carga y ocultar preview
+        container.classList.add('hidden');
+        uploadArea.classList.remove('hidden');
+      }
+      
+      // Cargar imagen actual si existe (modo edición)
+      window.addEventListener('DOMContentLoaded', function() {
+        const currentImageUrl = document.getElementById('currentImageUrl');
+        const preview = document.getElementById('imagePreview');
+        const container = document.getElementById('imagePreviewContainer');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileName = document.getElementById('imageFileName');
+        
+        if (currentImageUrl && currentImageUrl.value && currentImageUrl.value.trim() !== '') {
+          preview.src = currentImageUrl.value;
+          fileName.textContent = 'Imagen actual del producto';
+          uploadArea.classList.add('hidden');
+          container.classList.remove('hidden');
+        }
+      });
 
       // ========== Inicialización ==========
       window.addEventListener("DOMContentLoaded", function () {

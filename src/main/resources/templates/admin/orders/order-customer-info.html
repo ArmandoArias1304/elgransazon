@@ -293,7 +293,10 @@
                             maxlength="10"
                             title="El teléfono debe tener exactamente 10 dígitos"
                           />
-                          <p id="phoneCounter" class="text-xs mt-1 text-gray-500 dark:text-gray-400">
+                          <p
+                            id="phoneCounter"
+                            class="text-xs mt-1 text-gray-500 dark:text-gray-400"
+                          >
                             0/10 dígitos
                           </p>
                         </div>
@@ -447,33 +450,69 @@
     <script>
       function validatePhoneNumber(input) {
         // Solo permitir números
-        input.value = input.value.replace(/[^0-9]/g, '').substring(0, 10);
-        
+        input.value = input.value.replace(/[^0-9]/g, "").substring(0, 10);
+
         const length = input.value.length;
-        const counter = document.getElementById('phoneCounter');
-        
+        const counter = document.getElementById("phoneCounter");
+
         // Actualizar contador
         counter.textContent = `${length}/10 dígitos`;
-        
+
         // Cambiar color según validación
         if (length === 0) {
           // Sin entrada - estado neutral
-          input.classList.remove('!border-red-500', '!border-primary', 'focus:!ring-red-500', 'focus:!ring-primary');
-          input.classList.add('border-gray-300', 'dark:border-gray-600', 'focus:ring-primary-500', 'focus:border-primary-500');
-          counter.classList.remove('text-red-500', 'text-primary', 'font-semibold');
-          counter.classList.add('text-gray-500', 'dark:text-gray-400');
+          input.classList.remove(
+            "!border-red-500",
+            "!border-primary",
+            "focus:!ring-red-500",
+            "focus:!ring-primary"
+          );
+          input.classList.add(
+            "border-gray-300",
+            "dark:border-gray-600",
+            "focus:ring-primary-500",
+            "focus:border-primary-500"
+          );
+          counter.classList.remove(
+            "text-red-500",
+            "text-primary",
+            "font-semibold"
+          );
+          counter.classList.add("text-gray-500", "dark:text-gray-400");
         } else if (length < 10) {
           // Incompleto - rojo
-          input.classList.remove('border-gray-300', 'dark:border-gray-600', '!border-primary', 'focus:ring-primary-500', 'focus:border-primary-500', 'focus:!ring-primary');
-          input.classList.add('!border-red-500', 'focus:!ring-red-500');
-          counter.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-primary');
-          counter.classList.add('text-red-500', 'font-semibold');
+          input.classList.remove(
+            "border-gray-300",
+            "dark:border-gray-600",
+            "!border-primary",
+            "focus:ring-primary-500",
+            "focus:border-primary-500",
+            "focus:!ring-primary"
+          );
+          input.classList.add("!border-red-500", "focus:!ring-red-500");
+          counter.classList.remove(
+            "text-gray-500",
+            "dark:text-gray-400",
+            "text-primary"
+          );
+          counter.classList.add("text-red-500", "font-semibold");
         } else {
           // Completo - verde (primary)
-          input.classList.remove('border-gray-300', 'dark:border-gray-600', '!border-red-500', 'focus:ring-primary-500', 'focus:border-primary-500', 'focus:!ring-red-500');
-          input.classList.add('!border-primary', 'focus:!ring-primary');
-          counter.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-red-500');
-          counter.classList.add('text-primary', 'font-semibold');
+          input.classList.remove(
+            "border-gray-300",
+            "dark:border-gray-600",
+            "!border-red-500",
+            "focus:ring-primary-500",
+            "focus:border-primary-500",
+            "focus:!ring-red-500"
+          );
+          input.classList.add("!border-primary", "focus:!ring-primary");
+          counter.classList.remove(
+            "text-gray-500",
+            "dark:text-gray-400",
+            "text-red-500"
+          );
+          counter.classList.add("text-primary", "font-semibold");
         }
       }
     </script>

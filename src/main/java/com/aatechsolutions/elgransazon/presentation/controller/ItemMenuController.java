@@ -1,6 +1,7 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.CategoryService;
+import com.aatechsolutions.elgransazon.application.service.ImageStorageService;
 import com.aatechsolutions.elgransazon.application.service.IngredientService;
 import com.aatechsolutions.elgransazon.application.service.ItemMenuService;
 import com.aatechsolutions.elgransazon.domain.entity.*;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
@@ -34,6 +36,7 @@ public class ItemMenuController {
     private final ItemMenuService itemMenuService;
     private final CategoryService categoryService;
     private final IngredientService ingredientService;
+    private final ImageStorageService imageStorageService;
 
     /**
      * Show list of all menu items
@@ -145,6 +148,7 @@ public class ItemMenuController {
     public String createMenuItem(
             @Valid @ModelAttribute("itemMenu") ItemMenu itemMenu,
             BindingResult bindingResult,
+            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
             @RequestParam(value = "ingredientIds", required = false) List<Long> ingredientIds,
             @RequestParam(value = "quantities", required = false) List<BigDecimal> quantities,
             @RequestParam(value = "units", required = false) List<String> units,
@@ -184,6 +188,18 @@ public class ItemMenuController {
         }
 
         try {
+            // Handle image upload
+            if (imageFile != null && !imageFile.isEmpty()) {
+                if (!imageStorageService.isValidImage(imageFile)) {
+                    model.addAttribute("errorMessage", "Imagen inválida. Solo se permiten imágenes JPG, PNG, GIF o WEBP de máximo 5MB");
+                    List<ItemIngredient> recipe = buildRecipe(ingredientIds, quantities, units);
+                    loadFormData(model, itemMenu, recipe);
+                    return "admin/menu-items/form";
+                }
+                String imagePath = imageStorageService.saveImage(imageFile, "menu-items", itemMenu.getName());
+                itemMenu.setImageUrl(imagePath);
+            }
+
             // Build recipe from form data
             List<ItemIngredient> recipe = buildRecipe(ingredientIds, quantities, units);
 
@@ -225,6 +241,7 @@ public class ItemMenuController {
             @PathVariable Long id,
             @Valid @ModelAttribute("itemMenu") ItemMenu itemMenu,
             BindingResult bindingResult,
+            @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
             @RequestParam(value = "ingredientIds", required = false) List<Long> ingredientIds,
             @RequestParam(value = "quantities", required = false) List<String> quantities,
             @RequestParam(value = "units", required = false) List<String> units,
@@ -267,6 +284,26 @@ public class ItemMenuController {
         }
 
         try {
+            // Handle image upload
+            if (imageFile != null && !imageFile.isEmpty()) {
+                if (!imageStorageService.isValidImage(imageFile)) {
+                    model.addAttribute("errorMessage", "Imagen inválida. Solo se permiten imágenes JPG, PNG, GIF o WEBP de máximo 5MB");
+                    loadFormData(model, itemMenu, itemMenuService.getRecipe(id));
+                    model.addAttribute("formAction", "/admin/menu-items/" + id);
+                    return "admin/menu-items/form";
+                }
+                
+                // Delete old image if exists
+                itemMenuService.findById(id).ifPresent(existing -> {
+                    if (existing.getImageUrl() != null && !existing.getImageUrl().isEmpty()) {
+                        imageStorageService.deleteImage(existing.getImageUrl());
+                    }
+                });
+                
+                String imagePath = imageStorageService.saveImage(imageFile, "menu-items", itemMenu.getName());
+                itemMenu.setImageUrl(imagePath);
+            }
+
             // Build recipe from form data
             List<ItemIngredient> recipe = null;
             if (ingredientIds != null && !ingredientIds.isEmpty()) {

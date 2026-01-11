@@ -413,7 +413,6 @@
     <div class="license-container">
       <div class="content-wrapper">
         <div class="two-column-layout">
-          
           <!-- COLUMNA IZQUIERDA: Logo, Nombre, Icono, Título y Mensaje -->
           <div class="left-column">
             <!-- Logo del restaurante -->
@@ -422,7 +421,10 @@
             </div>
 
             <!-- Nombre del restaurante (dinámico desde BD) -->
-            <h2 class="restaurant-name fade-in fade-in-delay-1" th:text="${restaurantName ?: 'ElGranSazón'}">
+            <h2
+              class="restaurant-name fade-in fade-in-delay-1"
+              th:text="${restaurantName ?: 'ElGranSazón'}"
+            >
               ElGranSazón
             </h2>
 
@@ -441,8 +443,8 @@
               </p>
 
               <p class="status-submessage fade-in fade-in-delay-2">
-                El acceso al sistema ha sido bloqueado. Por favor contacte con su
-                proveedor para más información.
+                El acceso al sistema ha sido bloqueado. Por favor contacte con
+                su proveedor para más información.
               </p>
             </div>
 
@@ -462,8 +464,19 @@
 
               <div th:if="${expirationDate}" class="fade-in fade-in-delay-2">
                 <div class="expiration-date">
-                  <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">calendar_today</span>
-                  Venció el: <span th:text="${#temporals.format(expirationDate, 'dd/MM/yyyy')}"></span>
+                  <span
+                    class="material-symbols-outlined"
+                    style="
+                      font-size: 16px;
+                      vertical-align: middle;
+                      margin-right: 4px;
+                    "
+                    >calendar_today</span
+                  >
+                  Venció el:
+                  <span
+                    th:text="${#temporals.format(expirationDate, 'dd/MM/yyyy')}"
+                  ></span>
                 </div>
               </div>
 
@@ -488,7 +501,8 @@
               </p>
 
               <p class="status-submessage fade-in fade-in-delay-2">
-                Por favor contacte con su proveedor para configurar una licencia.
+                Por favor contacte con su proveedor para configurar una
+                licencia.
               </p>
             </div>
           </div>
@@ -496,13 +510,29 @@
           <!-- COLUMNA DERECHA: Información de contacto -->
           <div class="right-column">
             <!-- Mensaje de agradecimiento -->
-            <div class="contact-box fade-in fade-in-delay-3" style="margin-top: 0; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-color: #38e07b;">
+            <div
+              class="contact-box fade-in fade-in-delay-3"
+              style="
+                margin-top: 0;
+                background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+                border-color: #38e07b;
+              "
+            >
               <h3>
                 <span class="material-symbols-outlined">favorite</span>
                 Gracias por Confiar en Nosotros
               </h3>
-              <p style="color: #374151; font-size: 15px; line-height: 1.7; margin: 0;">
-                Valoramos tu compromiso con nuestro sistema de gestión. Sabemos que esta situación puede causar inconvenientes, y estamos aquí para ayudarte a resolverlo lo antes posible.
+              <p
+                style="
+                  color: #374151;
+                  font-size: 15px;
+                  line-height: 1.7;
+                  margin: 0;
+                "
+              >
+                Valoramos tu compromiso con nuestro sistema de gestión. Sabemos
+                que esta situación puede causar inconvenientes, y estamos aquí
+                para ayudarte a resolverlo lo antes posible.
               </p>
             </div>
 
@@ -515,7 +545,9 @@
 
               <div class="contact-item">
                 <span class="material-symbols-outlined">mail</span>
-                <a href="mailto:soporte@elgransazon.com">soporte@elgransazon.com</a>
+                <a href="mailto:soporte@elgransazon.com"
+                  >soporte@elgransazon.com</a
+                >
               </div>
 
               <div class="contact-item">
@@ -532,28 +564,58 @@
             </div>
 
             <!-- Horarios de atención -->
-            <div class="contact-box fade-in fade-in-delay-3" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-color: #fbbf24;">
+            <div
+              class="contact-box fade-in fade-in-delay-3"
+              style="
+                background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                border-color: #fbbf24;
+              "
+            >
               <h3>
                 <span class="material-symbols-outlined">schedule</span>
                 Horarios de Atención
               </h3>
-              <p style="color: #374151; font-size: 15px; line-height: 1.7; margin: 0;">
-                <strong>Lunes a Viernes:</strong> 8:00 AM - 8:00 PM<br>
-                <strong>Sábados:</strong> 9:00 AM - 2:00 PM<br>
+              <p
+                style="
+                  color: #374151;
+                  font-size: 15px;
+                  line-height: 1.7;
+                  margin: 0;
+                "
+              >
+                <strong>Lunes a Viernes:</strong> 8:00 AM - 8:00 PM<br />
+                <strong>Sábados:</strong> 9:00 AM - 2:00 PM<br />
                 <strong>Domingos:</strong> Cerrado
               </p>
-              <p style="color: #92400e; font-size: 13px; margin-top: 12px; font-weight: 600;">
-                <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle;">info</span>
+              <p
+                style="
+                  color: #92400e;
+                  font-size: 13px;
+                  margin-top: 12px;
+                  font-weight: 600;
+                "
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style="font-size: 16px; vertical-align: middle"
+                  >info</span
+                >
                 Respuesta inmediata por WhatsApp
               </p>
             </div>
 
             <!-- Footer -->
-            <p class="footer-text fade-in fade-in-delay-3" style="text-align: center;">
-              © 2026 <span th:text="${restaurantName ?: 'ElGranSazón'}">ElGranSazón</span> - Sistema de Gestión para Restaurantes
+            <p
+              class="footer-text fade-in fade-in-delay-3"
+              style="text-align: center"
+            >
+              © 2026
+              <span th:text="${restaurantName ?: 'ElGranSazón'}"
+                >ElGranSazón</span
+              >
+              - Sistema de Gestión para Restaurantes
             </p>
           </div>
-
         </div>
       </div>
     </div>

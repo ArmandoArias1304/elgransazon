@@ -519,8 +519,9 @@
                 },
               }
             )
-              .then((response) => {
-                if (response.ok) {
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.success) {
                   Swal.fire({
                     title: successTitle,
                     text: successText,
@@ -532,7 +533,15 @@
                     window.location.reload();
                   });
                 } else {
-                  throw new Error("Error al cambiar el estado");
+                  // Show the error message from the server
+                  Swal.fire({
+                    title: "Error",
+                    text: data.message || "No se pudo cambiar el estado del pedido",
+                    icon: "error",
+                    confirmButtonColor: "#38e07b",
+                  }).then(() => {
+                    window.location.reload();
+                  });
                 }
               })
               .catch((error) => {
@@ -542,6 +551,8 @@
                   text: "No se pudo cambiar el estado del pedido",
                   icon: "error",
                   confirmButtonColor: "#38e07b",
+                }).then(() => {
+                  window.location.reload();
                 });
               });
           }

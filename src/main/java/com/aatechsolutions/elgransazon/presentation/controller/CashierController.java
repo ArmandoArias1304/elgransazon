@@ -637,11 +637,19 @@ public class CashierController {
             Order existingOrder = cashierOrderService.findByIdWithDetails(id)
                     .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
 
-            // Only allow editing PENDING orders
-            if (existingOrder.getStatus() != OrderStatus.PENDING) {
+            // Allow editing if order is not PAID or CANCELLED
+            if (existingOrder.getStatus() == OrderStatus.PAID || existingOrder.getStatus() == OrderStatus.CANCELLED) {
                 redirectAttributes.addFlashAttribute("errorMessage", 
-                    "Solo se pueden editar pedidos en estado PENDIENTE");
+                    "No se pueden editar pedidos que ya han sido pagados o cancelados");
                 return "redirect:/cashier/orders";
+            }
+
+            // Verify payment method is enabled in configuration
+            SystemConfiguration config = systemConfigurationService.getConfiguration();
+            if (order.getPaymentMethod() != null && !config.isPaymentMethodEnabled(order.getPaymentMethod())) {
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                    "El método de pago seleccionado (" + order.getPaymentMethod().getDisplayName() + ") está deshabilitado en la configuración");
+                return "redirect:/cashier/orders/edit/" + id;
             }
 
             // Set table if provided

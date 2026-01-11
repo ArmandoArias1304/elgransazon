@@ -107,6 +107,22 @@ public class DeliveryOrderServiceImpl implements OrderService {
         Order order = findByIdOrThrow(id);
         Employee currentEmployee = getCurrentEmployee();
         
+        // CONCURRENCY CHECK: If accepting an order (READY -> ON_THE_WAY), check it hasn't been taken
+        if (newStatus == OrderStatus.ON_THE_WAY) {
+            if (order.getStatus() != OrderStatus.READY) {
+                if (order.getDeliveredBy() != null) {
+                    throw new IllegalStateException("El pedido ya fue aceptado por alguien más (" + order.getDeliveredBy().getFullName() + ")");
+                } else {
+                    throw new IllegalStateException("El pedido ya no está disponible (Estado actual: " + order.getStatus().getDisplayName() + ")");
+                }
+            }
+            
+            // Double check deliveredBy just in case status was somehow still READY but assigned (state inconsistency)
+            if (order.getDeliveredBy() != null) {
+                throw new IllegalStateException("El pedido ya fue aceptado por " + order.getDeliveredBy().getFullName());
+            }
+        }
+        
         // Validate that delivery person can only change status of orders they accepted
         // Exception: READY orders can be accepted by any delivery person
         if (order.getStatus() == OrderStatus.ON_THE_WAY || order.getStatus() == OrderStatus.DELIVERED) {

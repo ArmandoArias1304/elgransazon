@@ -40,6 +40,7 @@ public class ClientController {
     private final ReviewService reviewService;
     private final PasswordEncoder passwordEncoder;
     private final TicketPdfService ticketPdfService;
+    private final BusinessHoursService businessHoursService;
 
     public ClientController(
             @Qualifier("customerOrderService") OrderService orderService,
@@ -50,7 +51,8 @@ public class ClientController {
             PromotionService promotionService,
             ReviewService reviewService,
             PasswordEncoder passwordEncoder,
-            TicketPdfService ticketPdfService) {
+            TicketPdfService ticketPdfService,
+            BusinessHoursService businessHoursService) {
         this.orderService = orderService;
         this.itemMenuService = itemMenuService;
         this.categoryService = categoryService;
@@ -60,6 +62,7 @@ public class ClientController {
         this.reviewService = reviewService;
         this.passwordEncoder = passwordEncoder;
         this.ticketPdfService = ticketPdfService;
+        this.businessHoursService = businessHoursService;
     }
 
     /**
@@ -86,11 +89,57 @@ public class ClientController {
             model.addAttribute("totalOrders", totalOrders);
             model.addAttribute("activeOrders", activeOrders);
             
+            // Check if restaurant is currently open
+            boolean isRestaurantOpen = businessHoursService.isOpenNow();
+            model.addAttribute("isRestaurantOpen", isRestaurantOpen);
+            log.debug("Restaurant is currently: {}", isRestaurantOpen ? "open" : "closed");
+            
             return "client/dashboard";
             
         } catch (Exception e) {
             log.error("Error loading dashboard for customer", e);
             model.addAttribute("errorMessage", "Error al cargar el dashboard: " + e.getMessage());
+            return "error";
+        }
+    }
+
+    /**
+     * Show menu to customer in VIEW-ONLY mode (when restaurant is closed)
+     */
+    @GetMapping("/view")
+    public String showMenuViewOnly(Authentication authentication, Model model) {
+        log.debug("Customer {} accessing menu in view-only mode", authentication.getName());
+        
+        try {
+            // Update item availability
+            itemMenuService.updateAllItemsAvailability();
+            
+            // Get active categories and available items
+            List<Category> categories = categoryService.getAllActiveCategories();
+            List<ItemMenu> availableItems = itemMenuService.findAvailableItems();
+            
+            // Group items by category
+            Map<Long, List<ItemMenu>> itemsByCategory = availableItems.stream()
+                    .collect(Collectors.groupingBy(item -> item.getCategory().getIdCategory()));
+            
+            // Get system configuration
+            SystemConfiguration config = systemConfigurationService.getConfiguration();
+            
+            // Get customer info
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            model.addAttribute("config", config);
+            model.addAttribute("categories", categories);
+            model.addAttribute("itemsByCategory", itemsByCategory);
+            model.addAttribute("currentRole", "client");
+            model.addAttribute("customer", customer);
+            
+            return "client/view";
+            
+        } catch (Exception e) {
+            log.error("Error showing view-only menu", e);
+            model.addAttribute("errorMessage", "Error al cargar el menú: " + e.getMessage());
             return "error";
         }
     }
@@ -221,6 +270,15 @@ public class ClientController {
         log.info("Customer {} creating new order", authentication.getName());
         
         try {
+            // Validate restaurant is open
+            if (!businessHoursService.isOpenNow()) {
+                log.warn("Attempt to create order outside business hours by customer: {}", authentication.getName());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "No se puede crear el pedido. El restaurante no se encuentra en horario laborable en este momento."
+                ));
+            }
+            
             // Get customer
             Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
                     .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
@@ -452,6 +510,14 @@ public class ClientController {
         log.info("Customer {} adding items to order {}", authentication.getName(), orderId);
 
         try {
+            // Validate restaurant is open
+            if (!businessHoursService.isOpenNow()) {
+                log.warn("Attempt to add items to order outside business hours by customer: {}", authentication.getName());
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "No se pueden agregar items al pedido. El restaurante no se encuentra en horario laborable en este momento."
+                ));
+            }
             // Get customer
             Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
                     .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));

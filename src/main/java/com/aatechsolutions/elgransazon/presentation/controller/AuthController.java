@@ -33,6 +33,7 @@ public class AuthController {
     @GetMapping("/login")
     public String login(@RequestParam(value = "error", required = false) String error,
                         @RequestParam(value = "logout", required = false) String logout,
+                        @RequestParam(value = "restricted", required = false) String restricted,
                         Model model) {
         
         if (error != null) {
@@ -49,6 +50,11 @@ public class AuthController {
         if (logout != null) {
             log.info("User logged out");
             model.addAttribute("message", "Has cerrado sesión correctamente");
+        }
+        
+        if (restricted != null) {
+            log.info("Access to customer module restricted by license");
+            model.addAttribute("warning", "El módulo de clientes no está disponible con tu licencia actual. Contacta al administrador para actualizar.");
         }
         
         // Get system configuration for logo and restaurant name

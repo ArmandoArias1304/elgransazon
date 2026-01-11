@@ -118,7 +118,7 @@
                   <span class="material-symbols-outlined text-lg">add</span>
                   Añadir Nuevo Empleado
                 </a>
-                
+
                 <!-- Button disabled when limit reached -->
                 <div th:if="${!canCreateMoreUsers}">
                   <button
@@ -129,9 +129,16 @@
                     <span class="material-symbols-outlined text-lg">lock</span>
                     Límite Alcanzado
                   </button>
-                  <p class="mt-2 text-xs text-red-600 dark:text-red-400 text-center">
-                    <span th:if="${hasUserLimit}" th:text="'Límite: ' + ${enabledCount} + '/' + ${maxUsers} + ' usuarios activos'"></span>
-                    <span th:unless="${hasUserLimit}">No se pueden crear más usuarios</span>
+                  <p
+                    class="mt-2 text-xs text-red-600 dark:text-red-400 text-center"
+                  >
+                    <span
+                      th:if="${hasUserLimit}"
+                      th:text="'Límite: ' + ${enabledCount} + '/' + ${maxUsers} + ' usuarios activos'"
+                    ></span>
+                    <span th:unless="${hasUserLimit}"
+                      >No se pueden crear más usuarios</span
+                    >
                   </p>
                 </div>
               </div>

@@ -18,22 +18,25 @@ Se implementaron dos mejoras importantes al sistema de licencias del programador
 #### Funcionalidades Agregadas:
 
 1. **Información actual de la licencia:**
+
    - Fecha de vencimiento actual
    - Días restantes antes de expirar
 
 2. **Preview en tiempo real:**
+
    - Nueva fecha de vencimiento calculada dinámicamente
    - Total de días de vigencia después de renovar
    - Se actualiza automáticamente al cambiar el periodo de renovación
 
 3. **JavaScript para cálculos:**
+
 ```javascript
 function calculateRenewal() {
-    const months = parseInt(document.getElementById('renewMonths').value);
-    const newDate = new Date(currentExpiration);
-    newDate.setMonth(newDate.getMonth() + months);
-    
-    // Calcula y muestra la nueva fecha y días totales
+  const months = parseInt(document.getElementById("renewMonths").value);
+  const newDate = new Date(currentExpiration);
+  newDate.setMonth(newDate.getMonth() + months);
+
+  // Calcula y muestra la nueva fecha y días totales
 }
 ```
 
@@ -78,12 +81,14 @@ public void changePackageType(SystemLicense.PackageType newPackageType, String p
 ```
 
 **Características:**
+
 - Valida que solo se permitan mejoras (upgrades)
 - Previene downgrade de paquetes
 - Previene cambiar al mismo paquete
 - Crea evento en el historial
 
 **Reglas de Upgrade:**
+
 ```
 BASIC → WEB ✅
 BASIC → ECOMMERCE ✅
@@ -108,6 +113,7 @@ public String changePackage(
 ```
 
 **Características:**
+
 - Valida enum de tipo de paquete
 - Captura errores de negocio (downgrade, mismo paquete)
 - Muestra mensajes de éxito/error apropiados
@@ -120,6 +126,7 @@ public String changePackage(
 
 1. **Muestra paquete actual**
 2. **Dropdown inteligente:**
+
    - Solo muestra opciones válidas de upgrade
    - Si estás en BASIC: muestra WEB y ECOMMERCE
    - Si estás en WEB: solo muestra ECOMMERCE
@@ -164,8 +171,12 @@ public String changePackage(
 Se agregó el botón "Cambiar Paquete" junto a los otros botones de acción:
 
 ```html
-<button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#changePackageModal">
-    <i class="fas fa-box"></i> Cambiar Paquete
+<button
+  class="btn btn-info"
+  data-bs-toggle="modal"
+  data-bs-target="#changePackageModal"
+>
+  <i class="fas fa-box"></i> Cambiar Paquete
 </button>
 ```
 
@@ -230,6 +241,7 @@ private boolean isValidUpgrade(PackageType current, PackageType newType) {
 Ambas operaciones registran eventos en `license_events`:
 
 ### Renovación:
+
 ```sql
 event_type = 'RENEWED'
 description = 'Licencia renovada por X mes(es)'
@@ -237,6 +249,7 @@ performed_by = 'username'
 ```
 
 ### Cambio de Paquete:
+
 ```sql
 event_type = 'UPDATED'
 description = 'Paquete cambiado de BASIC a WEB'
@@ -252,10 +265,12 @@ performed_by = 'username'
 Cuando se cambia de paquete, **inmediatamente** se aplican las restricciones:
 
 #### BASIC → WEB
+
 - ✅ Se habilita el acceso a la landing page (`/`)
 - ❌ Módulo de clientes sigue bloqueado
 
 #### WEB → ECOMMERCE (o BASIC → ECOMMERCE)
+
 - ✅ Se habilita el módulo de clientes (`/client/**`)
 - ✅ Aparecen botones de "¿Eres cliente?" en login
 - ✅ Clientes pueden registrarse y hacer pedidos
@@ -263,10 +278,12 @@ Cuando se cambia de paquete, **inmediatamente** se aplican las restricciones:
 ### Archivos Modificados
 
 1. **LicenseService.java**
+
    - Método `changePackageType()`
    - Método privado `isValidUpgrade()`
 
 2. **ProgrammerController.java**
+
    - Endpoint POST `/programmer/change-package`
 
 3. **dashboard.html**
@@ -280,6 +297,7 @@ Cuando se cambia de paquete, **inmediatamente** se aplican las restricciones:
 ## Pruebas Sugeridas
 
 ### Test 1: Renovación
+
 1. Iniciar sesión como PROGRAMMER
 2. Ir a `/programmer/dashboard`
 3. Click en "Renovar Licencia"
@@ -290,6 +308,7 @@ Cuando se cambia de paquete, **inmediatamente** se aplican las restricciones:
 8. Verificar mensaje de éxito
 
 ### Test 2: Upgrade BASIC → WEB
+
 1. Crear licencia con paquete BASIC
 2. Verificar que `/` redirige a `/login`
 3. Click en "Cambiar Paquete"
@@ -300,6 +319,7 @@ Cuando se cambia de paquete, **inmediatamente** se aplican las restricciones:
 8. Verificar que ahora `/` muestra landing page
 
 ### Test 3: Upgrade WEB → ECOMMERCE
+
 1. Tener licencia con paquete WEB
 2. Click en "Cambiar Paquete"
 3. Seleccionar ECOMMERCE
@@ -310,6 +330,7 @@ Cuando se cambia de paquete, **inmediatamente** se aplican las restricciones:
 8. Verificar acceso permitido
 
 ### Test 4: Intento de Downgrade
+
 1. Tener licencia con paquete ECOMMERCE
 2. Modificar manualmente HTML para agregar opción BASIC
 3. Intentar cambiar a BASIC

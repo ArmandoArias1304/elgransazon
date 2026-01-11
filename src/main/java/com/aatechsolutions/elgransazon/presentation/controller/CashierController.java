@@ -1,6 +1,8 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.*;
+
+import com.aatechsolutions.elgransazon.application.service.*;
 import com.aatechsolutions.elgransazon.domain.entity.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -37,6 +39,7 @@ public class CashierController {
     private final CategoryService categoryService;
     private final com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository;
     private final PromotionService promotionService;
+    private final BusinessHoursService businessHoursService;
 
     public CashierController(
             @Qualifier("cashierOrderService") CashierOrderServiceImpl cashierOrderService,
@@ -47,7 +50,8 @@ public class CashierController {
             SystemConfigurationService systemConfigurationService,
             CategoryService categoryService,
             com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository,
-            PromotionService promotionService) {
+            PromotionService promotionService,
+            BusinessHoursService businessHoursService) {
         this.cashierOrderService = cashierOrderService;
         this.adminOrderService = adminOrderService;
         this.restaurantTableService = restaurantTableService;
@@ -57,6 +61,7 @@ public class CashierController {
         this.categoryService = categoryService;
         this.orderRepository = orderRepository;
         this.promotionService = promotionService;
+        this.businessHoursService = businessHoursService;
     }
 
     /**
@@ -70,9 +75,14 @@ public class CashierController {
         // Get system configuration
         SystemConfiguration config = systemConfigurationService.getConfiguration();
         
+        // Check if restaurant is currently open
+        boolean isRestaurantOpen = businessHoursService.isOpenNow();
+        
         model.addAttribute("config", config);
         model.addAttribute("username", username);
         model.addAttribute("role", "Cajero");
+        model.addAttribute("isRestaurantOpen", isRestaurantOpen);
+        log.debug("Restaurant is currently: {}", isRestaurantOpen ? "open" : "closed");
         
         return "cashier/dashboard";
     }

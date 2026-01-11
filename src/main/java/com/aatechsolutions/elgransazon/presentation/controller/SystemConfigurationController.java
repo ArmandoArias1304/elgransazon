@@ -1,6 +1,7 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.BusinessHoursService;
+import com.aatechsolutions.elgransazon.application.service.LicenseService;
 import com.aatechsolutions.elgransazon.application.service.SocialNetworkService;
 import com.aatechsolutions.elgransazon.application.service.SystemConfigurationService;
 import com.aatechsolutions.elgransazon.domain.entity.*;
@@ -31,6 +32,7 @@ public class SystemConfigurationController {
     private final SystemConfigurationService configurationService;
     private final BusinessHoursService businessHoursService;
     private final SocialNetworkService socialNetworkService;
+    private final LicenseService licenseService;
 
     /**
      * Display system configuration page
@@ -55,6 +57,13 @@ public class SystemConfigurationController {
         model.addAttribute("socialNetworks", socialNetworks);
         model.addAttribute("allDays", DayOfWeek.values());
         model.addAttribute("paymentMethodTypes", PaymentMethodType.values());
+        
+        // Add license information
+        SystemLicense license = licenseService.getLicense();
+        model.addAttribute("license", license);
+        if (license != null) {
+            model.addAttribute("daysRemaining", licenseService.getDaysUntilExpiration());
+        }
         
         return "admin/system-configuration/form";
     }

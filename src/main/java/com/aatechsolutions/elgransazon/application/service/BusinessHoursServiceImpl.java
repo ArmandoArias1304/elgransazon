@@ -150,6 +150,27 @@ public class BusinessHoursServiceImpl implements BusinessHoursService {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean isOpenNow() {
+        log.debug("Checking if restaurant is open now");
+        
+        // Get current day and time
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.DayOfWeek javaDayOfWeek = now.getDayOfWeek();
+        LocalTime currentTime = now.toLocalTime();
+        
+        // Convert java.time.DayOfWeek to our custom DayOfWeek
+        DayOfWeek customDayOfWeek = DayOfWeek.valueOf(javaDayOfWeek.name());
+        
+        // Check if open at current day and time
+        boolean isOpen = isOpenAt(customDayOfWeek, currentTime);
+        
+        log.debug("Restaurant is {} at {} on {}", isOpen ? "open" : "closed", currentTime, customDayOfWeek.getDisplayName());
+        
+        return isOpen;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<BusinessHours> getActiveBusinessHours() {
         log.debug("Fetching active business hours");
         SystemConfiguration config = configurationService.getConfiguration();

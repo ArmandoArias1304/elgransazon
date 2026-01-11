@@ -3,6 +3,7 @@
 ## ✅ Archivos Creados
 
 ### Backend (Java)
+
 1. ✅ `SystemLicense.java` - Entidad principal de licencia
 2. ✅ `LicenseEvent.java` - Entidad de eventos de licencia
 3. ✅ `SystemError.java` - Entidad de errores del sistema
@@ -20,10 +21,12 @@
 15. ✅ `ElgransazonApplication.java` - Agregado @EnableScheduling
 
 ### Frontend (HTML)
+
 1. ✅ `programmer/dashboard.html` - Dashboard completo del programador
 2. ✅ `license-expired.html` - Página de licencia expirada
 
 ### Base de Datos
+
 1. ✅ `CREATE_LICENSE_SYSTEM.sql` - Script completo de creación
 
 ---
@@ -45,12 +48,14 @@ O desde tu IDE/cliente MySQL, ejecuta el contenido de `CREATE_LICENSE_SYSTEM.sql
 ### 2. Actualizar Role en la Base de Datos
 
 **Opción A: Cambiar a VARCHAR (Recomendado)**
+
 ```sql
 -- Si tu columna role es ENUM, cámbiala a VARCHAR
 ALTER TABLE employees MODIFY COLUMN role VARCHAR(50) NOT NULL;
 ```
 
 **Opción B: Si es VARCHAR, ya está listo**
+
 ```sql
 -- Verificar tipo de columna
 DESCRIBE employees;
@@ -83,8 +88,10 @@ INSERT INTO employees (
 ```
 
 **Generar contraseña BCrypt:**
+
 1. Usa [https://bcrypt-generator.com/](https://bcrypt-generator.com/)
 2. O ejecuta este código Java:
+
 ```java
 System.out.println(new BCryptPasswordEncoder().encode("tu_contraseña_aqui"));
 ```
@@ -160,11 +167,13 @@ WHERE e.username = 'programador'
 ### Como Programador (TÚ)
 
 1. **Iniciar sesión:**
+
    - URL: `http://localhost:8080/login`
    - Usuario: `programador`
    - Contraseña: la que configuraste
 
 2. **Dashboard del Programador:**
+
    - Ves automáticamente redirigido a `/programmer/dashboard`
    - Información completa de la licencia
    - Estadísticas del sistema
@@ -181,10 +190,12 @@ WHERE e.username = 'programador'
 ### Como Admin del Restaurante (Cliente)
 
 1. **Login normal:**
+
    - URL: `http://localhost:8080/login`
    - Usuario admin del restaurante
 
 2. **Notificaciones automáticas:**
+
    - **Mensual:** 5 días antes aparece SweetAlert
    - **Anual:** 30 días antes aparece SweetAlert
    - **Banner:** Cuando faltan 3 días o menos
@@ -199,19 +210,23 @@ WHERE e.username = 'programador'
 ## 🔔 SISTEMA DE NOTIFICACIONES
 
 ### Job Programado (LicenseCheckJob)
+
 - Se ejecuta diariamente a las **9:00 AM**
 - Verifica estado de licencia
 - Marca como expirada si corresponde
 - Registra eventos en la base de datos
 
 ### Notificaciones al Cliente (Admin)
+
 - **SweetAlert** al hacer login si está próxima a vencer
 - **Badge en navbar** mostrando días restantes
 - **Banner sticky** cuando faltan 3 días o menos
 - **Bloqueo total** si está expirada
 
 ### Futuro: Email Notifications
+
 En `LicenseCheckJob.java` están los TODO para agregar:
+
 ```java
 // TODO: Send warning notification email
 // TODO: Send expiration notification email
@@ -226,6 +241,7 @@ Puedes integrar con tu servicio de email existente.
 ### Cambiar horario del Job
 
 En `LicenseCheckJob.java`:
+
 ```java
 @Scheduled(cron = "0 0 9 * * *")  // Cambiar hora aquí
 // Formato: segundo minuto hora día mes día-semana
@@ -235,17 +251,19 @@ En `LicenseCheckJob.java`:
 ### Cambiar días de notificación
 
 En `SystemLicense.java`, método `needsNotification()`:
+
 ```java
 // Mensual: actualmente 5 días
 if (billingCycle == BillingCycle.MONTHLY && daysLeft <= 5)
 
-// Anual: actualmente 30 días  
+// Anual: actualmente 30 días
 if (billingCycle == BillingCycle.ANNUAL && daysLeft <= 30)
 ```
 
 ### Modificar información de contacto
 
 En `license-expired.html`:
+
 ```html
 <a href="mailto:tu_email@tudominio.com">tu_email@tudominio.com</a>
 <a href="tel:+525551234567">+52 555-123-4567</a>
@@ -259,7 +277,7 @@ En `license-expired.html`:
 
 ```sql
 -- Cambiar fecha de vencimiento a ayer
-UPDATE system_license 
+UPDATE system_license
 SET expiration_date = DATE_SUB(CURDATE(), INTERVAL 1 DAY),
     status = 'ACTIVE'
 WHERE id = 1;
@@ -271,7 +289,7 @@ Ahora intenta acceder como admin → debe redirigir a `/license-expired`
 
 ```sql
 -- Cambiar a 3 días restantes
-UPDATE system_license 
+UPDATE system_license
 SET expiration_date = DATE_ADD(CURDATE(), INTERVAL 3 DAY)
 WHERE id = 1;
 ```
@@ -281,6 +299,7 @@ Login como admin → debe aparecer SweetAlert
 ### 3. Ejecutar job manualmente
 
 Desde el código, llama:
+
 ```java
 @Autowired
 private LicenseCheckJob licenseCheckJob;
@@ -338,15 +357,18 @@ system_errors (errores del sistema)
 ## 🚀 PRÓXIMOS PASOS (Opcional)
 
 1. **Integrar Email Service:**
+
    - Enviar email cuando falten X días
    - Enviar email cuando expire
    - Recordatorio semanal si está expirada
 
 2. **Sistema de Pagos:**
+
    - Webhook de Stripe/PayPal
    - Renovación automática
 
 3. **Múltiples Restaurantes (Futuro):**
+
    - Si vendes a muchos clientes
    - Dashboard centralizado
    - Panel multi-tenant
@@ -361,21 +383,25 @@ system_errors (errores del sistema)
 ## ❓ SOLUCIÓN DE PROBLEMAS
 
 ### El job no se ejecuta
+
 - Verifica que `@EnableScheduling` esté en `ElgransazonApplication`
 - Revisa logs en consola
 - Prueba con `licenseCheckJob.manualCheck()`
 
 ### No redirige a /license-expired
+
 - Verifica que `LicenseInterceptor` esté registrado en `SecurityConfig`
 - Revisa que la licencia esté realmente expirada en BD
 - Checa los logs del interceptor
 
 ### No aparecen notificaciones al admin
+
 - Verifica que `showLicenseWarning` esté en el modelo
 - Checa que el template del admin tenga el código de SweetAlert
 - Revisa si `daysLeft` es correcto en la sesión
 
 ### Usuario programador no puede acceder
+
 - Verifica que el rol sea exactamente `ROLE_PROGRAMMER`
 - Checa que esté en la tabla `employee_roles`
 - Revisa `SecurityConfig` para la ruta `/programmer/**`
@@ -387,6 +413,7 @@ system_errors (errores del sistema)
 Sistema desarrollado por **AATech Solutions**
 
 Para dudas o soporte:
+
 - Email: soporte@elgransazon.com
 - Tel: +52 555-123-4567
 

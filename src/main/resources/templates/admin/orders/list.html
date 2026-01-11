@@ -108,6 +108,7 @@
             </div>
             <div class="flex flex-col sm:flex-row gap-3">
               <a
+                id="createOrderBtn"
                 th:href="@{/admin/orders/select-table}"
                 class="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-white font-semibold hover:shadow-lg hover:shadow-primary/30 transition-all shadow-md text-sm sm:text-base"
               >
@@ -1515,6 +1516,44 @@
           stompClient.disconnect();
         }
       });
+    </script>
+
+    <!-- Script de validación de horario laborable -->
+    <script th:inline="javascript">
+      /*<![CDATA[*/
+      const isRestaurantOpen = /*[[${isRestaurantOpen}]]*/ true;
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const createOrderBtn = document.getElementById("createOrderBtn");
+
+        if (createOrderBtn && !isRestaurantOpen) {
+          createOrderBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+
+            Swal.fire({
+              icon: "warning",
+              title: "Restaurante Cerrado",
+              html: `
+                <p class="text-gray-700 dark:text-gray-300 mb-3">
+                  El restaurante no se encuentra en horario laborable en este momento.
+                </p>
+                <p class="text-gray-600 dark:text-gray-400 text-sm">
+                  <strong>Nota:</strong> Solo puedes crear pedidos durante los días y horarios 
+                  establecidos en la configuración del sistema.
+                </p>
+              `,
+              confirmButtonText: "Entendido",
+              confirmButtonColor: "#38e07b",
+              customClass: {
+                popup: "dark:bg-gray-900 dark:text-white",
+                title: "dark:text-white",
+                confirmButton: "px-6 py-2.5 rounded-xl font-semibold",
+              },
+            });
+          });
+        }
+      });
+      /*]]>*/
     </script>
 
     <!-- Script del Sistema de Temas -->

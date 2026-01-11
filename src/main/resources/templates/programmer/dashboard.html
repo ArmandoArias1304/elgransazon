@@ -116,8 +116,13 @@
         }
         
         .modal-dialog-scrollable .modal-content {
-            max-height: 100%;
+            max-height: calc(100vh - 3.5rem);
             overflow: hidden;
+        }
+        
+        .modal-dialog-scrollable .modal-body {
+            overflow-y: auto;
+            max-height: calc(100vh - 15rem);
         }
         
         .modal-content {
@@ -588,8 +593,6 @@
                 </form>
             </div>
         </div>
-    </div>
-</div>
 
 <!-- Renew Modal -->
 <div class="modal fade" id="renewModal" tabindex="-1" aria-hidden="true">
@@ -887,6 +890,7 @@
         </div>
     </div>
 </div>
+    </div> <!-- Cierre de th:unless="${noLicense}" -->
 
 <!-- Create License Modal -->
 <div class="modal fade" id="createLicenseModal" tabindex="-1">

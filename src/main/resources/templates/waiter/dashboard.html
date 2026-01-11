@@ -209,7 +209,37 @@
         class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"
       >
         <!-- CARD 1: Crear Pedidos -->
+        <div
+          th:if="${!isRestaurantOpen}"
+          class="dashboard-card block rounded-3xl bg-gray-300 dark:bg-gray-800 shadow-lg border border-gray-400 dark:border-gray-700 p-6 sm:p-8 text-center animate-fadeInUp cursor-not-allowed opacity-60"
+          style="animation-delay: 0.1s"
+          title="Restaurante cerrado - No es posible crear pedidos fuera del horario laborable"
+        >
+          <div class="flex flex-col items-center">
+            <div class="mb-4">
+              <span
+                class="material-symbols-outlined text-6xl sm:text-7xl text-gray-500 dark:text-gray-600"
+                >table_restaurant</span
+              >
+            </div>
+            <h3
+              class="text-lg sm:text-xl font-bold text-gray-700 dark:text-gray-400 mb-2"
+            >
+              Crear Pedidos
+            </h3>
+            <p
+              class="text-xs sm:text-sm text-red-600 dark:text-red-400 font-semibold"
+            >
+              🔒 Restaurante Cerrado
+            </p>
+            <p class="text-xs text-gray-600 dark:text-gray-500 mt-1">
+              Fuera de horario laborable
+            </p>
+          </div>
+        </div>
+
         <a
+          th:if="${isRestaurantOpen}"
           href="/waiter/orders/select-table"
           class="dashboard-card block rounded-3xl bg-white dark:bg-gray-900 shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-800 p-6 sm:p-8 text-center animate-fadeInUp"
           style="animation-delay: 0.1s"

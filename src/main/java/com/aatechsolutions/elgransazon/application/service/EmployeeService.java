@@ -1,6 +1,7 @@
 package com.aatechsolutions.elgransazon.application.service;
 
 import com.aatechsolutions.elgransazon.domain.entity.Employee;
+import com.aatechsolutions.elgransazon.domain.entity.SystemLicense;
 import com.aatechsolutions.elgransazon.domain.repository.EmployeeRepository;
 import com.aatechsolutions.elgransazon.domain.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class EmployeeService {
     private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
     private final SessionRegistry sessionRegistry;
+    private final LicenseService licenseService;
 
     /**
      * Find all employees
@@ -73,10 +75,16 @@ public class EmployeeService {
      * @param createdBy Username of the user creating this employee
      * @return Created employee
      * @throws IllegalArgumentException if employee with same username or phone already exists
+     * @throws IllegalStateException if creating would exceed license user limit
      */
     @Transactional
     public Employee create(Employee employee, String createdBy) {
         log.info("Creating new employee: {} by {}", employee.getUsername(), createdBy);
+
+        // Validate user limit before creating (only if employee will be enabled)
+        if (employee.getEnabled() == null || employee.getEnabled()) {
+            validateUserLimit();
+        }
 
         if (employeeRepository.existsByUsername(employee.getUsername())) {
             log.error("Employee with username {} already exists", employee.getUsername());
@@ -267,6 +275,7 @@ public class EmployeeService {
      * @param enabled Enable status
      * @param updatedBy Username of the user updating this employee
      * @throws IllegalArgumentException if employee not found
+     * @throws IllegalStateException if trying to activate would exceed license user limit
      */
     @Transactional
     public void setEnabled(Long id, boolean enabled, String updatedBy) {
@@ -277,6 +286,11 @@ public class EmployeeService {
                     log.error("Employee not found with id: {}", id);
                     return new IllegalArgumentException("Empleado no encontrado con id: " + id);
                 });
+
+        // If activating employee, check license user limit
+        if (enabled && !employee.getEnabled()) {
+            validateUserLimit();
+        }
 
         employee.setEnabled(enabled);
         employee.setUpdatedBy(updatedBy);
@@ -395,5 +409,35 @@ public class EmployeeService {
         } catch (Exception e) {
             log.error("Error invalidating sessions for user {}: {}", username, e.getMessage(), e);
         }
+    }
+
+    /**
+     * Validate that activating a new employee doesn't exceed the license user limit
+     * 
+     * @throws IllegalStateException if the user limit would be exceeded
+     */
+    private void validateUserLimit() {
+        SystemLicense license = licenseService.getLicense();
+        
+        // If no license or no user limit, allow unlimited users
+        if (license == null || !license.hasUserLimit()) {
+            log.debug("No user limit enforced - license allows unlimited users");
+            return;
+        }
+        
+        long currentActiveUsers = employeeRepository.countByEnabledTrue();
+        Integer maxUsers = license.getMaxUsers();
+        
+        if (currentActiveUsers >= maxUsers) {
+            String errorMsg = String.format(
+                "No se puede activar el empleado. Has alcanzado el límite máximo de usuarios activos (%d/%d) permitido por tu licencia. " +
+                "Para activar este empleado, primero desactiva otro empleado o contacta al proveedor para aumentar tu límite.",
+                currentActiveUsers, maxUsers
+            );
+            log.warn("User limit exceeded: {}/{} active users", currentActiveUsers, maxUsers);
+            throw new IllegalStateException(errorMsg);
+        }
+        
+        log.debug("User limit validation passed: {}/{} active users", currentActiveUsers, maxUsers);
     }
 }

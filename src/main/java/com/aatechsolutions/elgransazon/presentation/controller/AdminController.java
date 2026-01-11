@@ -1,5 +1,6 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
+import com.aatechsolutions.elgransazon.application.service.BusinessHoursService;
 import com.aatechsolutions.elgransazon.application.service.DashboardService;
 import com.aatechsolutions.elgransazon.presentation.dto.DashboardStatsDTO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,6 +30,7 @@ import java.util.List;
 public class AdminController {
 
     private final DashboardService dashboardService;
+    private final BusinessHoursService businessHoursService;
 
     /**
      * Display admin dashboard with real-time statistics
@@ -50,6 +52,11 @@ public class AdminController {
             model.addAttribute("username", username);
             model.addAttribute("role", "Administrator");
             model.addAttribute("stats", stats);
+            
+            // Check if restaurant is currently open
+            boolean isRestaurantOpen = businessHoursService.isOpenNow();
+            model.addAttribute("isRestaurantOpen", isRestaurantOpen);
+            log.debug("Restaurant is currently: {}", isRestaurantOpen ? "open" : "closed");
             
             // Add license warning attributes if present (set by LicenseInterceptor)
             if (request.getAttribute("showLicenseWarning") != null) {

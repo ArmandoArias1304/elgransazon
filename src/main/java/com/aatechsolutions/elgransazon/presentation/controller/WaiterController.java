@@ -1,5 +1,6 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
+import com.aatechsolutions.elgransazon.application.service.BusinessHoursService;
 import com.aatechsolutions.elgransazon.application.service.CategoryService;
 import com.aatechsolutions.elgransazon.application.service.EmployeeService;
 import com.aatechsolutions.elgransazon.application.service.ItemMenuService;
@@ -45,6 +46,7 @@ public class WaiterController {
     private final ItemMenuService itemMenuService;
     private final CategoryService categoryService;
     private final SystemConfigurationService configurationService;
+    private final BusinessHoursService businessHoursService;
 
     /**
      * Display waiter dashboard
@@ -61,9 +63,14 @@ public class WaiterController {
         // Get system configuration
         SystemConfiguration config = configurationService.getConfiguration();
         
+        // Check if restaurant is currently open
+        boolean isRestaurantOpen = businessHoursService.isOpenNow();
+        
         model.addAttribute("config", config);
         model.addAttribute("username", username);
         model.addAttribute("role", "Mesero");
+        model.addAttribute("isRestaurantOpen", isRestaurantOpen);
+        log.debug("Restaurant is currently: {}", isRestaurantOpen ? "open" : "closed");
         
         return "waiter/dashboard";
     }

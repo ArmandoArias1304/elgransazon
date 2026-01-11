@@ -2,6 +2,7 @@ package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.CustomerService;
 import com.aatechsolutions.elgransazon.application.service.EmailVerificationService;
+import com.aatechsolutions.elgransazon.application.service.LicenseService;
 import com.aatechsolutions.elgransazon.application.service.SystemConfigurationService;
 import com.aatechsolutions.elgransazon.domain.entity.Customer;
 import jakarta.validation.Valid;
@@ -26,9 +27,11 @@ public class ClientAuthController {
     private final CustomerService customerService;
     private final SystemConfigurationService systemConfigurationService;
     private final EmailVerificationService emailVerificationService;
+    private final LicenseService licenseService;
 
     /**
      * Show customer login form
+     * Redirects to employee login if license doesn't allow customer module
      */
     @GetMapping("/login")
     public String showLoginForm(
@@ -37,6 +40,12 @@ public class ClientAuthController {
             Model model) {
         
         log.debug("Displaying customer login form");
+        
+        // Check if license allows customer module access (ECOMMERCE only)
+        if (!licenseService.hasCustomerModuleAccess()) {
+            log.warn("License doesn't allow customer module access. Redirecting to employee login.");
+            return "redirect:/login?restricted=true";
+        }
         
         // Add system configuration for branding
         model.addAttribute("config", systemConfigurationService.getConfiguration());
@@ -60,10 +69,18 @@ public class ClientAuthController {
 
     /**
      * Show customer registration form
+     * Redirects to employee login if license doesn't allow customer module
      */
     @GetMapping("/register")
     public String showRegisterForm(Model model) {
         log.debug("Displaying customer registration form");
+        
+        // Check if license allows customer module access (ECOMMERCE only)
+        if (!licenseService.hasCustomerModuleAccess()) {
+            log.warn("License doesn't allow customer module access. Redirecting to employee login.");
+            return "redirect:/login?restricted=true";
+        }
+        
         model.addAttribute("customer", new Customer());
         return "auth/registerClient";
     }

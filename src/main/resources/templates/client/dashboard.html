@@ -242,8 +242,47 @@
       <div
         class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"
       >
-        <!-- CARD 1: Crear Pedido -->
+        <!-- CARD 1: Crear Pedido / Ver Menú -->
+        <!-- Cuando el restaurante está CERRADO - Modo Vista -->
         <a
+          th:if="${!isRestaurantOpen}"
+          href="/client/view"
+          class="dashboard-card block rounded-3xl bg-white dark:bg-gray-900 shadow-lg hover:shadow-2xl border border-orange-300 dark:border-orange-700 p-6 sm:p-8 text-center animate-fadeInUp"
+          style="animation-delay: 0.2s"
+          title="El restaurante está cerrado pero puedes ver nuestro menú"
+        >
+          <div class="flex flex-col items-center">
+            <div class="mb-4">
+              <span
+                class="material-symbols-outlined text-6xl sm:text-7xl text-orange-500"
+              >
+                visibility
+              </span>
+            </div>
+            <h3
+              class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2"
+            >
+              Ver Menú
+            </h3>
+            <div class="space-y-1">
+              <p
+                class="text-xs sm:text-sm text-orange-600 dark:text-orange-400 font-semibold"
+              >
+                🔒 Restaurante Cerrado
+              </p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">
+                Visualiza nuestro menú
+              </p>
+              <p class="text-xs text-gray-400 dark:text-gray-500">
+                (Fuera de horario laborable)
+              </p>
+            </div>
+          </div>
+        </a>
+
+        <!-- Cuando el restaurante está ABIERTO - Modo Pedido -->
+        <a
+          th:if="${isRestaurantOpen}"
           href="/client/menu"
           class="dashboard-card block rounded-3xl bg-white dark:bg-gray-900 shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-800 p-6 sm:p-8 text-center animate-fadeInUp"
           style="animation-delay: 0.2s"

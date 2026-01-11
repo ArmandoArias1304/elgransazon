@@ -29,10 +29,37 @@ public class LicenseService {
     private final LicenseEventRepository eventRepository;
 
     /**
-     * Get the system license (there should be only one)
+     * Get the system license (Singleton pattern - there should be only one)
+     * Returns null if no license exists
      */
     public SystemLicense getLicense() {
         return licenseRepository.findFirstByOrderByIdAsc().orElse(null);
+    }
+
+    /**
+     * Get or create the system license (Singleton pattern)
+     * This method ensures there's always a license in the system
+     * If no license exists, it will return null and let the initializer create it
+     */
+    public SystemLicense getOrCreateLicense() {
+        SystemLicense license = getLicense();
+        
+        if (license == null) {
+            log.warn("No license found in system. License should be created by LicenseInitializer.");
+        }
+        
+        return license;
+    }
+
+    /**
+     * Enforce Singleton: Prevent multiple licenses
+     * Throws exception if trying to create when one already exists
+     */
+    private void enforceSingleton() {
+        long count = licenseRepository.count();
+        if (count > 0) {
+            throw new IllegalStateException("License already exists in the system. Only one license is allowed (Singleton pattern).");
+        }
     }
 
     /**
@@ -418,14 +445,12 @@ public class LicenseService {
 
     /**
      * Create a new license (initial setup)
+     * Enforces Singleton pattern
      */
     @Transactional
     public SystemLicense createLicense(SystemLicense license, String performedBy) {
-        // Check if a license already exists
-        SystemLicense existing = getLicense();
-        if (existing != null) {
-            throw new RuntimeException("A license already exists in the system");
-        }
+        // Enforce Singleton pattern
+        enforceSingleton();
 
         SystemLicense saved = licenseRepository.save(license);
 
@@ -472,11 +497,8 @@ public class LicenseService {
                                              int maxUsers,
                                              int maxBranches,
                                              String performedBy) {
-        // Check if a license already exists
-        SystemLicense existing = getLicense();
-        if (existing != null) {
-            throw new RuntimeException("Ya existe una licencia en el sistema");
-        }
+        // Enforce Singleton pattern
+        enforceSingleton();
 
         LocalDate purchaseDate = LocalDate.now();
         LocalDate expirationDate = purchaseDate.plusMonths(months);

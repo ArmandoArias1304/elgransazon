@@ -265,6 +265,13 @@ public class EmployeeController {
                     "Empleado '" + created.getFullName() + "' creado exitosamente");
             return "redirect:/admin/employees";
             
+        } catch (IllegalStateException e) {
+            // Handle user limit exceeded error
+            log.error("User limit exceeded when creating employee: {}", e.getMessage());
+            model.addAttribute("errorMessage", e.getMessage());
+            prepareFormModel(model, employee, false);
+            return "admin/employees/form";
+            
         } catch (IllegalArgumentException e) {
             log.error("Validation error creating employee: {}", e.getMessage());
             model.addAttribute("errorMessage", e.getMessage());
@@ -474,6 +481,11 @@ public class EmployeeController {
             response.put("message", enabled ? "Empleado activado" : "Empleado desactivado");
             response.put("enabled", enabled);
             
+        } catch (IllegalStateException e) {
+            // Handle user limit exceeded error
+            log.error("User limit exceeded when toggling employee status", e);
+            response.put("success", false);
+            response.put("message", e.getMessage());
         } catch (Exception e) {
             log.error("Error toggling employee status", e);
             response.put("success", false);

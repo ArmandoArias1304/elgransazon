@@ -995,25 +995,25 @@
         const showLicenseWarning = /*[[${showLicenseWarning}]]*/ false;
         const daysLeft = /*[[${daysLeft}]]*/ 0;
         const expirationDate = /*[[${expirationDate}]]*/ null;
-        const billingCycle = /*[[${billingCycle}]]*/ '';
+        const billingCycle = /*[[${billingCycle}]]*/ "";
 
         if (showLicenseWarning && daysLeft !== null) {
-          let title = '';
-          let text = '';
-          let icon = 'warning';
+          let title = "";
+          let text = "";
+          let icon = "warning";
 
           if (daysLeft === 0) {
-            title = '¡Licencia expira HOY!';
+            title = "¡Licencia expira HOY!";
             text = `Tu licencia expira hoy (${expirationDate}). Por favor, renueva inmediatamente para evitar interrupciones en el servicio.`;
-            icon = 'error';
+            icon = "error";
           } else if (daysLeft === 1) {
-            title = '¡Licencia expira MAÑANA!';
+            title = "¡Licencia expira MAÑANA!";
             text = `Tu licencia expira mañana (${expirationDate}). Por favor, renueva lo antes posible.`;
-            icon = 'warning';
+            icon = "warning";
           } else {
-            title = '⚠️ Licencia próxima a expirar';
+            title = "⚠️ Licencia próxima a expirar";
             text = `Quedan solo ${daysLeft} días para que expire tu licencia (${expirationDate}). Te recomendamos renovar pronto.`;
-            icon = 'warning';
+            icon = "warning";
           }
 
           Swal.fire({
@@ -1028,14 +1028,14 @@
               </div>
             `,
             icon: icon,
-            confirmButtonText: 'Entendido',
-            confirmButtonColor: daysLeft <= 1 ? '#dc3545' : '#ffc107',
+            confirmButtonText: "Entendido",
+            confirmButtonColor: daysLeft <= 1 ? "#dc3545" : "#ffc107",
             showCancelButton: false,
             allowOutsideClick: false,
             allowEscapeKey: false,
             customClass: {
-              popup: 'swal-wide'
-            }
+              popup: "swal-wide",
+            },
           });
         }
       });

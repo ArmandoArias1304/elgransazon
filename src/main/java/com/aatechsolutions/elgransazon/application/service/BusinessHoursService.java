@@ -60,6 +60,12 @@ public interface BusinessHoursService {
     boolean isOpenAt(DayOfWeek day, LocalTime time);
 
     /**
+     * Check if restaurant is currently open
+     * Uses current date and time to determine if restaurant is open
+     */
+    boolean isOpenNow();
+
+    /**
      * Get all active business hours (not closed days)
      */
     List<BusinessHours> getActiveBusinessHours();

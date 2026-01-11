@@ -42,6 +42,7 @@ public class OrderController {
     private final com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository;
     private final PromotionService promotionService;
     private final WebSocketNotificationService wsNotificationService;
+    private final BusinessHoursService businessHoursService;
 
     /**
      * Constructor with dependency injection
@@ -62,7 +63,8 @@ public class OrderController {
             CategoryService categoryService,
             com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository,
             PromotionService promotionService,
-            WebSocketNotificationService wsNotificationService) {
+            WebSocketNotificationService wsNotificationService,
+            BusinessHoursService businessHoursService) {
         
         this.chefOrderService = chefOrderService; // Store direct reference
         this.orderServices = Map.of(
@@ -82,6 +84,7 @@ public class OrderController {
         this.orderRepository = orderRepository;
         this.promotionService = promotionService;
         this.wsNotificationService = wsNotificationService;
+        this.businessHoursService = businessHoursService;
     }
 
     /**
@@ -205,6 +208,11 @@ public class OrderController {
         model.addAttribute("selectedOrderType", orderType);
         model.addAttribute("selectedDate", date);
         model.addAttribute("currentRole", role);
+        
+        // Check if restaurant is currently open
+        boolean isRestaurantOpen = businessHoursService.isOpenNow();
+        model.addAttribute("isRestaurantOpen", isRestaurantOpen);
+        log.debug("Restaurant is currently: {}", isRestaurantOpen ? "open" : "closed");
 
         return role + "/orders/list";
     }
@@ -515,6 +523,14 @@ public class OrderController {
         // Validate role
         validateRole(role, authentication);
         
+        // Validate restaurant is open
+        if (!businessHoursService.isOpenNow()) {
+            log.warn("Attempt to add items to order outside business hours by user: {}", username);
+            redirectAttributes.addFlashAttribute("errorMessage", 
+                "No se pueden agregar items al pedido. El restaurante no se encuentra en horario laborable en este momento.");
+            return "redirect:/" + role + "/orders";
+        }
+        
         // Get the correct service based on role
         OrderService orderService = getOrderService(role);
         
@@ -762,6 +778,11 @@ public class OrderController {
             validateRole(role, authentication);
             OrderService orderService = getOrderService(role);
 
+            // Validate restaurant is open
+            if (!businessHoursService.isOpenNow()) {
+                throw new IllegalStateException("No se puede crear el pedido. El restaurante no se encuentra en horario laborable en este momento.");
+            }
+
             // Validate payment method
             SystemConfiguration config = systemConfigurationService.getConfiguration();
             if (!config.isPaymentMethodEnabled(order.getPaymentMethod())) {
@@ -845,6 +866,14 @@ public class OrderController {
 
         // Validate role
         validateRole(role, authentication);
+        
+        // Validate restaurant is open
+        if (!businessHoursService.isOpenNow()) {
+            log.warn("Attempt to create order outside business hours by user: {}", username);
+            redirectAttributes.addFlashAttribute("errorMessage", 
+                "No se puede crear el pedido. El restaurante no se encuentra en horario laborable en este momento.");
+            return "redirect:/" + role + "/orders";
+        }
         
         // Get the correct service based on role
         OrderService orderService = getOrderService(role);
@@ -1304,6 +1333,15 @@ public class OrderController {
 
         // Validate role
         validateRole(role, authentication);
+        
+        // Validate restaurant is open
+        if (!businessHoursService.isOpenNow()) {
+            log.warn("Attempt to add items to order outside business hours by user: {}", username);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "No se pueden agregar items al pedido. El restaurante no se encuentra en horario laborable en este momento.");
+            return errorResponse;
+        }
         
         // Get the correct service based on role
         OrderService orderService = getOrderService(role);

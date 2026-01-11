@@ -82,8 +82,14 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
                 if (!Boolean.TRUE.equals(customer.getEmailVerified())) {
                     log.warn("Customer {} attempted to login without verifying email", username);
                     
-                    // Try to send verification email (respects the token logic)
-                    boolean emailSent = emailVerificationService.createOrReuseToken(customer);
+                    boolean emailSent = false;
+                    try {
+                        // Try to send verification email (respects the token logic)
+                        emailSent = emailVerificationService.createOrReuseToken(customer);
+                    } catch (Exception e) {
+                        log.error("Error sending verification email to unverified customer {}", username, e);
+                        // Fallo al enviar el correo, pero debemos bloquear el acceso de todas formas
+                    }
                     
                     request.getSession().invalidate();
                     

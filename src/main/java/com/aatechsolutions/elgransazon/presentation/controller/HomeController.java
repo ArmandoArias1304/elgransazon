@@ -2,6 +2,7 @@ package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.BusinessHoursService;
 import com.aatechsolutions.elgransazon.application.service.EmployeeMonthlyStatsService;
+import com.aatechsolutions.elgransazon.application.service.LicenseService;
 import com.aatechsolutions.elgransazon.application.service.PromotionService;
 import com.aatechsolutions.elgransazon.application.service.ReviewService;
 import com.aatechsolutions.elgransazon.application.service.SocialNetworkService;
@@ -36,16 +37,24 @@ public class HomeController {
     private final PromotionService promotionService;
     private final ReviewService reviewService;
     private final EmployeeMonthlyStatsService monthlyStatsService;
+    private final LicenseService licenseService;
 
     /**
      * Display home/landing page with system configuration data
+     * Redirects to /login if license doesn't include landing page access
      * 
      * @param authentication Spring Security authentication object
      * @param model Spring MVC model
-     * @return landing view name
+     * @return landing view name or redirect to login
      */
     @GetMapping({"/", "/home"})
     public String home(Authentication authentication, Model model) {
+        // Check if license has landing page access (WEB or ECOMMERCE)
+        if (!licenseService.hasLandingPageAccess()) {
+            log.info("License doesn't have landing page access (BASIC package). Redirecting to /login");
+            return "redirect:/login";
+        }
+
         if (authentication != null) {
             String username = authentication.getName();
             log.info("User {} accessed home page", username);
@@ -84,6 +93,10 @@ public class HomeController {
         model.addAttribute("isOpen", isOpen);
         model.addAttribute("todayHours", todayHours);
         model.addAttribute("currentDay", currentDay);
+        
+        // Check if license has customer module access (ECOMMERCE only)
+        boolean hasCustomerModule = licenseService.hasCustomerModuleAccess();
+        model.addAttribute("hasCustomerModule", hasCustomerModule);
         
         // Load active promotions (one of each type)
         Promotion promoCombo = promotionService.findActiveByType(PromotionType.BUY_X_PAY_Y)

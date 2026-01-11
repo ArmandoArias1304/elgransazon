@@ -1,6 +1,7 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.EmployeeService;
+import com.aatechsolutions.elgransazon.application.service.LicenseService;
 import com.aatechsolutions.elgransazon.application.service.ShiftService;
 import com.aatechsolutions.elgransazon.domain.entity.Employee;
 import com.aatechsolutions.elgransazon.domain.entity.Role;
@@ -36,6 +37,7 @@ public class EmployeeController {
     private final ShiftService shiftService;
     private final RoleRepository roleRepository;
     private final EmployeeRepository employeeRepository;
+    private final LicenseService licenseService;
 
     /**
      * Show list of all employees with filters
@@ -53,19 +55,21 @@ public class EmployeeController {
         // Filter employees for MANAGER role - only show supervised employees
         if (currentUser.hasRole(Role.MANAGER)) {
             employees = employeeService.findBySupervisor(currentUser.getIdEmpleado());
-            // Double check to ensure no ADMINs are included (though they shouldn't be supervised by manager normally)
+            // Double check to ensure no ADMINs or PROGRAMMERs are included
             employees = employees.stream()
-                    .filter(e -> !e.hasRole(Role.ADMIN))
+                    .filter(e -> !e.hasRole(Role.ADMIN) && !e.hasRole(Role.PROGRAMMER))
                     .collect(Collectors.toList());
             log.debug("Filtered employees for MANAGER (supervisor check)");
         } else {
-            // ADMIN sees all employees
-            employees = employeeService.findAll();
+            // ADMIN sees all employees except PROGRAMMER
+            employees = employeeService.findAll().stream()
+                    .filter(e -> !e.hasRole(Role.PROGRAMMER))
+                    .collect(Collectors.toList());
         }
         
         List<Shift> allShifts = shiftService.getAllShifts();
         List<Role> allRoles = roleRepository.findAll().stream()
-                .filter(r -> !r.getNombreRol().equals(Role.ADMIN))
+                .filter(r -> !r.getNombreRol().equals(Role.ADMIN) && !r.getNombreRol().equals(Role.PROGRAMMER))
                 .collect(Collectors.toList());
         
         long totalCount = employeeService.countAll();
@@ -80,6 +84,13 @@ public class EmployeeController {
         model.addAttribute("enabledCount", enabledCount);
         model.addAttribute("disabledCount", disabledCount);
         model.addAttribute("rolesCount", rolesCount);
+        
+        // License limit information
+        Integer maxUsers = licenseService.getMaxUsers();
+        boolean canCreateMore = licenseService.canCreateMoreUsers(enabledCount);
+        model.addAttribute("maxUsers", maxUsers);
+        model.addAttribute("canCreateMoreUsers", canCreateMore);
+        model.addAttribute("hasUserLimit", maxUsers != null);
         
         return "admin/employees/list";
     }
@@ -190,6 +201,17 @@ public class EmployeeController {
             RedirectAttributes redirectAttributes) {
         
         log.info("Creating new employee: {}", employee.getUsername());
+        
+        // Check if user limit has been reached
+        long currentActiveUsers = employeeService.countEnabled();
+        if (!licenseService.canCreateMoreUsers(currentActiveUsers)) {
+            Integer maxUsers = licenseService.getMaxUsers();
+            String limitMessage = maxUsers != null 
+                ? "Has alcanzado el límite de " + maxUsers + " usuarios activos. Actualiza tu licencia para crear más empleados."
+                : "No se puede crear más usuarios en este momento.";
+            redirectAttributes.addFlashAttribute("errorMessage", limitMessage);
+            return "redirect:/admin/employees";
+        }
         
         if (bindingResult.hasErrors()) {
             prepareFormModel(model, employee, false);

@@ -662,9 +662,9 @@
           <span th:text="${error}">Usuario o contraseña incorrectos</span>
         </div>
 
-        <!-- Mensaje especial para clientes que intentan entrar aquí -->
+        <!-- Mensaje especial para clientes que intentan entrar aquí (solo si tiene módulo de clientes) -->
         <div
-          th:if="${errorType == 'clientAttempt'}"
+          th:if="${errorType == 'clientAttempt' && hasCustomerModule}"
           class="alert"
           style="
             background-color: #fef3c7;
@@ -744,30 +744,32 @@
           </button>
         </form>
 
-        <!-- Divider -->
-        <div class="divider">
-          <span>¿Eres cliente?</span>
-        </div>
+        <!-- Divider y Link al login de clientes (solo si tiene módulo de clientes - paquete ECOMMERCE) -->
+        <div th:if="${hasCustomerModule}">
+          <div class="divider">
+            <span>¿Eres cliente?</span>
+          </div>
 
-        <!-- Link al login de clientes -->
-        <div style="text-align: center; margin-bottom: 16px">
-          <a
-            th:href="@{/client/login}"
-            style="
-              display: inline-flex;
-              align-items: center;
-              gap: 6px;
-              font-size: 14px;
-              color: #6b7280;
-              text-decoration: none;
-              transition: color 0.3s ease;
-            "
-          >
-            <span class="material-symbols-outlined" style="font-size: 18px"
-              >person</span
+          <!-- Link al login de clientes -->
+          <div style="text-align: center; margin-bottom: 16px">
+            <a
+              th:href="@{/client/login}"
+              style="
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 14px;
+                color: #6b7280;
+                text-decoration: none;
+                transition: color 0.3s ease;
+              "
             >
-            <span>Acceso para clientes</span>
-          </a>
+              <span class="material-symbols-outlined" style="font-size: 18px"
+                >person</span
+              >
+              <span>Acceso para clientes</span>
+            </a>
+          </div>
         </div>
 
         <!-- Divider -->

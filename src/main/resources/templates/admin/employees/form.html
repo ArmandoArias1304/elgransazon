@@ -426,6 +426,7 @@
                       <option value="">Seleccionar rol...</option>
                       <option
                         th:each="role : ${availableRoles}"
+                        th:if="${role.nombreRol != 'ROLE_PROGRAMMER'}"
                         th:value="${role.idRol}"
                         th:text="${role.getDisplayName()}"
                         th:selected="${employee.primaryRole == role.nombreRol}"

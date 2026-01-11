@@ -146,6 +146,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
             
             if (Role.CLIENT.equals(role)) {
                 return "/client/dashboard";
+            } else if (Role.PROGRAMMER.equals(role)) {
+                return "/programmer/dashboard";
             } else if (Role.ADMIN.equals(role)) {
                 return "/admin/dashboard";
             } else if (Role.MANAGER.equals(role)) {

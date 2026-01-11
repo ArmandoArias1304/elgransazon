@@ -2,6 +2,7 @@ package com.aatechsolutions.elgransazon.presentation.controller;
 
 import com.aatechsolutions.elgransazon.application.service.DashboardService;
 import com.aatechsolutions.elgransazon.presentation.dto.DashboardStatsDTO;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,10 +35,11 @@ public class AdminController {
      *
      * @param authentication Spring Security authentication object
      * @param model Spring MVC model
+     * @param request HTTP request to access license warning attributes
      * @return admin dashboard view
      */
     @GetMapping("/dashboard")
-    public String dashboard(Authentication authentication, Model model) {
+    public String dashboard(Authentication authentication, Model model, HttpServletRequest request) {
         String username = authentication.getName();
         log.info("Admin {} accessed dashboard", username);
         
@@ -48,6 +50,16 @@ public class AdminController {
             model.addAttribute("username", username);
             model.addAttribute("role", "Administrator");
             model.addAttribute("stats", stats);
+            
+            // Add license warning attributes if present (set by LicenseInterceptor)
+            if (request.getAttribute("showLicenseWarning") != null) {
+                model.addAttribute("showLicenseWarning", request.getAttribute("showLicenseWarning"));
+                model.addAttribute("daysLeft", request.getAttribute("daysLeft"));
+                model.addAttribute("expirationDate", request.getAttribute("expirationDate"));
+                model.addAttribute("billingCycle", request.getAttribute("billingCycle"));
+                log.info("License warning added to dashboard for admin {}: {} days remaining", 
+                         username, request.getAttribute("daysLeft"));
+            }
             
             log.debug("Dashboard stats loaded successfully for user: {}", username);
         } catch (Exception e) {

@@ -44,6 +44,7 @@ public class Role implements Serializable {
     public static final String CASHIER = "ROLE_CASHIER";
     public static final String DELIVERY = "ROLE_DELIVERY";
     public static final String CLIENT = "ROLE_CLIENT";
+    public static final String PROGRAMMER = "ROLE_PROGRAMMER";
 
     /**
      * Constructor for creating roles with just the name
@@ -72,6 +73,7 @@ public class Role implements Serializable {
             case "CASHIER": return "Cajero";
             case "DELIVERY": return "Repartidor";
             case "CLIENT": return "Cliente";
+            case "PROGRAMMER": return "Programador";
             default: return name;
         }
     }

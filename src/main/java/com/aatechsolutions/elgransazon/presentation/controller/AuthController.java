@@ -1,5 +1,6 @@
 package com.aatechsolutions.elgransazon.presentation.controller;
 
+import com.aatechsolutions.elgransazon.application.service.LicenseService;
 import com.aatechsolutions.elgransazon.application.service.SystemConfigurationService;
 import com.aatechsolutions.elgransazon.domain.entity.SystemConfiguration;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class AuthController {
 
     private final SystemConfigurationService systemConfigurationService;
+    private final LicenseService licenseService;
 
     /**
      * Display login page
@@ -52,6 +54,10 @@ public class AuthController {
         // Get system configuration for logo and restaurant name
         SystemConfiguration config = systemConfigurationService.getConfiguration();
         model.addAttribute("config", config);
+        
+        // Check if license has customer module access (ECOMMERCE only)
+        boolean hasCustomerModule = licenseService.hasCustomerModuleAccess();
+        model.addAttribute("hasCustomerModule", hasCustomerModule);
         
         return "auth/login";
     }

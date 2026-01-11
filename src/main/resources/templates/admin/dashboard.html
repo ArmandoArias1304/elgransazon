@@ -985,6 +985,63 @@
     <!-- Sidebar Scripts Fragment -->
     <div th:replace="~{fragments/sidebar :: sidebarScripts}"></div>
 
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- License Expiration Warning -->
+    <script th:inline="javascript">
+      /*<![CDATA[*/
+      document.addEventListener("DOMContentLoaded", function () {
+        const showLicenseWarning = /*[[${showLicenseWarning}]]*/ false;
+        const daysLeft = /*[[${daysLeft}]]*/ 0;
+        const expirationDate = /*[[${expirationDate}]]*/ null;
+        const billingCycle = /*[[${billingCycle}]]*/ '';
+
+        if (showLicenseWarning && daysLeft !== null) {
+          let title = '';
+          let text = '';
+          let icon = 'warning';
+
+          if (daysLeft === 0) {
+            title = '¡Licencia expira HOY!';
+            text = `Tu licencia expira hoy (${expirationDate}). Por favor, renueva inmediatamente para evitar interrupciones en el servicio.`;
+            icon = 'error';
+          } else if (daysLeft === 1) {
+            title = '¡Licencia expira MAÑANA!';
+            text = `Tu licencia expira mañana (${expirationDate}). Por favor, renueva lo antes posible.`;
+            icon = 'warning';
+          } else {
+            title = '⚠️ Licencia próxima a expirar';
+            text = `Quedan solo ${daysLeft} días para que expire tu licencia (${expirationDate}). Te recomendamos renovar pronto.`;
+            icon = 'warning';
+          }
+
+          Swal.fire({
+            title: title,
+            html: `
+              <div style="text-align: left;">
+                <p style="margin-bottom: 10px;">${text}</p>
+                <hr style="margin: 15px 0;">
+                <p style="margin: 5px 0;"><strong>📅 Fecha de expiración:</strong> ${expirationDate}</p>
+                <p style="margin: 5px 0;"><strong>🔄 Ciclo de facturación:</strong> ${billingCycle}</p>
+                <p style="margin: 5px 0;"><strong>⏰ Días restantes:</strong> ${daysLeft} día(s)</p>
+              </div>
+            `,
+            icon: icon,
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: daysLeft <= 1 ? '#dc3545' : '#ffc107',
+            showCancelButton: false,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            customClass: {
+              popup: 'swal-wide'
+            }
+          });
+        }
+      });
+      /*]]>*/
+    </script>
+
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 

@@ -29,6 +29,9 @@ public class SecurityConfig {
     private final CustomAuthenticationSuccessHandler authenticationSuccessHandler;
     private final CustomAuthenticationFailureHandler authenticationFailureHandler;
     private final UserValidationFilter userValidationFilter;
+    private final LicenseInterceptor licenseInterceptor;
+    private final PackageAccessFilter packageAccessFilter;
+    private final LicenseValidationFilter licenseValidationFilter;
 
     /**
      * Password encoder bean using BCrypt
@@ -66,7 +69,8 @@ public class SecurityConfig {
                                 "/client/verify-email", "/client/forgot-password", "/client/reset-password", 
                                 "/client/password-reset/**", "/help", "/support", "/helpClient", 
                                 "/supportClient", "/error", "/errores/**", "/css/**", "/js/**", 
-                                "/images/**", "/promotions/**").permitAll()
+                                "/images/**", "/promotions/**", "/license-expired").permitAll()
+                        .requestMatchers("/programmer/**").hasRole("PROGRAMMER")
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/waiter/**").hasRole("WAITER")
                         .requestMatchers("/chef/**").hasAnyRole("CHEF", "BARISTA")
@@ -101,7 +105,13 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf.disable()) // For development, enable in production
                 // Add filter to validate user enabled status on each request
-                .addFilterBefore(userValidationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(userValidationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Add filter to check license validity
+                .addFilterAfter(licenseInterceptor, UserValidationFilter.class)
+                // Add filter to validate license expiration (blocks expired licenses except PROGRAMMER)
+                .addFilterAfter(licenseValidationFilter, LicenseInterceptor.class)
+                // Add filter to restrict package-specific routes
+                .addFilterAfter(packageAccessFilter, LicenseValidationFilter.class);
 
         return http.build();
     }

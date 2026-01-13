@@ -257,7 +257,7 @@
                   <label
                     class="block text-xs uppercase text-gray-500 dark:text-gray-400 font-medium mb-2"
                   >
-                    Dirección de Entrega <span class="text-red-500">*</span>
+                    Dirección de Entrega <span id="deliveryAddressRequired" class="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -523,6 +523,7 @@
         const deliverySection = document.getElementById("deliverySection");
         const deliveryInput = deliverySection.querySelector("input");
         const referencesSection = document.getElementById("referencesSection");
+        const deliveryAddressRequired = document.getElementById("deliveryAddressRequired");
 
         // Customer fields
         const customerName = document.getElementById("customerName");
@@ -537,6 +538,7 @@
           deliveryInput.required = false;
           deliveryInput.value = "";
           referencesSection.style.display = "none";
+          if (deliveryAddressRequired) deliveryAddressRequired.style.display = "none";
 
           customerName.required = false;
           customerPhone.required = false;
@@ -549,6 +551,7 @@
           deliverySection.style.display = "block";
           deliveryInput.required = true;
           referencesSection.style.display = "block";
+          if (deliveryAddressRequired) deliveryAddressRequired.style.display = "inline";
 
           customerName.required = true;
           customerPhone.required = true;
@@ -561,6 +564,7 @@
           deliverySection.style.display = "block";
           deliveryInput.required = false;
           referencesSection.style.display = "none";
+          if (deliveryAddressRequired) deliveryAddressRequired.style.display = "none";
 
           customerName.required = true;
           customerPhone.required = true;

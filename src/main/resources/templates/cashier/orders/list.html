@@ -251,6 +251,7 @@
 
           <!-- FILTERS CARD -->
           <div
+            id="mainFiltersSection"
             class="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 sm:p-6 shadow-lg mb-6"
           >
             <div class="flex items-center gap-2 mb-4">
@@ -301,6 +302,7 @@
                     <option value="">Todos los estados</option>
                     <option
                       th:each="status : ${statuses}"
+                      th:if="${status.name() != 'CANCELLED'}"
                       th:value="${status}"
                       th:text="${status.displayName}"
                       th:selected="${selectedStatus != null && selectedStatus == status}"
@@ -541,9 +543,9 @@
                           <i class="fas fa-edit"></i>
                         </a>
 
-                        <!-- Change Status (not CANCELLED or PAID) -->
+                        <!-- Change Status (not CANCELLED, PAID or DELIVERED) -->
                         <button
-                          th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID'}"
+                          th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID' && order.status.name() != 'DELIVERED'}"
                           class="btn-change-status p-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-all"
                           th:data-order-id="${order.idOrder}"
                           th:data-order-number="${order.orderNumber}"
@@ -579,6 +581,122 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- GLOBAL TABLE FILTERS CARD -->
+          <div
+            id="globalFiltersSection"
+            class="rounded-2xl border border-orange-200 dark:border-orange-800 bg-white dark:bg-gray-900 p-4 sm:p-6 shadow-lg mb-6 mt-8"
+          >
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-orange-500 text-2xl"
+                >filter_alt</span
+              >
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                Filtros - Pedidos Globales
+              </h3>
+            </div>
+
+            <div
+              class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4"
+            >
+              <div
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1"
+              >
+                <!-- Global Table Filter -->
+                <div>
+                  <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >Mesa</label
+                  >
+                  <select
+                    id="globalFilterTable"
+                    class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">Todas las mesas</option>
+                    <option
+                      th:each="table : ${tables}"
+                      th:value="${table.id}"
+                      th:text="${'Mesa #' + table.tableNumber}"
+                      th:selected="${selectedGlobalTableId != null && selectedGlobalTableId == table.id}"
+                    ></option>
+                  </select>
+                </div>
+
+                <!-- Global Status Filter -->
+                <div>
+                  <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >Estado</label
+                  >
+                  <select
+                    id="globalFilterStatus"
+                    class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">Todos los estados</option>
+                    <option
+                      th:each="status : ${statuses}"
+                      th:if="${status.name() != 'CANCELLED'}"
+                      th:value="${status}"
+                      th:text="${status.displayName}"
+                      th:selected="${selectedGlobalStatus != null && selectedGlobalStatus == status}"
+                    ></option>
+                  </select>
+                </div>
+
+                <!-- Global Order Type Filter -->
+                <div>
+                  <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >Tipo</label
+                  >
+                  <select
+                    id="globalFilterOrderType"
+                    class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">Todos los tipos</option>
+                    <option
+                      th:each="type : ${orderTypes}"
+                      th:value="${type}"
+                      th:text="${type.displayName}"
+                      th:selected="${selectedGlobalOrderType != null && selectedGlobalOrderType == type}"
+                    ></option>
+                  </select>
+                </div>
+
+                <!-- Global Date Filter -->
+                <div>
+                  <label
+                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >Fecha</label
+                  >
+                  <input
+                    type="date"
+                    id="globalFilterDate"
+                    th:value="${selectedGlobalDate}"
+                    class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              <!-- Filter Actions -->
+              <div class="flex gap-2">
+                <button
+                  onclick="applyGlobalFilters()"
+                  class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold hover:shadow-lg hover:shadow-orange-500/30 transition-all"
+                >
+                  <span class="material-symbols-outlined text-lg">search</span>
+                  Filtrar
+                </button>
+                <button
+                  onclick="clearGlobalFilters()"
+                  class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+                >
+                  <span class="material-symbols-outlined text-lg">close</span>
+                  Limpiar
+                </button>
+              </div>
             </div>
           </div>
 
@@ -743,9 +861,9 @@
                           <i class="fas fa-eye"></i>
                         </a>
 
-                        <!-- Change Status (not CANCELLED or PAID) -->
+                        <!-- Change Status (not CANCELLED, PAID or DELIVERED) -->
                         <button
-                          th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID'}"
+                          th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID' && order.status.name() != 'DELIVERED'}"
                           class="btn-change-status p-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-all"
                           th:data-order-id="${order.idOrder}"
                           th:data-order-number="${order.orderNumber}"
@@ -809,17 +927,48 @@
         const orderType = document.getElementById("filterOrderType").value;
         const date = document.getElementById("filterDate").value;
 
-        let url = `/${currentRole}/orders?`;
-        if (tableId) url += `tableId=${tableId}&`;
-        if (status) url += `status=${status}&`;
-        if (orderType) url += `orderType=${orderType}&`;
-        if (date) url += `date=${date}&`;
+        const params = new URLSearchParams(window.location.search);
+        
+        if (tableId) params.set('tableId', tableId); else params.delete('tableId');
+        if (status) params.set('status', status); else params.delete('status');
+        if (orderType) params.set('orderType', orderType); else params.delete('orderType');
+        if (date) params.set('date', date); else params.delete('date');
 
-        window.location.href = url;
+        window.location.href = `/${currentRole}/orders?${params.toString()}#mainFiltersSection`;
       }
 
       function clearFilters() {
-        window.location.href = `/${currentRole}/orders`;
+        const params = new URLSearchParams(window.location.search);
+        params.delete('tableId');
+        params.delete('status');
+        params.delete('orderType');
+        params.delete('date');
+        window.location.href = `/${currentRole}/orders?${params.toString()}#mainFiltersSection`;
+      }
+
+      function applyGlobalFilters() {
+        const tableId = document.getElementById("globalFilterTable").value;
+        const status = document.getElementById("globalFilterStatus").value;
+        const orderType = document.getElementById("globalFilterOrderType").value;
+        const date = document.getElementById("globalFilterDate").value;
+
+        const params = new URLSearchParams(window.location.search);
+        
+        if (tableId) params.set('globalTableId', tableId); else params.delete('globalTableId');
+        if (status) params.set('globalStatus', status); else params.delete('globalStatus');
+        if (orderType) params.set('globalOrderType', orderType); else params.delete('globalOrderType');
+        if (date) params.set('globalDate', date); else params.delete('globalDate');
+
+        window.location.href = `/${currentRole}/orders?${params.toString()}#globalFiltersSection`;
+      }
+
+      function clearGlobalFilters() {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('globalTableId');
+        params.delete('globalStatus');
+        params.delete('globalOrderType');
+        params.delete('globalDate');
+        window.location.href = `/${currentRole}/orders?${params.toString()}#globalFiltersSection`;
       }
 
       // Cancel order with AJAX
@@ -1319,6 +1468,14 @@
           const badge = orderRow.querySelector(".status-badge");
           if (badge) {
             updateStatusBadge(badge, newStatus);
+
+            // Hide change status button if DELIVERED or PAID or CANCELLED
+            if (newStatus === 'DELIVERED' || newStatus === 'PAID' || newStatus === 'CANCELLED') {
+              const changeStatusBtn = orderRow.querySelector(".btn-change-status");
+              if (changeStatusBtn) {
+                changeStatusBtn.style.display = 'none';
+              }
+            }
 
             // Flash animation
             orderRow.classList.add("bg-primary/5");

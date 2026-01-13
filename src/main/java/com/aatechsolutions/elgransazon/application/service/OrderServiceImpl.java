@@ -68,7 +68,10 @@ public class OrderServiceImpl implements OrderService {
         // 4. Validate payment method is enabled
         validatePaymentMethod(order.getPaymentMethod());
 
-        // 5. Validate stock availability for all items
+        // 5. Validate items are active
+        validateItemsActive(orderDetails);
+
+        // 6. Validate stock availability for all items
         Map<Long, String> stockErrors = validateStock(orderDetails);
         if (!stockErrors.isEmpty()) {
             throw new IllegalStateException(
@@ -236,6 +239,9 @@ public class OrderServiceImpl implements OrderService {
 
         // Return stock for old items
         returnStockForOrder(existingOrder);
+
+        // Validate items are active
+        validateItemsActive(newOrderDetails);
 
         // Validate stock for new items
         Map<Long, String> stockErrors = validateStock(newOrderDetails);
@@ -483,13 +489,22 @@ public class OrderServiceImpl implements OrderService {
                     Boolean.TRUE.equals(itemMenu.getRequiresBaristaPreparation());
                 
                 // ONLY update items that DON'T require ANY specific preparation
-                if (!requiresChefPreparation && !requiresBaristaPreparation) {
+                // UNLESS newStatus is DELIVERED, then we force update all items to DELIVERED
+                boolean isDeliveredUpdate = (newStatus == OrderStatus.DELIVERED);
+
+                if ((!requiresChefPreparation && !requiresBaristaPreparation) || isDeliveredUpdate) {
                     // Item doesn't require specific preparation - auto-advance with order
                     if (detail.getItemStatus() == null || 
                         detail.getItemStatus().ordinal() < newStatus.ordinal()) {
                         detail.setItemStatus(newStatus);
-                        log.debug("Item '{}' auto-advanced to {} (no specific preparation)", 
-                            itemMenu != null ? itemMenu.getName() : "unknown", newStatus);
+                        
+                        // Remove "New" badge when delivered
+                        if (isDeliveredUpdate) {
+                            detail.setIsNewItem(false);
+                        }
+                        
+                        log.debug("Item '{}' auto-advanced to {} (forced={})", 
+                            itemMenu != null ? itemMenu.getName() : "unknown", newStatus, isDeliveredUpdate);
                     }
                 }
             }
@@ -592,6 +607,9 @@ public class OrderServiceImpl implements OrderService {
                               order.getStatus().getDisplayName())
             );
         }
+
+        // Validate items are active
+        validateItemsActive(newItems);
 
         // Validate stock for new items
         Map<Long, String> stockErrors = validateStock(newItems);
@@ -1296,6 +1314,32 @@ public class OrderServiceImpl implements OrderService {
                 String.format("El método de pago '%s' no está habilitado", 
                               paymentMethod.getDisplayName())
             );
+        }
+    }
+
+    /**
+     * Validate that all items in the order are active
+     */
+    private void validateItemsActive(List<OrderDetail> orderDetails) {
+        log.info("Validating active status for {} items in order", orderDetails.size());
+        for (OrderDetail detail : orderDetails) {
+            Long itemId = detail.getItemMenu().getIdItemMenu();
+            ItemMenu item = itemMenuRepository.findById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "Item de menú no encontrado: " + itemId
+                ));
+
+            // Force refresh from DB to ensure we have the latest status
+            // (though findById usually returns the current state in transaction)
+            log.info("Validating item '{}' (ID: {}). Active status in DB: {}", 
+                     item.getName(), itemId, item.getActive());
+
+            if (!Boolean.TRUE.equals(item.getActive())) {
+                log.warn("Blocking order due to inactive item: {}", item.getName());
+                throw new IllegalStateException(
+                    "El item '" + item.getName() + "' está desactivado y no puede ser incluido en el pedido."
+                );
+            }
         }
     }
 

@@ -52,9 +52,14 @@ public class PaymentController {
     public String showPaymentForm(
             @PathVariable Long orderId,
             Model model,
-            RedirectAttributes redirectAttributes) {
+            RedirectAttributes redirectAttributes,
+            Authentication authentication) {
         
         log.debug("Displaying payment form for order ID: {}", orderId);
+        
+        // Check if user is a waiter
+        boolean isWaiter = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_WAITER"));
 
         return orderService.findByIdWithDetails(orderId)
                 .map(order -> {
@@ -73,12 +78,19 @@ public class PaymentController {
                     List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
                         .filter(Map.Entry::getValue)
                         .map(Map.Entry::getKey)
+                        .filter(method -> {
+                            // Filter specifically for waiters - they cannot see CASH or TRANSFER options
+                            if (isWaiter) {
+                                return method != PaymentMethodType.CASH && method != PaymentMethodType.TRANSFER;
+                            }
+                            return true;
+                        })
                         .collect(Collectors.toList());
 
-                    // Check if there are enabled payment methods
+                    // Check if there are enabled payment methods available for this user
                     if (enabledPaymentMethods.isEmpty()) {
                         redirectAttributes.addFlashAttribute("errorMessage", 
-                            "No hay métodos de pago habilitados en la configuración del sistema");
+                             isWaiter ? "No tiene permisos para procesar los métodos de pago habilitados." : "No hay métodos de pago habilitados en la configuración del sistema");
                         return "redirect:/admin/orders";
                     }
 
@@ -123,6 +135,14 @@ public class PaymentController {
             SystemConfiguration config = systemConfigurationService.getConfiguration();
             if (!config.isPaymentMethodEnabled(paymentMethod)) {
                 throw new IllegalStateException("El método de pago seleccionado no está habilitado: " + paymentMethod.getDisplayName());
+            }
+
+            // Check restriction for waiters
+            boolean isWaiter = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_WAITER"));
+            
+            if (isWaiter && (paymentMethod == PaymentMethodType.CASH || paymentMethod == PaymentMethodType.TRANSFER)) {
+                throw new IllegalStateException("Los meseros no pueden procesar pagos en " + paymentMethod.getDisplayName());
             }
 
             // Validate tip is not negative

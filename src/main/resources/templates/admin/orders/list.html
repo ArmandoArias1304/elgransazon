@@ -556,9 +556,10 @@
                           <i class="fas fa-edit"></i>
                         </a>
 
-                        <!-- Change Status (not CANCELLED or PAID) -->
+                        <!-- Change Status (restricted to READY for Admin/Manager as per requirements) -->
                         <button
-                          th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID'}"
+                          style="display: none;"
+                          th:style="${order.status.name() == 'READY'} ? '' : 'display: none;'"
                           class="btn-change-status p-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary hover:bg-primary/20 dark:hover:bg-primary/30 transition-all"
                           th:data-order-id="${order.idOrder}"
                           th:data-order-number="${order.orderNumber}"
@@ -1327,6 +1328,25 @@
             updateStatusBadge(statusBadge, newStatus);
             console.log("🔄 Updated order", orderId, "status to", newStatus);
           }
+          
+          // Update actions visibility based on role specific logic (Admin/Manager)
+          // Rules: Change Status button visible ONLY if status is READY
+          const changeStatusBtn = orderRow.querySelector(".btn-change-status");
+          if (changeStatusBtn) {
+            if (newStatus === "READY") {
+              changeStatusBtn.style.display = "";
+              // Update data-order-status attribute so the modal knows the new status
+              changeStatusBtn.setAttribute("data-order-status", newStatus);
+            } else {
+              changeStatusBtn.style.display = "none";
+              changeStatusBtn.setAttribute("data-order-status", newStatus);
+            }
+          }
+          
+          // Pay Button ($): Only visible if DELIVERED
+          // Note: Since 'a' tag (link) might be removed by th:if, we might need to handle it similarly if it wasn't rendered.
+          // However, for Admin, we are fixing the Change Status button specifically as requested.
+          // If Pay button also disappears, we should fix it too. Let's start with Change Status.
 
           // Add subtle flash animation
           orderRow.classList.add("bg-primary/5");

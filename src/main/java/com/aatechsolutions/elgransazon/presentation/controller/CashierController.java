@@ -97,6 +97,10 @@ public class CashierController {
             @RequestParam(required = false) OrderStatus status,
             @RequestParam(required = false) OrderType orderType,
             @RequestParam(required = false) String date,
+            @RequestParam(required = false) Long globalTableId,
+            @RequestParam(required = false) OrderStatus globalStatus,
+            @RequestParam(required = false) OrderType globalOrderType,
+            @RequestParam(required = false) String globalDate,
             Authentication authentication,
             Model model) {
         
@@ -170,6 +174,34 @@ public class CashierController {
             .sorted((o1, o2) -> o2.getCreatedAt().compareTo(o1.getCreatedAt()))
             .collect(Collectors.toList());
 
+        // Apply filters to unpaidOrders (Global filters)
+        if (globalDate != null && !globalDate.isEmpty()) {
+            LocalDateTime startDate = LocalDateTime.parse(globalDate + "T00:00:00");
+            LocalDateTime endDate = LocalDateTime.parse(globalDate + "T23:59:59");
+            unpaidOrders = unpaidOrders.stream()
+                .filter(order -> order.getCreatedAt().isAfter(startDate) && order.getCreatedAt().isBefore(endDate))
+                .collect(Collectors.toList());
+        }
+
+        if (globalTableId != null) {
+            Long finalGlobalTableId = globalTableId;
+            unpaidOrders = unpaidOrders.stream()
+                .filter(order -> order.getTable() != null && order.getTable().getId().equals(finalGlobalTableId))
+                .collect(Collectors.toList());
+        }
+
+        if (globalStatus != null) {
+            unpaidOrders = unpaidOrders.stream()
+                .filter(order -> order.getStatus() == globalStatus)
+                .collect(Collectors.toList());
+        }
+
+        if (globalOrderType != null) {
+            unpaidOrders = unpaidOrders.stream()
+                .filter(order -> order.getOrderType() == globalOrderType)
+                .collect(Collectors.toList());
+        }
+
         // Calculate statistics for current cashier
         long myTodayCount = myOrders.stream()
             .filter(o -> o.getCreatedAt().toLocalDate().equals(java.time.LocalDate.now()))
@@ -239,6 +271,12 @@ public class CashierController {
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedOrderType", orderType);
         model.addAttribute("selectedDate", date);
+        
+        model.addAttribute("selectedGlobalTableId", globalTableId);
+        model.addAttribute("selectedGlobalStatus", globalStatus);
+        model.addAttribute("selectedGlobalOrderType", globalOrderType);
+        model.addAttribute("selectedGlobalDate", globalDate);
+        
         model.addAttribute("currentRole", "cashier");
 
         return "cashier/orders/list";

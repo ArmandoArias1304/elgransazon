@@ -567,9 +567,9 @@
                           <i class="fas fa-exchange-alt"></i>
                         </button>
 
-                        <!-- Pay (only DELIVERED and NON-CASH) -->
+                        <!-- Pay (only DELIVERED and NON-CASH and NON-TRANSFER) -->
                         <a
-                          th:if="${order.status.name() == 'DELIVERED' && order.paymentMethod.name() != 'CASH'}"
+                          th:if="${order.status.name() == 'DELIVERED' && order.paymentMethod.name() != 'CASH' && order.paymentMethod.name() != 'TRANSFER'}"
                           th:href="@{/waiter/payments/form/{id}(id=${order.idOrder})}"
                           class="p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-all"
                           title="Procesar Pago"
@@ -577,12 +577,12 @@
                           <i class="fas fa-dollar-sign"></i>
                         </a>
 
-                        <!-- Cash Payment - Disabled (show message) -->
+                        <!-- Cash/Transfer Payment - Disabled (show message) -->
                         <button
-                          th:if="${order.status.name() == 'DELIVERED' && order.paymentMethod.name() == 'CASH'}"
+                          th:if="${order.status.name() == 'DELIVERED' && (order.paymentMethod.name() == 'CASH' || order.paymentMethod.name() == 'TRANSFER')}"
                           class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
                           disabled
-                          title="Los pagos en efectivo solo pueden ser procesados por el cajero"
+                          title="Los pagos en efectivo y transferencia solo pueden ser procesados por el cajero"
                         >
                           <i class="fas fa-ban"></i>
                         </button>

@@ -1374,17 +1374,9 @@
 
         // Set action based on mode
         if (isAddItemsMode) {
-          // Fallback to sync form for add-items as we didn't add async endpoint for that yet
-          // Or assume normal form submit for add-items if user didn't complain about that specifically
-          // User specifically mentioned "creating two orders", so creating is the priority.
-          // However, to be consistent, we should use form submit for add-items OR implement async there too.
-          // Let's stick to the form creation request for now using the new endpoint.
-
-          // existing logic for add-items (sync)
-          prepareAndSubmitSyncForm();
-          return;
+             url = `/${role}/orders/${existingOrderId}/add-items-async`;
         } else {
-          url = `/${role}/orders/create-async`;
+             url = `/${role}/orders/create-async`;
         }
 
         // Add employee ID (only for new orders)

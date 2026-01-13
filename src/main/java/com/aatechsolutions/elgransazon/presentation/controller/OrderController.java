@@ -641,6 +641,111 @@ public class OrderController {
     }
 
     /**
+     * Add items to an existing order (AJAX version)
+     */
+    @PostMapping(value = "/{orderId}/add-items-async", produces = "application/json")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> addItemsToOrderAsync(
+            @PathVariable String role,
+            @PathVariable Long orderId,
+            @RequestParam(value = "itemIds", required = false) List<Long> itemIds,
+            @RequestParam(value = "quantities", required = false) List<Integer> quantities,
+            @RequestParam(value = "comments", required = false) List<String> comments,
+            @RequestParam(value = "promotionPrices", required = false) List<String> promotionPrices,
+            @RequestParam(value = "promotionIds", required = false) List<String> promotionIds,
+            Authentication authentication) {
+
+        String username = authentication.getName();
+        log.info("Adding items to order {} ASYNC by user: {} (role: {})", orderId, username, role);
+        
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            validateRole(role, authentication);
+            OrderService orderService = getOrderService(role);
+
+            // Get the existing order WITH details
+            Order order = orderService.findByIdWithDetails(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+
+            // Validate order can accept new items
+            if (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.CANCELLED) {
+                throw new IllegalStateException("No se pueden agregar items a un pedido " + order.getStatus().getDisplayName());
+            }
+
+            // Build order details from form data
+            List<OrderDetail> newOrderDetails = buildOrderDetails(itemIds, quantities, comments, promotionPrices, promotionIds);
+
+            if (newOrderDetails.isEmpty()) {
+                throw new IllegalArgumentException("Debe agregar al menos un item al pedido");
+            }
+
+            // Add new items to order
+            LocalDateTime now = LocalDateTime.now();
+            for (OrderDetail detail : newOrderDetails) {
+                detail.setOrder(order);
+                detail.setIsNewItem(true);
+                detail.setAddedAt(now);
+                order.getOrderDetails().add(detail);
+            }
+
+            // Recalculate all amounts
+            order.recalculateAmounts();
+            
+            // Update status
+            order.updateStatusFromItems();
+            
+            // Update audit fields
+            order.setUpdatedBy(username);
+            order.setUpdatedAt(LocalDateTime.now());
+            
+            // Deduct stock for new items
+            for (OrderDetail detail : newOrderDetails) {
+                ItemMenu item = detail.getItemMenu();
+                for (ItemIngredient itemIngredient : item.getIngredients()) {
+                    Ingredient ingredient = itemIngredient.getIngredient();
+                    BigDecimal quantityNeeded = itemIngredient.getQuantity()
+                        .multiply(BigDecimal.valueOf(detail.getQuantity()));
+                    
+                    BigDecimal newStock = ingredient.getCurrentStock().subtract(quantityNeeded);
+                    ingredient.setCurrentStock(newStock);
+                    ingredient.setUpdatedAt(LocalDateTime.now());
+                }
+            }
+            
+            // Save logic
+            Order updated = orderRepository.save(order);
+            
+            // Send WebSocket notification
+            try {
+                wsNotificationService.notifyItemsAdded(updated, newOrderDetails);
+            } catch (Exception e) {
+                 log.error("Failed to send WebSocket notification for items added to order: {}", updated.getOrderNumber(), e);
+            }
+
+            response.put("success", true);
+            response.put("message", "Se agregaron " + newOrderDetails.size() + " items al pedido " + updated.getOrderNumber());
+            response.put("redirectUrl", "/" + role + "/orders/view/" + orderId);
+            
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            log.warn("Validation error adding items to order async: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", e.getMessage());
+             if (e.getMessage() != null && (e.getMessage().contains("Stock insuficiente") || e.getMessage().contains("No tenemos suficiente stock"))) {
+                 response.put("errorType", "STOCK_ERROR");
+            }
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error adding items to order async", e);
+            response.put("success", false);
+            response.put("message", "Error al agregar items al pedido: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
      * Show form to create a new order
      */
     @GetMapping("/new")
@@ -1604,11 +1709,24 @@ public class OrderController {
                 }
                 // Waiter can mark as PAID if status is DELIVERED and payment method is not CASH
                 if (order.getStatus() == OrderStatus.DELIVERED && 
-                    order.getPaymentMethod() != PaymentMethodType.CASH) {
+                    order.getPaymentMethod() != PaymentMethodType.CASH && 
+                    order.getPaymentMethod() != PaymentMethodType.TRANSFER) {
+                    validStatuses.add(OrderStatus.PAID);
+                }
+            } else if ("admin".equalsIgnoreCase(role) || "manager".equalsIgnoreCase(role)) {
+                // Admin/Manager restricted similar to Waiter:
+                // 1. Ready -> Delivered
+                // 2. Delivered -> Paid (All payment methods allowed)
+                
+                if (order.getStatus() == OrderStatus.READY) {
+                    validStatuses.add(OrderStatus.DELIVERED);
+                }
+                
+                if (order.getStatus() == OrderStatus.DELIVERED) {
                     validStatuses.add(OrderStatus.PAID);
                 }
             } else {
-                // Admin has full access - use default behavior
+                // Other roles (e.g. Cashier) - use default behavior
                 OrderStatus[] allValidStatuses = OrderStatus.getValidNextStatuses(
                     order.getStatus(), 
                     order.getOrderType()
@@ -1794,6 +1912,11 @@ public class OrderController {
 
             ItemMenu item = itemMenuService.findById(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("Item no encontrado: " + itemId));
+
+            // Validate item is active
+            if (!Boolean.TRUE.equals(item.getActive())) {
+                throw new IllegalStateException("El item '" + item.getName() + "' está desactivado y no puede ser seleccionado.");
+            }
 
             OrderDetail.OrderDetailBuilder detailBuilder = OrderDetail.builder()
                 .itemMenu(item)

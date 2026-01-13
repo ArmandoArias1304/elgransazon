@@ -3,11 +3,13 @@ package com.aatechsolutions.elgransazon.presentation.controller;
 import com.aatechsolutions.elgransazon.application.service.EmployeeService;
 import com.aatechsolutions.elgransazon.application.service.IngredientCategoryService;
 import com.aatechsolutions.elgransazon.application.service.IngredientService;
+import com.aatechsolutions.elgransazon.application.service.ItemMenuService;
 import com.aatechsolutions.elgransazon.application.service.SupplierService;
 import com.aatechsolutions.elgransazon.domain.entity.Employee;
 import com.aatechsolutions.elgransazon.domain.entity.Ingredient;
 import com.aatechsolutions.elgransazon.domain.entity.IngredientCategory;
 import com.aatechsolutions.elgransazon.domain.entity.IngredientStockHistory;
+import com.aatechsolutions.elgransazon.domain.entity.ItemMenu;
 import com.aatechsolutions.elgransazon.domain.entity.Supplier;
 import com.aatechsolutions.elgransazon.domain.repository.IngredientStockHistoryRepository;
 import jakarta.validation.Valid;
@@ -68,6 +70,7 @@ public class IngredientController {
     private final IngredientCategoryService categoryService;
     private final SupplierService supplierService;
     private final EmployeeService employeeService;
+    private final ItemMenuService itemMenuService;
     private final IngredientStockHistoryRepository stockHistoryRepository;
 
     /**
@@ -85,8 +88,8 @@ public class IngredientController {
         log.info("Listing ingredients with filters - search: {}, categoryId: {}, supplierId: {}, sortBy: {}, active: {}",
                 search, categoryId, supplierId, sortBy, active);
 
-        // Default to showing only active ingredients if no filter is specified
-        Boolean activeFilter = (active != null) ? active : true;
+        // Show all ingredients (active and inactive) if no filter is specified
+        Boolean activeFilter = active;
 
         // Get filtered ingredients
         List<Ingredient> ingredients = ingredientService.searchWithAllFilters(
@@ -249,6 +252,14 @@ public class IngredientController {
             Ingredient ingredient = ingredientService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Ingrediente no encontrado"));
 
+            // Validar que el ingrediente esté activo para poder editarlo
+            if (!ingredient.getActive()) {
+                log.warn("Attempted to edit inactive ingredient with id: {}", id);
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                    "No se puede editar un ingrediente inactivo. Primero debes activarlo.");
+                return "redirect:/admin/ingredients";
+            }
+
             model.addAttribute("ingredient", ingredient);
             model.addAttribute("isEdit", true);
             model.addAttribute("allCategories", categoryService.findAllActive());
@@ -274,6 +285,23 @@ public class IngredientController {
             RedirectAttributes redirectAttributes) {
 
         log.info("Updating ingredient with id: {} and categoryId: {}", id, categoryId);
+
+        // Validar que el ingrediente esté activo antes de actualizarlo
+        try {
+            Ingredient existingIngredient = ingredientService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Ingrediente no encontrado"));
+            
+            if (!existingIngredient.getActive()) {
+                log.warn("Attempted to update inactive ingredient with id: {}", id);
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                    "No se puede editar un ingrediente inactivo. Primero debes activarlo.");
+                return "redirect:/admin/ingredients";
+            }
+        } catch (IllegalArgumentException e) {
+            log.error("Ingredient not found with id: {}", id);
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/admin/ingredients";
+        }
 
         // Set the id from path variable to ensure it's preserved
         ingredient.setIdIngredient(id);
@@ -327,18 +355,87 @@ public class IngredientController {
     }
 
     /**
+     * Get menu items affected by an ingredient (AJAX)
+     * Returns the count and names of menu items that will be deactivated
+     */
+    @GetMapping("/{id}/affected-items")
+    @ResponseBody
+    public Map<String, Object> getAffectedItems(@PathVariable Long id) {
+        log.info("Getting affected items for ingredient ID: {}", id);
+        
+        Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // Get ingredient name
+            Ingredient ingredient = ingredientService.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Ingrediente no encontrado"));
+            
+            // Get menu items that use this ingredient
+            List<ItemMenu> affectedItems = itemMenuService.findByIngredientId(id);
+            
+            // Filter only active items
+            List<ItemMenu> activeAffectedItems = affectedItems.stream()
+                    .filter(ItemMenu::getActive)
+                    .collect(java.util.stream.Collectors.toList());
+            
+            response.put("success", true);
+            response.put("ingredientName", ingredient.getName());
+            response.put("count", activeAffectedItems.size());
+            response.put("items", activeAffectedItems.stream()
+                    .map(ItemMenu::getName)
+                    .collect(java.util.stream.Collectors.toList()));
+            
+            log.info("Found {} active items affected by ingredient: {}", activeAffectedItems.size(), ingredient.getName());
+            
+        } catch (Exception e) {
+            log.error("Error getting affected items: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", e.getMessage());
+        }
+        
+        return response;
+    }
+
+    /**
      * Deactivate an ingredient (soft delete)
+     * Also deactivates all menu items that use this ingredient
      */
     @PostMapping("/{id}/delete")
     public String deleteIngredient(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         log.info("Deactivating ingredient with id: {}", id);
 
         try {
+            // Get affected menu items before deactivating
+            List<ItemMenu> affectedItems = itemMenuService.findByIngredientId(id);
+            List<ItemMenu> activeAffectedItems = affectedItems.stream()
+                    .filter(ItemMenu::getActive)
+                    .collect(java.util.stream.Collectors.toList());
+            
+            // Deactivate the ingredient
             ingredientService.delete(id);
-            redirectAttributes.addFlashAttribute("successMessage", "Ingrediente desactivado exitosamente");
+            
+            // Deactivate all active menu items that use this ingredient
+            if (!activeAffectedItems.isEmpty()) {
+                List<Long> itemIds = activeAffectedItems.stream()
+                        .map(ItemMenu::getIdItemMenu)
+                        .collect(java.util.stream.Collectors.toList());
+                
+                itemMenuService.deactivateMultiple(itemIds);
+                
+                log.info("Deactivated {} menu items in cascade", activeAffectedItems.size());
+                redirectAttributes.addFlashAttribute("successMessage", 
+                    String.format("Ingrediente desactivado exitosamente. Se desactivaron %d items del men\u00fa relacionados.", 
+                    activeAffectedItems.size()));
+            } else {
+                redirectAttributes.addFlashAttribute("successMessage", "Ingrediente desactivado exitosamente");
+            }
+            
         } catch (IllegalArgumentException e) {
             log.error("Error deactivating ingredient: {}", e.getMessage());
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error deactivating ingredient: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al desactivar el ingrediente");
         }
 
         return "redirect:/admin/ingredients";
@@ -381,8 +478,8 @@ public class IngredientController {
                 return "redirect:/admin/ingredients/" + id + "/edit";
             }
 
-            if (costPerUnit.compareTo(BigDecimal.ZERO) <= 0) {
-                redirectAttributes.addFlashAttribute("errorMessage", "El costo por unidad debe ser mayor a 0");
+            if (costPerUnit.compareTo(BigDecimal.ZERO) < 0) {
+                redirectAttributes.addFlashAttribute("errorMessage", "El costo por unidad debe ser mayor o igual a 0");
                 return "redirect:/admin/ingredients/" + id + "/edit";
             }
 
@@ -396,8 +493,10 @@ public class IngredientController {
             // Calculate what the new stock will be
             BigDecimal newStock = ingredient.getCurrentStock().add(quantityToAdd);
             
-            // If new stock exceeds maxStock, update maxStock
-            if (ingredient.getMaxStock() != null && newStock.compareTo(ingredient.getMaxStock()) > 0) {
+            // Update maxStock if it's null, zero, or less than the new stock
+            if (ingredient.getMaxStock() == null || 
+                ingredient.getMaxStock().compareTo(BigDecimal.ZERO) == 0 || 
+                newStock.compareTo(ingredient.getMaxStock()) > 0) {
                 ingredient.setMaxStock(newStock);
                 ingredientService.update(id, ingredient);
                 log.info("Stock máximo actualizado automáticamente a {} para el ingrediente {}", 

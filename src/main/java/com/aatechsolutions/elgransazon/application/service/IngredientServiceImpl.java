@@ -204,20 +204,25 @@ public class IngredientServiceImpl implements IngredientService {
         }
 
         // Apply sorting based on sortBy parameter
+        // ALWAYS sort by active status first (active ingredients first, then inactive)
         if (sortBy != null && !sortBy.isEmpty()) {
             if ("stock-asc".equals(sortBy)) {
-                // Sort by stock ascending (menor a mayor)
-                ingredients.sort(Comparator.comparing(Ingredient::getCurrentStock));
+                // Sort by active status first, then by stock ascending (menor a mayor)
+                ingredients.sort(Comparator.comparing(Ingredient::getActive).reversed()
+                    .thenComparing(Ingredient::getCurrentStock));
             } else if ("stock-desc".equals(sortBy)) {
-                // Sort by stock descending (mayor a menor)
-                ingredients.sort(Comparator.comparing(Ingredient::getCurrentStock).reversed());
+                // Sort by active status first, then by stock descending (mayor a menor)
+                ingredients.sort(Comparator.comparing(Ingredient::getActive).reversed()
+                    .thenComparing(Ingredient::getCurrentStock, Comparator.reverseOrder()));
             } else {
-                // Default: Sort alphabetically by name
-                ingredients.sort(Comparator.comparing(Ingredient::getName, String.CASE_INSENSITIVE_ORDER));
+                // Sort by active status first, then alphabetically by name
+                ingredients.sort(Comparator.comparing(Ingredient::getActive).reversed()
+                    .thenComparing(Ingredient::getName, String.CASE_INSENSITIVE_ORDER));
             }
         } else {
-            // Default: Sort alphabetically by name
-            ingredients.sort(Comparator.comparing(Ingredient::getName, String.CASE_INSENSITIVE_ORDER));
+            // Default: Sort by active status first, then alphabetically by name
+            ingredients.sort(Comparator.comparing(Ingredient::getActive).reversed()
+                .thenComparing(Ingredient::getName, String.CASE_INSENSITIVE_ORDER));
         }
 
         log.info("Found {} ingredients with filters", ingredients.size());

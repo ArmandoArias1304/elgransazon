@@ -36,7 +36,7 @@ public class IngredientStockHistory implements Serializable {
     private BigDecimal quantityAdded; // Cantidad de stock agregado
 
     @NotNull
-    @DecimalMin(value = "0.01")
+    @DecimalMin(value = "0.00", inclusive = true)
     @Digits(integer = 8, fraction = 2)
     @Column(name = "cost_per_unit", precision = 10, scale = 2, nullable = false)
     private BigDecimal costPerUnit; // Precio de compra por unidad

@@ -483,7 +483,7 @@
                       >
                         <!-- AGOTADO Badge (small for table) -->
                         <div
-                          th:if="${!item.available}"
+                          th:if="${item.active && !item.available}"
                           class="absolute top-0 left-0 w-full h-full pointer-events-none z-10 overflow-hidden"
                         >
                           <div
@@ -493,18 +493,31 @@
                             AGOTADO
                           </div>
                         </div>
+
+                        <!-- INACTIVO Badge (small for table) -->
+                        <div
+                          th:if="${!item.active}"
+                          class="absolute top-0 left-0 w-full h-full pointer-events-none z-10 overflow-hidden"
+                        >
+                          <div
+                            class="absolute top-4 -left-4 w-20 bg-gray-600 dark:bg-gray-500 text-white text-center py-0.5 transform rotate-[-45deg] shadow-lg"
+                            style="font-weight: 900; font-size: 0.5rem; letter-spacing: 0.05em;"
+                          >
+                            INACTIVO
+                          </div>
+                        </div>
                         
                         <img
                           th:if="${item.imageUrl}"
                           th:src="${item.imageUrl}"
                           th:alt="${item.name}"
                           class="w-full h-full object-cover"
-                          th:classappend="${!item.available} ? 'grayscale opacity-60' : ''"
+                          th:classappend="${!item.available || !item.active} ? 'grayscale opacity-60' : ''"
                         />
                         <span
                           th:unless="${item.imageUrl}"
                           class="material-symbols-outlined text-gray-400 text-3xl"
-                          th:classappend="${!item.available} ? 'opacity-50' : ''"
+                          th:classappend="${!item.available || !item.active} ? 'opacity-50' : ''"
                           >restaurant</span
                         >
                       </div>

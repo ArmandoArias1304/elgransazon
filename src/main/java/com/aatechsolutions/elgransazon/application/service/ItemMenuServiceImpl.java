@@ -100,6 +100,16 @@ public class ItemMenuServiceImpl implements ItemMenuService {
     }
 
     @Override
+    public List<ItemMenu> findByIngredientId(Long ingredientId) {
+        log.debug("Finding menu items that use ingredient ID: {}", ingredientId);
+        List<ItemIngredient> itemIngredients = itemIngredientRepository.findByIngredientId(ingredientId);
+        return itemIngredients.stream()
+                .map(ItemIngredient::getItemMenu)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
     public List<ItemMenu> searchByName(String searchTerm) {
         log.debug("Searching menu items by name: {}", searchTerm);
         return itemMenuRepository.searchByName(searchTerm);
@@ -249,6 +259,22 @@ public class ItemMenuServiceImpl implements ItemMenuService {
         ItemMenu updated = itemMenuRepository.save(item);
         log.info("Menu item deactivated successfully: {}", id);
         return updated;
+    }
+
+    @Override
+    @Transactional
+    public void deactivateMultiple(List<Long> ids) {
+        log.info("Deactivating {} menu items", ids.size());
+        
+        for (Long id : ids) {
+            try {
+                deactivate(id);
+            } catch (Exception e) {
+                log.error("Error deactivating menu item with ID: {}", id, e);
+            }
+        }
+        
+        log.info("Finished deactivating menu items");
     }
 
     @Override

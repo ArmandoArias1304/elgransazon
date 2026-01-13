@@ -15,6 +15,9 @@
       rel="stylesheet"
     />
     
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <!-- Sistema de Temas (Modo Claro/Oscuro) -->
     <div th:replace="~{fragments/theme :: themeResources}"></div>
     <script>
@@ -296,23 +299,31 @@
           
           <!-- ACCIONES -->
           <td class="px-6 py-4 text-center space-x-1">
-            <a th:href="@{/admin/ingredients/{id}/edit(id=${ingredient.idIngredient})}"
+            <!-- Bot\u00f3n editar solo si est\u00e1 activo -->
+            <a th:if="${ingredient.active}"
+               th:href="@{/admin/ingredients/{id}/edit(id=${ingredient.idIngredient})}"
                class="inline-block p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                title="Editar">
               <span class="material-symbols-outlined text-gray-600 dark:text-gray-400">edit</span>
             </a>
+            <!-- Bot\u00f3n deshabilitado si est\u00e1 inactivo -->
+            <button th:if="${!ingredient.active}"
+                    type="button"
+                    class="inline-block p-2 rounded-full cursor-not-allowed opacity-50"
+                    title="Debe activar el ingrediente para editarlo"
+                    disabled>
+              <span class="material-symbols-outlined text-gray-400 dark:text-gray-600">edit_off</span>
+            </button>
             
-            <form th:if="${ingredient.active}" 
-                  th:action="@{/admin/ingredients/{id}/delete(id=${ingredient.idIngredient})}" 
-                  method="post" 
-                  style="display: inline;"
-                  onsubmit="return confirm('¿Estás seguro de desactivar este ingrediente?');">
-              <button type="submit" 
-                      class="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
-                      title="Desactivar">
-                <span class="material-symbols-outlined text-red-600 dark:text-red-400">delete</span>
-              </button>
-            </form>
+            <!-- Botón de desactivar con SweetAlert -->
+            <button th:if="${ingredient.active}" 
+                    type="button"
+                    class="btn-deactivate-ingredient p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
+                    th:data-ingredient-id="${ingredient.idIngredient}"
+                    th:data-ingredient-name="${ingredient.name}"
+                    title="Desactivar">
+              <span class="material-symbols-outlined text-red-600 dark:text-red-400">delete</span>
+            </button>
             
             <form th:if="${!ingredient.active}" 
                   th:action="@{/admin/ingredients/{id}/activate(id=${ingredient.idIngredient})}" 
@@ -488,6 +499,91 @@
 
     <!-- JAVASCRIPT -->
     <script>
+      // ============================================
+      // INGREDIENT DEACTIVATION WITH SWEETALERT
+      // ============================================
+      async function confirmDeactivateIngredient(ingredientId, ingredientName) {
+        try {
+          // Hacer llamada AJAX para obtener items afectados
+          const response = await fetch(`/admin/ingredients/${ingredientId}/affected-items`);
+          const data = await response.json();
+          
+          if (!data.success) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: data.message || 'No se pudo obtener información del ingrediente',
+              confirmButtonColor: '#38e07b'
+            });
+            return;
+          }
+          
+          // Construir mensaje basado en la cantidad de items afectados
+          let htmlMessage = `<p class="text-lg mb-4">¿Estás seguro de que deseas desactivar el ingrediente <strong>"${ingredientName}"</strong>?</p>`;
+          
+          if (data.count > 0) {
+            htmlMessage += `<div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-4 text-left">
+              <p class="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                ⚠️ Se desactivarán ${data.count} item(s) del menú que usan este ingrediente:
+              </p>
+              <ul class="list-disc list-inside text-sm text-yellow-700 dark:text-yellow-300 max-h-40 overflow-y-auto">
+                ${data.items.map(item => `<li>${item}</li>`).join('')}
+              </ul>
+            </div>`;
+          } else {
+            htmlMessage += `<p class="text-sm text-gray-600 dark:text-gray-400">Este ingrediente no está siendo usado en ningún item del menú.</p>`;
+          }
+          
+          // Mostrar SweetAlert con confirmación
+          const result = await Swal.fire({
+            title: 'Confirmar Desactivación',
+            html: htmlMessage,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, desactivar',
+            cancelButtonText: 'Cancelar',
+            customClass: {
+              popup: 'dark:bg-gray-800',
+              title: 'dark:text-white',
+              htmlContainer: 'dark:text-gray-200'
+            }
+          });
+          
+          if (result.isConfirmed) {
+            // Crear y enviar formulario
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/ingredients/${ingredientId}/delete`;
+            document.body.appendChild(form);
+            form.submit();
+          }
+          
+        } catch (error) {
+          console.error('Error:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Ocurrió un error al procesar la solicitud',
+            confirmButtonColor: '#38e07b'
+          });
+        }
+      }
+
+      // Agregar event listeners a los botones de desactivar
+      document.addEventListener('DOMContentLoaded', function() {
+        const deactivateButtons = document.querySelectorAll('.btn-deactivate-ingredient');
+        
+        deactivateButtons.forEach(button => {
+          button.addEventListener('click', function() {
+            const ingredientId = this.getAttribute('data-ingredient-id');
+            const ingredientName = this.getAttribute('data-ingredient-name');
+            confirmDeactivateIngredient(ingredientId, ingredientName);
+          });
+        });
+      });
+
       // ============================================
       // STOCK PDF DOWNLOAD FUNCTIONALITY
       // ============================================

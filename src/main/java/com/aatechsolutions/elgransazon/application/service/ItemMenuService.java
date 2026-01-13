@@ -92,9 +92,19 @@ public interface ItemMenuService {
     ItemMenu deactivate(Long id);
 
     /**
+     * Deactivate multiple menu items by their IDs
+     */
+    void deactivateMultiple(List<Long> ids);
+
+    /**
      * Delete a menu item (and its recipe)
      */
     void delete(Long id);
+
+    /**
+     * Find all menu items that use a specific ingredient
+     */
+    List<ItemMenu> findByIngredientId(Long ingredientId);
 
     // ========== Recipe Management ==========
 

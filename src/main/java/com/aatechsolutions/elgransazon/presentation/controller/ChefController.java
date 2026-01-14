@@ -215,6 +215,12 @@ public class ChefController {
                     return false;
                 }
 
+                // BUG FIX: Si la orden está CANCELADA, mostrarla siempre en el historial
+                // Esto permite ver órdenes que el chef/barista comenzó a preparar pero luego fueron canceladas
+                if (order.getStatus() == OrderStatus.CANCELLED) {
+                    return true;
+                }
+
                 // 2. Verificar si el usuario ya terminó su parte
                 // (No debe tener items relevantes en estado PENDING o IN_PREPARATION)
                 boolean hasPendingWork = order.getOrderDetails().stream().anyMatch(detail -> {

@@ -477,9 +477,11 @@
                       Agregar Items
                     </a>
 
-                    <!-- Cancelar Pedido (only PENDING status) -->
+                    <!-- Cancelar Pedido -->
+                    <!-- Rule: PENDING OR (READY AND NO items require prep) -->
                     <button
-                      th:if="${order.status.name() == 'PENDING'}"
+                      th:with="prepItems=${order.orderDetails?.?[itemMenu.requiresPreparation == true or itemMenu.requiresBaristaPreparation == true]}"
+                      th:if="${order.status.name() == 'PENDING' || (order.status.name() == 'READY' && (prepItems == null || #lists.isEmpty(prepItems)))}"
                       onclick="cancelOrder(this)"
                       th:data-order-id="${order.idOrder}"
                       th:data-order-number="${order.orderNumber}"

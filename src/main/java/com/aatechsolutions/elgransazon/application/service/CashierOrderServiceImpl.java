@@ -83,15 +83,18 @@ public class CashierOrderServiceImpl implements OrderService {
     public Order cancel(Long id, String username) {
         Order order = findByIdOrThrow(id);
         
-        // Cashier can ONLY cancel orders in PENDING status
-        if (order.getStatus() != OrderStatus.PENDING) {
+        // Cashier can cancel orders in PENDING, IN_PREPARATION or READY status
+        if (order.getStatus() != OrderStatus.PENDING && 
+            order.getStatus() != OrderStatus.IN_PREPARATION && 
+            order.getStatus() != OrderStatus.READY) {
             throw new IllegalStateException(
-                "Los cajeros solo pueden cancelar pedidos en estado PENDIENTE. " +
+                "Los cajeros solo pueden cancelar pedidos en estado PENDIENTE, EN PREPARACIÓN o LISTO. " +
                 "Este pedido está en estado: " + order.getStatus().getDisplayName()
             );
         }
         
-        log.info("Cashier {} cancelling order {} (status: PENDING)", getCurrentUsername(), id);
+        log.info("Cashier {} cancelling order {} (status: {})", 
+                getCurrentUsername(), id, order.getStatus());
         return adminOrderService.cancel(id, username);
     }
 

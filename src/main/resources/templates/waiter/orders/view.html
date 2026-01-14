@@ -439,6 +439,7 @@
                         th:data-item-name="${detail.itemMenu.name}"
                         th:data-item-status="${detail.itemStatus.name()}"
                         th:data-requires-preparation="${detail.itemMenu.requiresPreparation}"
+                        th:data-requires-barista-preparation="${detail.itemMenu.requiresBaristaPreparation}"
                         title="Eliminar item"
                       >
                         <i class="fas fa-trash"></i>
@@ -681,7 +682,8 @@
         itemId,
         itemName,
         itemStatus,
-        requiresPrep
+        requiresPrep,
+        requiresBaristaPrep
       ) {
         // Build warning message based on item status
         let stockWarning = "";
@@ -689,12 +691,12 @@
         if (itemStatus === "PENDING") {
           stockWarning =
             '<p class="text-sm text-green-600 dark:text-green-400 mt-3">✅ El stock será devuelto automáticamente (item nunca fue preparado)</p>';
-        } else if (itemStatus === "READY" && requiresPrep === "false") {
+        } else if (itemStatus === "READY" && requiresPrep === "false" && requiresBaristaPrep === "false") {
           stockWarning =
             '<p class="text-sm text-green-600 dark:text-green-400 mt-3">✅ El stock será devuelto automáticamente (item no requiere preparación)</p>';
-        } else if (itemStatus === "READY" && requiresPrep === "true") {
+        } else if (itemStatus === "READY" && (requiresPrep === "true" || requiresBaristaPrep === "true")) {
           stockWarning =
-            '<p class="text-sm text-orange-600 dark:text-orange-400 mt-3">⚠️ El stock debe ser devuelto manualmente (chef ya preparó el item)</p>';
+            '<p class="text-sm text-orange-600 dark:text-orange-400 mt-3">⚠️ El stock debe ser devuelto manualmente (item ya fue preparado)</p>';
         } else if (itemStatus === "IN_PREPARATION") {
           stockWarning =
             '<p class="text-sm text-orange-600 dark:text-orange-400 mt-3">⚠️ El stock debe ser devuelto manualmente (item estaba en preparación)</p>';
@@ -867,12 +869,14 @@
             const itemName = this.getAttribute("data-item-name");
             const itemStatus = this.getAttribute("data-item-status");
             const requiresPrep = this.getAttribute("data-requires-preparation");
+            const requiresBaristaPrep = this.getAttribute("data-requires-barista-preparation");
             deleteOrderItem(
               orderId,
               itemId,
               itemName,
               itemStatus,
-              requiresPrep
+              requiresPrep,
+              requiresBaristaPrep
             );
           });
         });

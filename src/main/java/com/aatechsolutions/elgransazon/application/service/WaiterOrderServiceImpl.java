@@ -71,15 +71,18 @@ public class WaiterOrderServiceImpl implements OrderService {
         Order order = findByIdOrThrow(id);
         validateOrderOwnership(order);
         
-        // Waiter can ONLY cancel orders in PENDING status
-        if (order.getStatus() != OrderStatus.PENDING) {
+        // Waiter can cancel orders in PENDING, IN_PREPARATION or READY status
+        if (order.getStatus() != OrderStatus.PENDING && 
+            order.getStatus() != OrderStatus.IN_PREPARATION && 
+            order.getStatus() != OrderStatus.READY) {
             throw new IllegalStateException(
-                "Los meseros solo pueden cancelar pedidos en estado PENDIENTE. " +
+                "Los meseros solo pueden cancelar pedidos en estado PENDIENTE, EN PREPARACIÓN o LISTO. " +
                 "Este pedido está en estado: " + order.getStatus().getDisplayName()
             );
         }
         
-        log.info("Waiter {} cancelling order {} (status: PENDING)", getCurrentUsername(), id);
+        log.info("Waiter {} cancelling order {} (status: {})", 
+                getCurrentUsername(), id, order.getStatus());
         return adminOrderService.cancel(id, username);
     }
 

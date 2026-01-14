@@ -102,6 +102,12 @@ public class ChefOrderServiceImpl implements OrderService {
     @Override
     public Order changeItemsStatus(Long orderId, List<Long> itemDetailIds, OrderStatus newStatus, String username) {
         Order order = findByIdOrThrow(orderId);
+        
+        // BUG FIX: Prevent modification if order is already cancelled
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("No se puede cambiar el estado de items en una orden CANCELADA.");
+        }
+        
         String currentUsername = getCurrentUsername();
         
         // Validate that chef can change these items
@@ -195,6 +201,12 @@ public class ChefOrderServiceImpl implements OrderService {
      */
     public Order changeAllChefItemsToNextStatus(Long orderId, String username) {
         Order order = findByIdOrThrow(orderId);
+        
+        // BUG FIX: Prevent modification if order is already cancelled
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("No se puede cambiar el estado de items en una orden CANCELADA.");
+        }
+        
         String currentUsername = getCurrentUsername();
         
         // Get all items requiring chef preparation

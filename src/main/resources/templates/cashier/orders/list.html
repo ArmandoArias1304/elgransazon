@@ -566,9 +566,9 @@
                           <i class="fas fa-hand-holding-usd"></i>
                         </a>
 
-                        <!-- Cancel (only PENDING status) -->
+                        <!-- Cancel (PENDING, IN_PREPARATION, READY) -->
                         <button
-                          th:if="${order.status == T(com.aatechsolutions.elgransazon.domain.entity.OrderStatus).PENDING}"
+                          th:if="${order.status == T(com.aatechsolutions.elgransazon.domain.entity.OrderStatus).PENDING || order.status.name() == 'IN_PREPARATION' || order.status.name() == 'READY'}"
                           class="btn-cancel-order p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all"
                           th:data-order-id="${order.idOrder}"
                           th:data-order-number="${order.orderNumber}"
@@ -895,15 +895,16 @@
                           <i class="fas fa-check-circle"></i>
                         </button>
 
-                        <!-- PAID indicator (read-only for history) -->
-                        <span
-                          th:if="${order.status.name() == 'PAID'}"
-                          class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400 rounded-full"
-                          title="Pedido cobrado"
+                        <!-- Cancel (PENDING, IN_PREPARATION, READY) -->
+                        <button
+                          th:if="${order.status.name() == 'PENDING' || order.status.name() == 'IN_PREPARATION' || order.status.name() == 'READY'}"
+                          class="btn-cancel-order p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all"
+                          th:data-order-id="${order.idOrder}"
+                          th:data-order-number="${order.orderNumber}"
+                          title="Cancelar pedido"
                         >
-                          <i class="fas fa-check-double"></i>
-                          <span>Cobrado</span>
-                        </span>
+                          <i class="fas fa-times-circle"></i>
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -158,7 +158,16 @@ public class BaristaOrderServiceImpl implements OrderService {
 
     @Override
     public Order changeItemsStatus(Long orderId, List<Long> itemDetailIds, OrderStatus newStatus, String username) {
-        Order order = findByIdOrThrow(orderId);
+        // Use repository directly to bypass findByIdOrThrow filter
+        // This allows us to handle cancelled items specifically instead of getting "Order not found" error
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada con ID: " + orderId));
+        
+        // BUG FIX: Prevent modification if order is already cancelled
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("No se puede cambiar el estado de items en una orden CANCELADA.");
+        }
+
         String currentUsername = getCurrentUsername();
         
         log.info("Barista {} changing status of {} items in order {}", 
@@ -183,6 +192,23 @@ public class BaristaOrderServiceImpl implements OrderService {
             
             // Validate status change for this item
             OrderStatus itemStatus = detail.getItemStatus();
+            
+            // Checks for items that are already cancelled (deleted)
+            if (itemStatus == OrderStatus.CANCELLED) {
+                 // Check if ALL items of current barista are cancelled
+                 long activeItems = order.getOrderDetails().stream()
+                    .filter(d -> Boolean.TRUE.equals(d.getItemMenu().getRequiresBaristaPreparation()))
+                    .filter(d -> d.getItemStatus() != OrderStatus.CANCELLED)
+                    .count();
+
+                if (activeItems == 0) {
+                     // Same message as Chef when all items are done/invalid
+                     throw new IllegalStateException("Todos los items del barista ya están listos o cancelados");
+                } else {
+                     throw new IllegalStateException("Este item ha sido cancelado y ya no se puede modificar");
+                }
+            }
+
             if (!(itemStatus == OrderStatus.PENDING && newStatus == OrderStatus.IN_PREPARATION) &&
                 !(itemStatus == OrderStatus.IN_PREPARATION && newStatus == OrderStatus.READY)) {
                 throw new IllegalStateException(

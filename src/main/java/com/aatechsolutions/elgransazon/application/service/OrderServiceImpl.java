@@ -1346,9 +1346,9 @@ public class OrderServiceImpl implements OrderService {
     /**
      * Determine if stock should be returned automatically for an item
      * PENDING -> automatic return (never touched)
-     * READY + NO requires preparation -> automatic return (auto-advanced, never touched)
-     * READY + requires preparation -> manual return (chef prepared it, used ingredients)
-     * IN_PREPARATION -> manual return (chef is working on it, may have used ingredients)
+     * READY + NO requires preparation (Chef or Barista) -> automatic return (auto-advanced, never touched)
+     * READY + requires preparation -> manual return (chef/barista prepared it, used ingredients)
+     * IN_PREPARATION -> manual return (working on it, may have used ingredients)
      */
     private boolean shouldReturnStockAutomatically(OrderDetail detail) {
         OrderStatus itemStatus = detail.getItemStatus();
@@ -1358,20 +1358,21 @@ public class OrderServiceImpl implements OrderService {
             return true;
         }
         
-        // READY -> depends if chef prepared it or not
+        // READY -> depends if someone prepared it or not
         if (itemStatus == OrderStatus.READY) {
-            // If item does NOT require preparation -> it was marked READY automatically
+            // If item does NOT require preparation (neither Chef nor Barista) -> it was marked READY automatically
             // No ingredients were used, can return automatically
-            if (detail.getItemMenu() != null && 
-                !Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation())) {
-                return true;
+            if (detail.getItemMenu() != null) {
+                boolean requiresChef = Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation());
+                boolean requiresBarista = Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation());
+                
+                // Only return automatically if NO ONE needs to prepare it
+                return !requiresChef && !requiresBarista;
             }
-            // If item DOES require preparation -> chef prepared it and used ingredients
-            // Must be returned MANUALLY
             return false;
         }
         
-        // IN_PREPARATION -> requires manual return (chef is working on it)
+        // IN_PREPARATION -> requires manual return (working on it)
         return false;
     }
 

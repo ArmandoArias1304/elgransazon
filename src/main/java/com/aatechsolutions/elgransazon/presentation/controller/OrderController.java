@@ -1530,7 +1530,15 @@ public class OrderController {
         Map<String, Object> response = new HashMap<>();
         
         try {
-            OrderStatus status = OrderStatus.valueOf(newStatus);
+            OrderStatus status;
+            try {
+                status = OrderStatus.valueOf(newStatus);
+            } catch (IllegalArgumentException ex) {
+                log.error("Invalid status enum: {}", newStatus);
+                response.put("success", false);
+                response.put("message", "Estado inválido: " + newStatus);
+                return response;
+            }
             
             Order updated = orderService.changeItemsStatus(id, itemDetailIds, status, username);
 
@@ -1540,9 +1548,9 @@ public class OrderController {
             response.put("order", buildOrderDTO(updated));
             response.put("orderStatus", updated.getStatus().name());
         } catch (IllegalArgumentException e) {
-            log.error("Invalid status: {}", newStatus);
+            log.error("Error changing items status (IllegalArgument): {}", e.getMessage());
             response.put("success", false);
-            response.put("message", "Estado inválido: " + newStatus);
+            response.put("message", e.getMessage());
         } catch (IllegalStateException e) {
             log.error("Error changing items status: {}", e.getMessage());
             response.put("success", false);

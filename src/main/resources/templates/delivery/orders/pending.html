@@ -536,7 +536,8 @@
                   // Show the error message from the server
                   Swal.fire({
                     title: "Error",
-                    text: data.message || "No se pudo cambiar el estado del pedido",
+                    text:
+                      data.message || "No se pudo cambiar el estado del pedido",
                     icon: "error",
                     confirmButtonColor: "#38e07b",
                   }).then(() => {
@@ -603,6 +604,38 @@
     <script>
       let stompClient = null;
 
+      function playNotificationSound() {
+        try {
+          const audio = new Audio("/sounds/notification.mp3");
+          audio.volume = 0.5;
+
+          // Log attempt
+          console.log("🔊 Attempting to play notification sound...");
+
+          audio
+            .play()
+            .then(() => {
+              console.log("✅ Sound played successfully");
+            })
+            .catch((error) => {
+              console.warn("⚠️ Sound playback prevented:", error.message);
+              console.log(
+                "💡 User interaction may be required to enable sound"
+              );
+            });
+
+          // Handle audio errors
+          audio.onerror = function (e) {
+            console.error("❌ Audio file not found or failed to load:", e);
+            console.log(
+              "📁 Make sure notification.mp3 exists in /static/sounds/"
+            );
+          };
+        } catch (e) {
+          console.error("❌ Error creating audio:", e);
+        }
+      }
+
       function connectDeliveryOrdersWebSocket() {
         const socket = new SockJS("/ws");
         stompClient = Stomp.over(socket);
@@ -613,19 +646,22 @@
           function (frame) {
             console.log("✅ Delivery Orders WebSocket Connected");
 
+            // Subscribe to delivery topic
             stompClient.subscribe(
-              "/topic/admin/kitchen",
+              "/topic/delivery/orders",
               function (notification) {
                 const message = JSON.parse(notification.body);
                 console.log(
-                  "📦 Notification:",
-                  message.type,
-                  "Order ID:",
-                  message.orderId
+                  "🚚 Delivery Notification:",
+                  message.notificationType,
+                  "Order:",
+                  message.orderNumber
                 );
                 handleOrderUpdate(message);
               }
             );
+
+            console.log("🚚 Subscribed to /topic/delivery/orders");
           },
           function (error) {
             console.error("❌ WebSocket Error:", error);
@@ -635,9 +671,93 @@
       }
 
       function handleOrderUpdate(notification) {
+        const notificationType = notification.notificationType;
         const orderId = notification.orderId;
-        const newStatus = notification.newStatus;
+        const orderNumber = notification.orderNumber;
+        const status = notification.status;
 
+        console.log(
+          `📬 Type: ${notificationType}, Order: ${orderNumber}, Status: ${status}`
+        );
+
+        if (notificationType === "ORDER_CANCELLED") {
+          // Order cancelled - remove from view
+          handleOrderCancelled(orderId, orderNumber);
+        } else if (notificationType === "STATUS_CHANGE") {
+          // Order status changed
+          if (status === "READY") {
+            // New order available for pickup
+            handleNewReadyOrder(notification);
+          } else {
+            // Update existing order status
+            updateOrderCard(orderId, status);
+          }
+        }
+      }
+
+      function handleOrderCancelled(orderId, orderNumber) {
+        const card = document.querySelector(`[data-order-id="${orderId}"]`);
+
+        if (card) {
+          // Show notification
+          Swal.fire({
+            title: "Pedido Cancelado",
+            text: `El pedido #${orderNumber} ha sido cancelado`,
+            icon: "warning",
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 4000,
+            timerProgressBar: true,
+          });
+
+          // Play sound
+          playNotificationSound();
+
+          // Remove card with animation
+          card.style.transition = "all 0.5s ease-out";
+          card.style.opacity = "0";
+          card.style.transform = "scale(0.9)";
+
+          setTimeout(() => {
+            card.remove();
+
+            // Check if no orders left
+            const ordersGrid = document.querySelector(".grid");
+            const remainingCards =
+              ordersGrid?.querySelectorAll("[data-order-id]").length || 0;
+
+            if (remainingCards === 0) {
+              // Reload to show empty state
+              location.reload();
+            }
+          }, 500);
+        }
+      }
+
+      function handleNewReadyOrder(notification) {
+        // New READY order available - reload to show it
+        Swal.fire({
+          title: "¡Nuevo Pedido Disponible!",
+          text: `Pedido #${notification.orderNumber} listo para entregar`,
+          icon: "success",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+        });
+
+        // Play sound
+        playNotificationSound();
+
+        // Reload after 1.5 seconds to show new order
+        setTimeout(() => {
+          location.reload();
+        }, 1500);
+      }
+
+      function updateOrderCard(orderId, newStatus) {
         // Update specific order card badge
         const orderCard = document.querySelector(
           `[data-order-id="${orderId}"]`

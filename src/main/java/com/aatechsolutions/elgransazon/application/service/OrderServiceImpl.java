@@ -1113,13 +1113,23 @@ public class OrderServiceImpl implements OrderService {
             }
             
             // Save changes
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
             
             log.info("Order {} auto-advanced to READY (items: {})", 
                      order.getOrderNumber(),
                      order.getOrderDetails().stream()
                          .map(d -> d.getItemMenu().getName())
                          .collect(java.util.stream.Collectors.joining(", ")));
+            
+            // Send WebSocket notification for status change
+            try {
+                String message = "Pedido #" + savedOrder.getOrderNumber() + " está listo (sin preparación requerida)";
+                wsNotificationService.notifyOrderStatusChange(savedOrder, message);
+                log.info("WebSocket notification sent for auto-advanced order: {}", savedOrder.getOrderNumber());
+            } catch (Exception e) {
+                log.error("Failed to send WebSocket notification for auto-advanced order: {}", 
+                         savedOrder.getOrderNumber(), e);
+            }
         }
     }
 

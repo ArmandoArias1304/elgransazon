@@ -65,6 +65,7 @@ public class WebSocketNotificationService {
     /**
      * Notifies about order status change
      * Sends to both chef and barista channels so all roles can update their views
+     * Also notifies DELIVERY when order becomes READY or changes status (ON_THE_WAY, DELIVERED)
      */
     public void notifyOrderStatusChange(Order order, String message) {
         notifyOrderStatusChange(order, message, null);
@@ -162,6 +163,17 @@ public class WebSocketNotificationService {
         
         // Always send to admin kitchen
         messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
+        
+        // Notify DELIVERY role if order type is DELIVERY and status is READY, ON_THE_WAY, or DELIVERED
+        if (order.getOrderType() == com.aatechsolutions.elgransazon.domain.entity.OrderType.DELIVERY) {
+            if (order.getStatus() == com.aatechsolutions.elgransazon.domain.entity.OrderStatus.READY ||
+                order.getStatus() == com.aatechsolutions.elgransazon.domain.entity.OrderStatus.ON_THE_WAY ||
+                order.getStatus() == com.aatechsolutions.elgransazon.domain.entity.OrderStatus.DELIVERED) {
+                messagingTemplate.convertAndSend("/topic/delivery/orders", notification);
+                log.info("🚚 WebSocket: Notifying DELIVERY - Order {} status changed to {}", 
+                    order.getOrderNumber(), order.getStatus());
+            }
+        }
         
         log.debug("WebSocket: Order status change - {} - {}", order.getOrderNumber(), message);
     }
@@ -395,6 +407,7 @@ public class WebSocketNotificationService {
 
     /**
      * Notifies about order cancellation
+     * Sends to chef, barista, and delivery (if applicable)
      */
     public void notifyOrderCancelled(Order order) {
         OrderNotificationDTO notification = buildOrderNotification(order, "ORDER_CANCELLED",
@@ -402,6 +415,15 @@ public class WebSocketNotificationService {
         
         // Send to all chefs to remove from their view
         messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+        
+        // Send to all baristas to remove from their view
+        messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+        
+        // Send to all delivery persons if order type is DELIVERY
+        if (order.getOrderType() == com.aatechsolutions.elgransazon.domain.entity.OrderType.DELIVERY) {
+            messagingTemplate.convertAndSend("/topic/delivery/orders", notification);
+            log.info("🚚 WebSocket: Notifying DELIVERY - Order {} cancelled", order.getOrderNumber());
+        }
         
         // Send to admin kitchen
         messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
@@ -415,7 +437,82 @@ public class WebSocketNotificationService {
             );
         }
         
+        // If barista was assigned, send personal notification
+        if (order.getPreparedByBarista() != null) {
+            messagingTemplate.convertAndSendToUser(
+                order.getPreparedByBarista().getUsername(),
+                "/queue/orders",
+                notification
+            );
+        }
+        
         log.info("WebSocket: Order cancellation notification - {}", order.getOrderNumber());
+    }
+
+    /**
+     * Notifies when an item is deleted from an order
+     * Sends update to chef/barista so they can remove the item from their view
+     * 
+     * @param order The order with the deleted item
+     * @param deletedItem The OrderDetail that was deleted
+     */
+    public void notifyItemDeleted(Order order, com.aatechsolutions.elgransazon.domain.entity.OrderDetail deletedItem) {
+        if (deletedItem == null || deletedItem.getItemMenu() == null) {
+            log.warn("notifyItemDeleted called with null item");
+            return;
+        }
+        
+        String itemName = deletedItem.getItemMenu().getName();
+        String message = String.format("Item '%s' eliminado del pedido %s", itemName, order.getOrderNumber());
+        
+        // Build notification with deleted item info
+        ItemDeletedNotification notification = new ItemDeletedNotification(
+            order.getIdOrder(),
+            order.getOrderNumber(),
+            deletedItem.getIdOrderDetail(),
+            itemName,
+            message
+        );
+        
+        // Determine if item requires chef or barista preparation
+        boolean requiresChef = Boolean.TRUE.equals(deletedItem.getItemMenu().getRequiresPreparation());
+        boolean requiresBarista = Boolean.TRUE.equals(deletedItem.getItemMenu().getRequiresBaristaPreparation());
+        
+        // Send to appropriate role-specific topics
+        if (requiresChef) {
+            messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+            log.info("👨‍🍳 WebSocket: Notifying chefs - Item '{}' deleted from order {}", 
+                itemName, order.getOrderNumber());
+            
+            // If chef was assigned, send personal notification
+            if (order.getPreparedBy() != null) {
+                messagingTemplate.convertAndSendToUser(
+                    order.getPreparedBy().getUsername(),
+                    "/queue/orders",
+                    notification
+                );
+            }
+        }
+        
+        if (requiresBarista) {
+            messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+            log.info("☕ WebSocket: Notifying baristas - Item '{}' deleted from order {}", 
+                itemName, order.getOrderNumber());
+            
+            // If barista was assigned, send personal notification
+            if (order.getPreparedByBarista() != null) {
+                messagingTemplate.convertAndSendToUser(
+                    order.getPreparedByBarista().getUsername(),
+                    "/queue/orders",
+                    notification
+                );
+            }
+        }
+        
+        // Send to admin kitchen
+        messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
+        
+        log.info("WebSocket: Item deletion notification - {} from order {}", itemName, order.getOrderNumber());
     }
 
     // Helper method to build order notification DTO
@@ -460,6 +557,24 @@ public class WebSocketNotificationService {
         public OrderDeletionNotification(Long orderId, String orderNumber) {
             this.orderId = orderId;
             this.orderNumber = orderNumber;
+        }
+    }
+    
+    @lombok.Data
+    private static class ItemDeletedNotification {
+        private Long orderId;
+        private String orderNumber;
+        private Long itemDetailId;
+        private String itemName;
+        private String message;
+        private String notificationType = "ITEM_DELETED";
+        
+        public ItemDeletedNotification(Long orderId, String orderNumber, Long itemDetailId, String itemName, String message) {
+            this.orderId = orderId;
+            this.orderNumber = orderNumber;
+            this.itemDetailId = itemDetailId;
+            this.itemName = itemName;
+            this.message = message;
         }
     }
 }

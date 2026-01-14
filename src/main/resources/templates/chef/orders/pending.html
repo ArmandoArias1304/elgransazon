@@ -1072,6 +1072,23 @@
           // Play sound when items are added to existing order
           console.log("🔊 Chef Pending - Playing sound for items added");
           playNotificationSound();
+        } else if (notification.notificationType === "ITEM_DELETED") {
+          console.log("🗑️ [PENDING] Processing ITEM_DELETED");
+          title = "🗑️ Item Eliminado";
+          message = `Pedido #${notification.orderNumber} - ${notification.message}`;
+          icon = "info";
+
+          // Play sound when item is deleted
+          console.log("🔊 Chef/Barista - Playing sound for item deleted");
+          playNotificationSound();
+
+          // Show notification and reload to update the order view
+          showNotification(title, message, icon);
+          setTimeout(() => {
+            console.log("🔄 [PENDING] Reloading page due to item deletion");
+            window.location.reload();
+          }, 1500);
+          return; // Exit early to prevent duplicate processing
         } else if (notification.notificationType === "STATUS_CHANGE") {
           title =
             "📊 " +

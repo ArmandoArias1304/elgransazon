@@ -2,6 +2,7 @@ package com.aatechsolutions.elgransazon.application.service;
 
 import com.aatechsolutions.elgransazon.domain.entity.*;
 import com.aatechsolutions.elgransazon.domain.repository.EmployeeRepository;
+import com.aatechsolutions.elgransazon.domain.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -9,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,6 +41,7 @@ public class DeliveryOrderServiceImpl implements OrderService {
 
     private final OrderServiceImpl adminOrderService; // Delegate to admin service for actual operations
     private final EmployeeRepository employeeRepository;
+    private final OrderRepository orderRepository;
 
     /**
      * Get current authenticated username
@@ -104,41 +107,61 @@ public class DeliveryOrderServiceImpl implements OrderService {
 
     @Override
     public Order changeStatus(Long id, OrderStatus newStatus, String username) {
-        Order order = findByIdOrThrow(id);
         Employee currentEmployee = getCurrentEmployee();
         
-        // CONCURRENCY CHECK: If accepting an order (READY -> ON_THE_WAY), check it hasn't been taken
+        // CRITICAL: Use pessimistic locking when accepting an order to prevent race conditions
         if (newStatus == OrderStatus.ON_THE_WAY) {
+            // Lock the order row in the database to prevent concurrent access
+            Order order = orderRepository.findByIdWithLock(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+            
+            log.info("🔒 Pessimistic lock acquired for order {} by delivery person {}", 
+                order.getOrderNumber(), currentEmployee.getFullName());
+            
+            // CONCURRENCY CHECK: Verify order is still available
             if (order.getStatus() != OrderStatus.READY) {
                 if (order.getDeliveredBy() != null) {
-                    throw new IllegalStateException("El pedido ya fue aceptado por alguien más (" + order.getDeliveredBy().getFullName() + ")");
+                    log.warn("⚠️ Order {} already taken by {}", 
+                        order.getOrderNumber(), order.getDeliveredBy().getFullName());
+                    throw new IllegalStateException("El pedido ya fue aceptado por " + 
+                        order.getDeliveredBy().getNombre() + " " + order.getDeliveredBy().getApellido());
                 } else {
-                    throw new IllegalStateException("El pedido ya no está disponible (Estado actual: " + order.getStatus().getDisplayName() + ")");
+                    throw new IllegalStateException("El pedido ya no está disponible (Estado actual: " + 
+                        order.getStatus().getDisplayName() + ")");
                 }
             }
             
-            // Double check deliveredBy just in case status was somehow still READY but assigned (state inconsistency)
+            // Double check deliveredBy (should be null if status is READY, but verify anyway)
             if (order.getDeliveredBy() != null) {
-                throw new IllegalStateException("El pedido ya fue aceptado por " + order.getDeliveredBy().getFullName());
+                log.warn("⚠️ Order {} has deliveredBy set despite being READY: {}", 
+                    order.getOrderNumber(), order.getDeliveredBy().getFullName());
+                throw new IllegalStateException("El pedido ya fue aceptado por " + 
+                    order.getDeliveredBy().getNombre() + " " + order.getDeliveredBy().getApellido());
             }
-        }
-        
-        // Validate that delivery person can only change status of orders they accepted
-        // Exception: READY orders can be accepted by any delivery person
-        if (order.getStatus() == OrderStatus.ON_THE_WAY || order.getStatus() == OrderStatus.DELIVERED) {
-            if (order.getDeliveredBy() == null || !order.getDeliveredBy().getIdEmpleado().equals(currentEmployee.getIdEmpleado())) {
-                throw new IllegalStateException("Solo puedes cambiar el estado de pedidos que tú aceptaste");
-            }
-        }
-        
-        validateStatusChange(order, newStatus);
-        
-        // Set deliveredBy when accepting the order (READY -> ON_THE_WAY)
-        if (order.getStatus() == OrderStatus.READY && newStatus == OrderStatus.ON_THE_WAY) {
+            
+            // Assign delivery person IMMEDIATELY before status change
             order.setDeliveredBy(currentEmployee);
-            log.info("Delivery person {} accepted order {}", currentEmployee.getFullName(), order.getOrderNumber());
+            orderRepository.saveAndFlush(order); // Force immediate database update
+            
+            log.info("✅ Delivery person {} successfully accepted order {} (with pessimistic lock)", 
+                currentEmployee.getFullName(), order.getOrderNumber());
+        } else {
+            // For other status changes, use standard validation
+            Order order = findByIdOrThrow(id);
+            
+            // Validate that delivery person can only change status of orders they accepted
+            // Exception: READY orders can be accepted by any delivery person
+            if (order.getStatus() == OrderStatus.ON_THE_WAY || order.getStatus() == OrderStatus.DELIVERED) {
+                if (order.getDeliveredBy() == null || 
+                    !order.getDeliveredBy().getIdEmpleado().equals(currentEmployee.getIdEmpleado())) {
+                    throw new IllegalStateException("Solo puedes cambiar el estado de pedidos que tú aceptaste");
+                }
+            }
+            
+            validateStatusChange(order, newStatus);
         }
         
+        // Delegate to admin service for the actual status change
         return adminOrderService.changeStatus(id, newStatus, username);
     }
 

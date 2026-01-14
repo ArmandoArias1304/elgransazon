@@ -1641,6 +1641,11 @@ public class OrderController {
             // Get updated order
             Order order = orderService.findByIdOrThrow(orderId);
             
+            // Send WebSocket notification so chef/barista can remove the item from their view
+            wsNotificationService.notifyItemDeleted(order, deletedItem);
+            log.info("🔔 WebSocket sent: Item {} deleted from order {} by {} (role: {})", 
+                deletedItem.getItemMenu().getName(), order.getOrderNumber(), username, role);
+            
             // Analyze stock return for this specific item
             String stockInfo = analyzeItemStockReturn(deletedItem);
             

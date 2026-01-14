@@ -107,7 +107,7 @@ public class DeliveryController {
 
     /**
      * Display completed deliveries
-     * Shows PAID orders delivered by the current delivery person
+     * Shows PAID and CANCELLED orders delivered by the current delivery person
      * 
      * @param authentication Spring Security authentication object
      * @param model Spring MVC model
@@ -122,13 +122,25 @@ public class DeliveryController {
                 .orElseThrow(() -> new IllegalStateException("Empleado no encontrado"));
         
         // Get PAID orders delivered by current delivery person
-        List<Order> completedOrders = deliveryOrderService.findByStatus(OrderStatus.PAID).stream()
+        List<Order> paidOrders = deliveryOrderService.findByStatus(OrderStatus.PAID).stream()
                 .filter(order -> order.getDeliveredBy() != null && 
                                 order.getDeliveredBy().getIdEmpleado().equals(currentEmployee.getIdEmpleado()))
-                .sorted((o1, o2) -> o2.getUpdatedAt().compareTo(o1.getUpdatedAt())) // Most recent first
                 .collect(Collectors.toList());
         
-        log.info("Found {} completed deliveries for delivery person {}", completedOrders.size(), username);
+        // Get CANCELLED orders that were assigned to current delivery person
+        List<Order> cancelledOrders = deliveryOrderService.findByStatus(OrderStatus.CANCELLED).stream()
+                .filter(order -> order.getDeliveredBy() != null && 
+                                order.getDeliveredBy().getIdEmpleado().equals(currentEmployee.getIdEmpleado()))
+                .collect(Collectors.toList());
+        
+        // Combine and sort by updated date (most recent first)
+        List<Order> completedOrders = new java.util.ArrayList<>();
+        completedOrders.addAll(paidOrders);
+        completedOrders.addAll(cancelledOrders);
+        completedOrders.sort((o1, o2) -> o2.getUpdatedAt().compareTo(o1.getUpdatedAt()));
+        
+        log.info("Found {} completed deliveries (PAID: {}, CANCELLED: {}) for delivery person {}", 
+            completedOrders.size(), paidOrders.size(), cancelledOrders.size(), username);
         
         model.addAttribute("orders", completedOrders);
         model.addAttribute("currentEmployee", currentEmployee);

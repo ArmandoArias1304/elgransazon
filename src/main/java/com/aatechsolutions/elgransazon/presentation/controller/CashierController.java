@@ -40,6 +40,7 @@ public class CashierController {
     private final com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository;
     private final PromotionService promotionService;
     private final BusinessHoursService businessHoursService;
+    private final WebSocketNotificationService wsNotificationService;
 
     public CashierController(
             @Qualifier("cashierOrderService") CashierOrderServiceImpl cashierOrderService,
@@ -51,7 +52,8 @@ public class CashierController {
             CategoryService categoryService,
             com.aatechsolutions.elgransazon.domain.repository.OrderRepository orderRepository,
             PromotionService promotionService,
-            BusinessHoursService businessHoursService) {
+            BusinessHoursService businessHoursService,
+            WebSocketNotificationService wsNotificationService) {
         this.cashierOrderService = cashierOrderService;
         this.adminOrderService = adminOrderService;
         this.restaurantTableService = restaurantTableService;
@@ -62,6 +64,7 @@ public class CashierController {
         this.orderRepository = orderRepository;
         this.promotionService = promotionService;
         this.businessHoursService = businessHoursService;
+        this.wsNotificationService = wsNotificationService;
     }
 
     /**
@@ -889,6 +892,11 @@ public class CashierController {
             response.put("message", "Pedido " + cancelled.getOrderNumber() + " cancelado exitosamente");
             response.put("order", buildOrderDTO(cancelled));
             
+            // Send WebSocket notification to chef/barista so the order disappears from their dashboard
+            wsNotificationService.notifyOrderCancelled(cancelled);
+            log.info("🔔 WebSocket sent: Order {} cancelled by cashier {}", 
+                cancelled.getOrderNumber(), username);
+            
             // Analyze items to determine stock return information
             String stockInfo = analyzeStockReturn(cancelled);
             if (stockInfo != null && !stockInfo.isEmpty()) {
@@ -927,6 +935,11 @@ public class CashierController {
             
             // Get updated order
             Order order = cashierOrderService.findByIdOrThrow(orderId);
+            
+            // Send WebSocket notification so chef/barista can remove the item from their view
+            wsNotificationService.notifyItemDeleted(order, deletedItem);
+            log.info("🔔 WebSocket sent: Item {} deleted from order {} by cashier {}", 
+                deletedItem.getItemMenu().getName(), order.getOrderNumber(), username);
             
             // Analyze stock return for this specific item
             String stockInfo = analyzeItemStockReturn(deletedItem);

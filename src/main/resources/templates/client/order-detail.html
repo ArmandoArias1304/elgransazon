@@ -575,15 +575,33 @@
                 Agregar Más Items
               </a>
 
-              <!-- Cancel Order Button (only PENDING status) -->
-              <button
-                th:if="${order.status.name() == 'PENDING'}"
-                onclick="cancelOrder()"
-                class="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all shadow-md hover:shadow-lg"
+              <!-- Cancel Order Button 
+                   Rules for customer cancellation:
+                   - Order must not be in final states (CANCELLED, PAID, DELIVERED, ON_THE_WAY)
+                   - All items with preparation (Chef/Barista) must be PENDING
+                   - All items without preparation must be READY
+              -->
+              <th:block
+                th:with="
+                canCancel=${order.status.name() != 'CANCELLED' and 
+                            order.status.name() != 'PAID' and 
+                            order.status.name() != 'DELIVERED' and 
+                            order.status.name() != 'ON_THE_WAY'},
+                allItemsValid=${order.orderDetails.?[
+                  ((itemMenu.requiresPreparation == true or itemMenu.requiresBaristaPreparation == true) and itemStatus.name() != 'PENDING') or
+                  ((itemMenu.requiresPreparation == false and itemMenu.requiresBaristaPreparation == false) and itemStatus.name() != 'READY')
+                ].empty}
+              "
               >
-                <span class="material-symbols-outlined">cancel</span>
-                Cancelar Pedido
-              </button>
+                <button
+                  th:if="${canCancel and allItemsValid}"
+                  onclick="cancelOrder()"
+                  class="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all shadow-md hover:shadow-lg"
+                >
+                  <span class="material-symbols-outlined">cancel</span>
+                  Cancelar Pedido
+                </button>
+              </th:block>
             </div>
           </div>
 
@@ -673,7 +691,10 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- Delete Item Script -->
-    <script>
+    <script th:inline="javascript">
+      const deleteOrderId = /*[[${order.idOrder}]]*/ null;
+      const totalItems = /*[[${order.orderDetails.size()}]]*/ 0;
+
       // Add event listeners to delete buttons
       document.addEventListener("DOMContentLoaded", function () {
         const deleteButtons = document.querySelectorAll(".btn-delete-item");
@@ -687,7 +708,7 @@
             if (!canDelete) {
               await Swal.fire({
                 title: "No se puede eliminar",
-                html: "<p>Este item no puede ser eliminado en su estado actual.</p>",
+                html: "<p>Este item no puede ser eliminado en su estado actual.</p><p class='text-sm text-gray-500 mt-2'>Los items que requieren preparación solo pueden eliminarse si están PENDIENTES. Los items listos para llevar solo pueden eliminarse si están en estado LISTO.</p>",
                 icon: "warning",
                 confirmButtonColor: "#38e07b",
                 confirmButtonText: "Entendido",
@@ -695,22 +716,37 @@
               return;
             }
 
+            // Determine if this is the last item
+            const isLastItem = totalItems === 1;
+
+            let confirmTitle = "¿Eliminar item?";
+            let confirmHtml = `<p>¿Estás seguro de que deseas eliminar <strong>${itemName}</strong> de tu pedido?</p>`;
+
+            if (isLastItem) {
+              confirmTitle = "¿Cancelar pedido?";
+              confirmHtml = `<p>Este es el <strong>último item</strong> del pedido.</p>
+                             <p class="mt-2">Al eliminarlo, <strong>el pedido será cancelado</strong> automáticamente.</p>
+                             <p class="mt-2 text-sm text-gray-500">El stock será devuelto y el pedido quedará con estado Cancelado.</p>`;
+            }
+
             const result = await Swal.fire({
-              title: "¿Eliminar item?",
-              html: `<p>¿Estás seguro de que deseas eliminar <strong>${itemName}</strong> de tu pedido?</p>`,
-              icon: "warning",
+              title: confirmTitle,
+              html: confirmHtml,
+              icon: isLastItem ? "question" : "warning",
               showCancelButton: true,
               confirmButtonColor: "#ef4444",
               cancelButtonColor: "#6b7280",
-              confirmButtonText: "Sí, eliminar",
-              cancelButtonText: "Cancelar",
+              confirmButtonText: isLastItem
+                ? "Sí, cancelar pedido"
+                : "Sí, eliminar",
+              cancelButtonText: isLastItem ? "No, mantener" : "Cancelar",
               reverseButtons: true,
             });
 
             if (result.isConfirmed) {
               try {
                 const response = await fetch(
-                  `/client/orders/[[${order.idOrder}]]/items/${itemId}/delete`,
+                  `/client/orders/${deleteOrderId}/items/${itemId}/delete`,
                   {
                     method: "POST",
                     headers: {
@@ -722,25 +758,36 @@
                 const data = await response.json();
 
                 if (data.success) {
-                  await Swal.fire({
-                    title: "¡Eliminado!",
-                    html: data.message,
-                    icon: "success",
-                    confirmButtonColor: "#38e07b",
-                    timer: 2000,
-                    showConfirmButton: false,
-                  });
-
-                  // Reload page to show updated order
-                  window.location.reload();
+                  // Check if order was cancelled (last item case)
+                  if (data.orderCancelled) {
+                    await Swal.fire({
+                      title: "¡Pedido cancelado!",
+                      html: `<p class="text-lg mb-3">Era el último item del pedido.</p>
+                             <p class="text-base text-gray-600">${data.message}</p>
+                             <p class="text-base text-gray-500 mt-2">Cuando quieras volver, aquí estaremos esperándote. 😊</p>`,
+                      icon: "info",
+                      confirmButtonColor: "#38e07b",
+                      confirmButtonText: "Aceptar",
+                      allowOutsideClick: false,
+                    });
+                    // Redirect to orders list
+                    window.location.href = "/client/orders";
+                  } else {
+                    await Swal.fire({
+                      title: "¡Eliminado!",
+                      html: data.message,
+                      icon: "success",
+                      confirmButtonColor: "#38e07b",
+                      timer: 2000,
+                      showConfirmButton: false,
+                    });
+                    // Reload page to show updated order
+                    window.location.reload();
+                  }
                 } else {
                   let errorTitle = "Error";
                   let errorMessage =
                     data.message || "No se pudo eliminar el item";
-
-                  if (data.isLastItem) {
-                    errorTitle = "Último item del pedido";
-                  }
 
                   await Swal.fire({
                     title: errorTitle,

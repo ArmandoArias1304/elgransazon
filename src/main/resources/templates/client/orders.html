@@ -477,22 +477,38 @@
                       Agregar Items
                     </a>
 
-                    <!-- Cancelar Pedido -->
-                    <!-- Rule: PENDING OR (READY AND NO items require prep) -->
-                    <button
-                      th:with="prepItems=${order.orderDetails?.?[itemMenu.requiresPreparation == true or itemMenu.requiresBaristaPreparation == true]}"
-                      th:if="${order.status.name() == 'PENDING' || (order.status.name() == 'READY' && (prepItems == null || #lists.isEmpty(prepItems)))}"
-                      onclick="cancelOrder(this)"
-                      th:data-order-id="${order.idOrder}"
-                      th:data-order-number="${order.orderNumber}"
-                      class="inline-flex items-center gap-1 px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg font-semibold transition-all text-sm"
-                      title="Cancelar pedido"
+                    <!-- Cancelar Pedido 
+                         Rules for customer cancellation:
+                         - Order must not be in final states (CANCELLED, PAID, DELIVERED, ON_THE_WAY)
+                         - All items with preparation (Chef/Barista) must be PENDING
+                         - All items without preparation must be READY
+                    -->
+                    <th:block
+                      th:with="
+                      canCancel=${order.status.name() != 'CANCELLED' and 
+                                  order.status.name() != 'PAID' and 
+                                  order.status.name() != 'DELIVERED' and 
+                                  order.status.name() != 'ON_THE_WAY'},
+                      allItemsValid=${order.orderDetails.?[
+                        ((itemMenu.requiresPreparation == true or itemMenu.requiresBaristaPreparation == true) and itemStatus.name() != 'PENDING') or
+                        ((itemMenu.requiresPreparation == false and itemMenu.requiresBaristaPreparation == false) and itemStatus.name() != 'READY')
+                      ].empty}
+                    "
                     >
-                      <span class="material-symbols-outlined text-sm">
-                        cancel
-                      </span>
-                      Cancelar
-                    </button>
+                      <button
+                        th:if="${canCancel and allItemsValid}"
+                        onclick="cancelOrder(this)"
+                        th:data-order-id="${order.idOrder}"
+                        th:data-order-number="${order.orderNumber}"
+                        class="inline-flex items-center gap-1 px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg font-semibold transition-all text-sm"
+                        title="Cancelar pedido"
+                      >
+                        <span class="material-symbols-outlined text-sm">
+                          cancel
+                        </span>
+                        Cancelar
+                      </button>
+                    </th:block>
                   </div>
                 </td>
               </tr>

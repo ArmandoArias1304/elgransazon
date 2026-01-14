@@ -648,15 +648,10 @@ public class ClientController {
                 ));
             }
 
-            // Validate order is in PENDING status
-            if (order.getStatus() != OrderStatus.PENDING) {
-                return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Solo se pueden cancelar pedidos en estado PENDIENTE. Estado actual: " + order.getStatus().getDisplayName()
-                ));
-            }
-
-            // Cancel the order
+            // Cancel the order - CustomerOrderServiceImpl.cancel() handles all validation:
+            // - Order not in final states (CANCELLED, PAID, DELIVERED, ON_THE_WAY)
+            // - Items with preparation (Chef/Barista) must be PENDING
+            // - Items without preparation must be READY
             Order cancelledOrder = orderService.cancel(orderId, authentication.getName());
 
             log.info("Order {} cancelled successfully by customer {}", cancelledOrder.getOrderNumber(), authentication.getName());
@@ -671,7 +666,88 @@ public class ClientController {
             log.error("Error cancelling order", e);
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
-                "message", "Error al cancelar el pedido: " + e.getMessage()
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Delete item from order (AJAX endpoint)
+     * POST /client/orders/{orderId}/items/{itemId}/delete
+     */
+    @PostMapping("/orders/{orderId}/items/{itemId}/delete")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> deleteOrderItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            Authentication authentication) {
+        
+        log.info("Customer {} deleting item {} from order {}", authentication.getName(), itemId, orderId);
+
+        try {
+            // Get customer
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+
+            // Get the order to validate ownership
+            Order order = orderService.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+
+            // Validate order belongs to customer
+            if (!order.getCustomer().getIdCustomer().equals(customer.getIdCustomer())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "No tienes permiso para modificar este pedido"
+                ));
+            }
+
+            // Try to delete the item
+            OrderDetail deletedItem = orderService.deleteOrderItem(orderId, itemId, authentication.getName());
+
+            log.info("Item '{}' deleted from order {} by customer {}", 
+                    deletedItem.getItemMenu().getName(), order.getOrderNumber(), authentication.getName());
+
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Item '" + deletedItem.getItemMenu().getName() + "' eliminado exitosamente. El stock ha sido devuelto.",
+                "itemName", deletedItem.getItemMenu().getName()
+            ));
+
+        } catch (IllegalStateException e) {
+            // Check if it's the last item - should cancel order instead
+            if ("LAST_ITEM_CANCEL_ORDER".equals(e.getMessage())) {
+                log.info("Last item deletion requested - cancelling order {} instead", orderId);
+                
+                try {
+                    Order cancelledOrder = orderService.cancel(orderId, authentication.getName());
+                    
+                    return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "isLastItem", true,
+                        "orderCancelled", true,
+                        "message", "Era el último item del pedido. El pedido " + cancelledOrder.getOrderNumber() + " ha sido cancelado y el stock fue devuelto.",
+                        "orderNumber", cancelledOrder.getOrderNumber()
+                    ));
+                } catch (Exception cancelError) {
+                    log.error("Error cancelling order for last item deletion", cancelError);
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "isLastItem", true,
+                        "message", "No se puede eliminar el item ni cancelar el pedido: " + cancelError.getMessage()
+                    ));
+                }
+            }
+            
+            log.error("Cannot delete item from order", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("Error deleting item from order", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "Error al eliminar el item: " + e.getMessage()
             ));
         }
     }

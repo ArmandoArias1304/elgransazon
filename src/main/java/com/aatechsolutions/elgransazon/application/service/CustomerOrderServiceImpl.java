@@ -107,6 +107,55 @@ public class CustomerOrderServiceImpl implements OrderService {
         throw new UnsupportedOperationException("Los clientes no pueden editar pedidos");
     }
 
+    /**
+     * Check if an item can be cancelled/deleted by the customer
+     * Rules:
+     * - Items requiring preparation (Chef or Barista): only cancellable if PENDING
+     * - Items NOT requiring preparation: only cancellable if READY (their auto-assigned state)
+     */
+    private boolean canItemBeCancelledByCustomer(OrderDetail detail) {
+        boolean requiresChef = Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation());
+        boolean requiresBarista = Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation());
+        OrderStatus itemStatus = detail.getItemStatus();
+        
+        if (requiresChef || requiresBarista) {
+            // Items with preparation: only cancellable if PENDING (not yet started)
+            return itemStatus == OrderStatus.PENDING;
+        } else {
+            // Items without preparation: only cancellable if READY (their default state)
+            return itemStatus == OrderStatus.READY;
+        }
+    }
+    
+    /**
+     * Get a descriptive reason why an item cannot be cancelled
+     */
+    private String getItemCancelBlockReason(OrderDetail detail) {
+        boolean requiresChef = Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation());
+        boolean requiresBarista = Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation());
+        OrderStatus itemStatus = detail.getItemStatus();
+        String itemName = detail.getItemMenu().getName();
+        
+        if (requiresChef || requiresBarista) {
+            // Items with preparation
+            if (itemStatus == OrderStatus.IN_PREPARATION) {
+                return String.format("'%s' ya está en preparación", itemName);
+            } else if (itemStatus == OrderStatus.READY) {
+                return String.format("'%s' ya está listo", itemName);
+            } else if (itemStatus == OrderStatus.DELIVERED) {
+                return String.format("'%s' ya fue entregado", itemName);
+            }
+        } else {
+            // Items without preparation
+            if (itemStatus == OrderStatus.DELIVERED) {
+                return String.format("'%s' ya fue entregado", itemName);
+            } else if (itemStatus != OrderStatus.READY) {
+                return String.format("'%s' no está en estado válido para cancelar", itemName);
+            }
+        }
+        return String.format("'%s' no puede ser cancelado (estado: %s)", itemName, itemStatus.getDisplayName());
+    }
+
     @Override
     public Order cancel(Long id, String username) {
         log.info("Customer {} cancelling order {}", getCurrentCustomerEmail(), id);
@@ -115,14 +164,41 @@ public class CustomerOrderServiceImpl implements OrderService {
         Order order = findByIdOrThrow(id);
         validateOrderOwnership(order);
         
-        // Validate order is in PENDING status (customers can only cancel PENDING orders)
-        if (order.getStatus() != OrderStatus.PENDING) {
+        // Validate order is not already in a final state
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("Este pedido ya está cancelado");
+        }
+        if (order.getStatus() == OrderStatus.PAID) {
+            throw new IllegalStateException("No se puede cancelar un pedido que ya fue pagado");
+        }
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            throw new IllegalStateException("No se puede cancelar un pedido que ya fue entregado");
+        }
+        if (order.getStatus() == OrderStatus.ON_THE_WAY) {
+            throw new IllegalStateException("No se puede cancelar un pedido que está en camino");
+        }
+        
+        // NEW VALIDATION: Check ALL items can be cancelled according to customer rules
+        // - Items with preparation (Chef/Barista): must be PENDING
+        // - Items without preparation: must be READY
+        List<String> blockedReasons = new java.util.ArrayList<>();
+        
+        for (OrderDetail detail : order.getOrderDetails()) {
+            if (!canItemBeCancelledByCustomer(detail)) {
+                blockedReasons.add(getItemCancelBlockReason(detail));
+            }
+        }
+        
+        if (!blockedReasons.isEmpty()) {
+            String reasons = String.join("; ", blockedReasons);
             throw new IllegalStateException(
-                "Solo se pueden cancelar pedidos en estado PENDIENTE. Estado actual: " + order.getStatus().getDisplayName()
+                "No se puede cancelar el pedido porque: " + reasons + 
+                ". Solo puede cancelar cuando los items que requieren preparación estén PENDIENTES " +
+                "y los items listos para llevar estén en estado LISTO."
             );
         }
         
-        // Delegate to admin service (stock will be returned automatically for PENDING orders)
+        // All items passed validation - delegate to admin service
         return adminOrderService.cancel(id, username);
     }
 
@@ -159,7 +235,43 @@ public class CustomerOrderServiceImpl implements OrderService {
 
     @Override
     public OrderDetail deleteOrderItem(Long orderId, Long itemDetailId, String username) {
-        throw new UnsupportedOperationException("Los clientes no pueden eliminar items de pedidos");
+        log.info("Customer {} deleting item {} from order {}", getCurrentCustomerEmail(), itemDetailId, orderId);
+        
+        // Get the order and validate ownership
+        Order order = findByIdOrThrow(orderId);
+        validateOrderOwnership(order);
+        
+        // Validate order is not in final states
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("No se pueden eliminar items de un pedido cancelado");
+        }
+        if (order.getStatus() == OrderStatus.PAID) {
+            throw new IllegalStateException("No se pueden eliminar items de un pedido pagado");
+        }
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            throw new IllegalStateException("No se pueden eliminar items de un pedido entregado");
+        }
+        
+        // Find the item to delete
+        OrderDetail itemToDelete = order.getOrderDetails().stream()
+                .filter(detail -> detail.getIdOrderDetail().equals(itemDetailId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Item no encontrado en el pedido"));
+        
+        // Validate the item can be deleted according to customer rules
+        if (!canItemBeCancelledByCustomer(itemToDelete)) {
+            String reason = getItemCancelBlockReason(itemToDelete);
+            throw new IllegalStateException("No se puede eliminar el item: " + reason);
+        }
+        
+        // Check if this is the last item - if so, cancel the order instead
+        if (order.getOrderDetails().size() == 1) {
+            // Signal that this should cancel the order
+            throw new IllegalStateException("LAST_ITEM_CANCEL_ORDER");
+        }
+        
+        // Delegate to admin service for the actual deletion
+        return adminOrderService.deleteOrderItem(orderId, itemDetailId, username);
     }
 
     @Override

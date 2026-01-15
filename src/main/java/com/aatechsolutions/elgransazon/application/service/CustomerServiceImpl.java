@@ -107,7 +107,6 @@ public class CustomerServiceImpl implements CustomerService {
         existing.setFullName(customer.getFullName());
         existing.setUsername(customer.getUsername());
         existing.setPhone(customer.getPhone());
-        existing.setAddress(customer.getAddress());
         
         // If password is provided, it should already be encoded by the controller
         if (customer.getPassword() != null && !customer.getPassword().trim().isEmpty()) {

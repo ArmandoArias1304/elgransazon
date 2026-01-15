@@ -407,17 +407,52 @@ public class WebSocketNotificationService {
 
     /**
      * Notifies about order cancellation
-     * Sends to chef, barista, and delivery (if applicable)
+     * Only notifies chef if order has chef items, barista if order has barista items
+     * Sends to delivery only if applicable
      */
     public void notifyOrderCancelled(Order order) {
         OrderNotificationDTO notification = buildOrderNotification(order, "ORDER_CANCELLED",
             "Pedido #" + order.getOrderNumber() + " ha sido cancelado");
         
-        // Send to all chefs to remove from their view
-        messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+        // Check if order has items that require chef preparation
+        boolean hasChefItems = order.getOrderDetails().stream()
+            .anyMatch(detail -> detail.getItemMenu() != null && 
+                      Boolean.TRUE.equals(detail.getItemMenu().getRequiresPreparation()));
         
-        // Send to all baristas to remove from their view
-        messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+        // Check if order has items that require barista preparation
+        boolean hasBaristaItems = order.getOrderDetails().stream()
+            .anyMatch(detail -> detail.getItemMenu() != null && 
+                      Boolean.TRUE.equals(detail.getItemMenu().getRequiresBaristaPreparation()));
+        
+        // Send to chefs only if order has chef items
+        if (hasChefItems) {
+            messagingTemplate.convertAndSend("/topic/chef/orders", notification);
+            log.info("👨‍🍳 WebSocket: Notifying CHEF - Order {} cancelled (has chef items)", order.getOrderNumber());
+            
+            // If chef was assigned, send personal notification
+            if (order.getPreparedBy() != null) {
+                messagingTemplate.convertAndSendToUser(
+                    order.getPreparedBy().getUsername(),
+                    "/queue/orders",
+                    notification
+                );
+            }
+        }
+        
+        // Send to baristas only if order has barista items
+        if (hasBaristaItems) {
+            messagingTemplate.convertAndSend("/topic/barista/orders", notification);
+            log.info("☕ WebSocket: Notifying BARISTA - Order {} cancelled (has barista items)", order.getOrderNumber());
+            
+            // If barista was assigned, send personal notification
+            if (order.getPreparedByBarista() != null) {
+                messagingTemplate.convertAndSendToUser(
+                    order.getPreparedByBarista().getUsername(),
+                    "/queue/orders",
+                    notification
+                );
+            }
+        }
         
         // Send to all delivery persons if order type is DELIVERY
         if (order.getOrderType() == com.aatechsolutions.elgransazon.domain.entity.OrderType.DELIVERY) {
@@ -428,25 +463,8 @@ public class WebSocketNotificationService {
         // Send to admin kitchen
         messagingTemplate.convertAndSend("/topic/admin/kitchen", notification);
         
-        // If chef was assigned, send personal notification
-        if (order.getPreparedBy() != null) {
-            messagingTemplate.convertAndSendToUser(
-                order.getPreparedBy().getUsername(),
-                "/queue/orders",
-                notification
-            );
-        }
-        
-        // If barista was assigned, send personal notification
-        if (order.getPreparedByBarista() != null) {
-            messagingTemplate.convertAndSendToUser(
-                order.getPreparedByBarista().getUsername(),
-                "/queue/orders",
-                notification
-            );
-        }
-        
-        log.info("WebSocket: Order cancellation notification - {}", order.getOrderNumber());
+        log.info("WebSocket: Order cancellation notification - {} (chef: {}, barista: {})", 
+                 order.getOrderNumber(), hasChefItems, hasBaristaItems);
     }
 
     /**

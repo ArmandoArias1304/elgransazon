@@ -49,10 +49,6 @@ public class Customer implements Serializable {
     @Column(name = "phone", nullable = false, unique = true, length = 20)
     private String phone;
 
-    @Size(max = 500, message = "La dirección no puede exceder 500 caracteres")
-    @Column(name = "address", length = 500)
-    private String address;
-
     @NotBlank(message = "La contraseña es requerida")
     @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
     @Column(name = "password", nullable = false, length = 200)

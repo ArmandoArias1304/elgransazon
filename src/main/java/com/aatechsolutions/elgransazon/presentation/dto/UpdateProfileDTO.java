@@ -22,6 +22,4 @@ public class UpdateProfileDTO {
     @NotBlank(message = "El teléfono es requerido")
     @Pattern(regexp = "^[+]?[0-9\\-\\s()]{7,20}$", message = "Formato de teléfono inválido")
     private String phone;
-    
-    private String address; // Optional
 }

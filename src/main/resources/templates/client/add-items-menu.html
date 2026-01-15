@@ -1349,19 +1349,8 @@
           return;
         }
 
-        // Validate delivery address for DELIVERY orders
-        if (orderData.orderType === "DELIVERY") {
-          const customerAddress = /*[[${customer.address}]]*/ "";
-          if (!customerAddress || customerAddress.trim() === "") {
-            Swal.fire({
-              icon: "error",
-              title: "Dirección requerida",
-              html: "Para pedidos a domicilio necesitas tener una dirección registrada en tu perfil.<br><br><a href='/client/profile' class='text-primary hover:underline font-semibold'>Ir a mi perfil</a>",
-              confirmButtonText: "Entendido",
-            });
-            return;
-          }
-        }
+        // For DELIVERY orders, address is already set in the order
+        // Validation is handled by the backend
 
         console.log("=== SUBMITTING ORDER ===");
         console.log("Cart:", cart);

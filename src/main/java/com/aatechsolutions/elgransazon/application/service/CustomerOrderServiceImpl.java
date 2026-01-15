@@ -85,13 +85,10 @@ public class CustomerOrderServiceImpl implements OrderService {
         order.setCustomerName(customer.getFullName());
         order.setCustomerPhone(customer.getPhone());
         
-        // For DELIVERY orders, use customer's address if not provided
+        // For DELIVERY orders, validate address is provided
         if (order.getOrderType() == OrderType.DELIVERY) {
             if (order.getDeliveryAddress() == null || order.getDeliveryAddress().trim().isEmpty()) {
-                if (customer.getAddress() == null || customer.getAddress().trim().isEmpty()) {
-                    throw new IllegalStateException("Debe proporcionar una dirección de entrega o actualizar su dirección en su perfil");
-                }
-                order.setDeliveryAddress(customer.getAddress());
+                throw new IllegalStateException("Debe seleccionar una dirección de entrega de sus direcciones guardadas");
             }
         }
         

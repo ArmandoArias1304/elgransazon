@@ -371,24 +371,6 @@
                        class="error-text"></p>
                 </div>
 
-                <!-- Address -->
-                <div class="form-group">
-                    <label for="address">Dirección (Opcional)</label>
-                    <div class="input-wrapper">
-                        <textarea id="address" 
-                                  th:field="*{address}" 
-                                  rows="2"
-                                  placeholder="Calle Principal 123, Ciudad"></textarea>
-                        <span class="material-symbols-outlined">home</span>
-                    </div>
-                    <p th:if="${#fields.hasErrors('address')}" 
-                       th:errors="*{address}" 
-                       class="error-text"></p>
-                    <p class="help-text">
-                        Se usará como dirección predeterminada para entregas a domicilio
-                    </p>
-                </div>
-
                 <!-- Password -->
                 <div class="form-group">
                     <label for="password">Contraseña *</label>

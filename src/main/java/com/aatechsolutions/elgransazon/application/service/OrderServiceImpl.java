@@ -419,10 +419,9 @@ public class OrderServiceImpl implements OrderService {
                  cancelledOrder.getOrderNumber(), currentStatus.getDisplayName());
         
         // Send WebSocket notification for order cancellation
+        // Use notifyOrderCancelled to send ORDER_CANCELLED notification to all relevant roles
         try {
-            String cancelMessage = String.format("Pedido cancelado: %s (anterior: %s)", 
-                cancelledOrder.getOrderNumber(), currentStatus.getDisplayName());
-            wsNotificationService.notifyOrderStatusChange(cancelledOrder, cancelMessage);
+            wsNotificationService.notifyOrderCancelled(cancelledOrder);
         } catch (Exception e) {
             log.error("Failed to send WebSocket notification for order cancellation: {}", 
                 cancelledOrder.getOrderNumber(), e);
@@ -1478,6 +1477,14 @@ public class OrderServiceImpl implements OrderService {
                 order.getFormattedSubtotal(),
                 order.getFormattedTotal(),
                 order.getStatus());
+
+        // Send WebSocket notification for item deletion
+        // This will notify chef/barista based on item type
+        try {
+            wsNotificationService.notifyItemDeleted(order, itemToDelete);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket notification for item deletion: {}", e.getMessage());
+        }
 
         return itemToDelete;
     }

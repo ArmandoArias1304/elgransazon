@@ -436,14 +436,13 @@ public class EmployeeController {
             Employee employee = employeeService.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Empleado no encontrado"));
             
-            // Update password
-            employee.setContrasenia(newPassword);
-            String currentUsername = authentication.getName();
-            Employee updated = employeeService.update(id, employee, currentUsername);
+            // Update password using dedicated method that hashes it
+            employeeService.changePassword(id, newPassword);
             
-            log.info("Password changed successfully for employee: {}", updated.getFullName());
+            log.info("Password changed successfully for employee: {}", employee.getFullName());
             redirectAttributes.addFlashAttribute("successMessage", 
-                    "Contraseña actualizada exitosamente para " + updated.getFullName());
+                    "Contraseña actualizada exitosamente para " + employee.getFullName());
+            redirectAttributes.addFlashAttribute("showPasswordSuccessAlert", true);
             return "redirect:/admin/employees/" + id + "/edit";
             
         } catch (IllegalArgumentException e) {

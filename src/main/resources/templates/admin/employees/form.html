@@ -1097,7 +1097,22 @@
       </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
+      // Check for password success alert on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        const showPasswordSuccessAlert = /*[[${showPasswordSuccessAlert}]]*/ false;
+        if (showPasswordSuccessAlert) {
+          Swal.fire({
+            icon: "success",
+            title: "¡Contraseña actualizada!",
+            text: "La contraseña del empleado se ha cambiado exitosamente",
+            confirmButtonColor: "#f97316",
+            timer: 3000,
+            timerProgressBar: true,
+          });
+        }
+      });
+
       // Form Validation
       function validateForm(event) {
         const form = document.getElementById("employeeForm");

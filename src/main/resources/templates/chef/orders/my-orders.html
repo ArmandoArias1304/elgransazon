@@ -365,7 +365,11 @@
     <!-- WebSocket Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-    <script>
+    <script th:inline="javascript">
+      /*<![CDATA[*/
+      const currentRole = /*[[${isBarista ? 'barista' : 'chef'}]]*/ "chef";
+      /*]]>*/
+
       let stompClient = null;
       let reconnectAttempts = 0;
       const MAX_RECONNECT_ATTEMPTS = 5;
@@ -382,10 +386,15 @@
             console.log("✅ WebSocket Connected (My Orders)");
             reconnectAttempts = 0;
 
-            // Subscribe to order notifications
-            stompClient.subscribe("/topic/orders", function (message) {
+            // Subscribe to role-specific orders channel
+            // Chef subscribes to /topic/chef/orders
+            // Barista subscribes to /topic/barista/orders
+            const ordersTopic = `/topic/${currentRole}/orders`;
+            console.log(`🔌 [MY-ORDERS] Subscribing to: ${ordersTopic}`);
+
+            stompClient.subscribe(ordersTopic, function (message) {
               console.log(
-                "🔌 [MY-ORDERS] Raw WebSocket message received:",
+                `🔌 [MY-ORDERS] Raw WebSocket message received on ${ordersTopic}:`,
                 message.body
               );
               const notification = JSON.parse(message.body);
@@ -439,6 +448,90 @@
         );
         console.log("📬 [MY-ORDERS] Order number:", notification.orderNumber);
 
+        // Handle NEW_ORDER - show notification with sound
+        if (notification.notificationType === "NEW_ORDER") {
+          console.log("🆕 [MY-ORDERS] Processing NEW_ORDER");
+
+          // Play notification sound
+          playNotificationSound();
+
+          // Request browser notification
+          requestBrowserNotification(
+            "🔔 Nuevo Pedido",
+            `Pedido #${notification.orderNumber} - ${notification.itemCount} items`
+          );
+
+          Swal.fire({
+            icon: "info",
+            title: "🔔 Nuevo Pedido",
+            html: `<p>Pedido <strong>#${notification.orderNumber}</strong></p>
+                   <p>${notification.orderType} - ${notification.itemCount} items</p>
+                   <p class="text-sm text-gray-500">Ve a Pedidos Pendientes para gestionarlo</p>`,
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 5000,
+            timerProgressBar: true,
+          });
+          return;
+        }
+
+        // Handle ORDER_CANCELLED - remove cancelled order from view
+        if (notification.notificationType === "ORDER_CANCELLED") {
+          console.log("⚠️ [MY-ORDERS] Processing ORDER_CANCELLED");
+
+          Swal.fire({
+            icon: "warning",
+            title: "⚠️ Pedido Cancelado",
+            text:
+              notification.message ||
+              `El pedido #${notification.orderNumber} ha sido cancelado`,
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 2500,
+            timerProgressBar: true,
+          });
+
+          // Reload page to remove cancelled order from view
+          console.log(
+            "🔄 [MY-ORDERS] Will reload in 1.5 seconds due to order cancellation"
+          );
+          setTimeout(() => {
+            console.log("🔄 [MY-ORDERS] RELOADING NOW!");
+            window.location.reload();
+          }, 1500);
+          return;
+        }
+
+        // Handle ITEM_DELETED - reload to update order view
+        if (notification.notificationType === "ITEM_DELETED") {
+          console.log("🗑️ [MY-ORDERS] Processing ITEM_DELETED");
+
+          Swal.fire({
+            icon: "info",
+            title: "🗑️ Item Eliminado",
+            text: `Pedido #${notification.orderNumber} - ${
+              notification.message || "Un item fue eliminado"
+            }`,
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 2000,
+            timerProgressBar: true,
+          });
+
+          // Reload page to update the order view
+          console.log(
+            "🔄 [MY-ORDERS] Will reload in 1.5 seconds due to item deletion"
+          );
+          setTimeout(() => {
+            console.log("🔄 [MY-ORDERS] RELOADING NOW!");
+            window.location.reload();
+          }, 1500);
+          return;
+        }
+
         // If items are added to an order, just reload to update view
         // The order will disappear from my-orders if it now has pending items
         if (notification.notificationType === "ITEMS_ADDED") {
@@ -464,6 +557,7 @@
             console.log("🔄 [MY-ORDERS] RELOADING NOW!");
             window.location.reload();
           }, 1500);
+          return;
         }
 
         // Also reload for status changes that might affect this view
@@ -479,16 +573,65 @@
             console.log("🔄 [MY-ORDERS] RELOADING NOW!");
             window.location.reload();
           }, 1000);
+          return;
         }
 
-        if (
-          notification.notificationType !== "ITEMS_ADDED" &&
-          notification.notificationType !== "STATUS_CHANGE"
-        ) {
+        console.log(
+          "⏭️ [MY-ORDERS] Ignoring notification type:",
+          notification.notificationType
+        );
+      }
+
+      // Play notification sound
+      function playNotificationSound() {
+        try {
+          const audio = new Audio("/sounds/notification.mp3");
+          audio.volume = 0.5;
+
           console.log(
-            "⏭️ [MY-ORDERS] Ignoring notification type:",
-            notification.notificationType
+            "🔊 [MY-ORDERS] Attempting to play notification sound..."
           );
+
+          audio
+            .play()
+            .then(() => {
+              console.log("✅ [MY-ORDERS] Sound played successfully");
+            })
+            .catch((error) => {
+              console.warn(
+                "⚠️ [MY-ORDERS] Sound playback prevented:",
+                error.message
+              );
+              console.log(
+                "💡 User interaction may be required to enable sound"
+              );
+            });
+
+          audio.onerror = function (e) {
+            console.error(
+              "❌ [MY-ORDERS] Audio file not found or failed to load:",
+              e
+            );
+          };
+        } catch (e) {
+          console.error("❌ [MY-ORDERS] Error creating audio:", e);
+        }
+      }
+
+      // Request browser notification
+      function requestBrowserNotification(title, body) {
+        if (!("Notification" in window)) {
+          return;
+        }
+
+        if (Notification.permission === "granted") {
+          new Notification(title, { body: body, icon: "/images/logo.png" });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then(function (permission) {
+            if (permission === "granted") {
+              new Notification(title, { body: body, icon: "/images/logo.png" });
+            }
+          });
         }
       }
 

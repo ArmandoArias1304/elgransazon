@@ -41,6 +41,7 @@ public class ClientController {
     private final PasswordEncoder passwordEncoder;
     private final TicketPdfService ticketPdfService;
     private final BusinessHoursService businessHoursService;
+    private final CustomerAddressService customerAddressService;
 
     public ClientController(
             @Qualifier("customerOrderService") OrderService orderService,
@@ -52,7 +53,8 @@ public class ClientController {
             ReviewService reviewService,
             PasswordEncoder passwordEncoder,
             TicketPdfService ticketPdfService,
-            BusinessHoursService businessHoursService) {
+            BusinessHoursService businessHoursService,
+            CustomerAddressService customerAddressService) {
         this.orderService = orderService;
         this.itemMenuService = itemMenuService;
         this.categoryService = categoryService;
@@ -63,6 +65,7 @@ public class ClientController {
         this.passwordEncoder = passwordEncoder;
         this.ticketPdfService = ticketPdfService;
         this.businessHoursService = businessHoursService;
+        this.customerAddressService = customerAddressService;
     }
 
     /**
@@ -177,6 +180,13 @@ public class ClientController {
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
             
+            // Get customer addresses for delivery selection
+            var customerAddresses = customerAddressService.getAddressesByCustomerId(customer.getIdCustomer());
+            var defaultAddress = customerAddresses.stream()
+                    .filter(CustomerAddress::getIsDefault)
+                    .findFirst()
+                    .orElse(null);
+            
             model.addAttribute("config", config);
             model.addAttribute("categories", categories);
             model.addAttribute("itemsByCategory", itemsByCategory);
@@ -185,6 +195,9 @@ public class ClientController {
             model.addAttribute("orderTypes", Arrays.asList(OrderType.TAKEOUT, OrderType.DELIVERY));
             model.addAttribute("orderType", OrderType.TAKEOUT); // Default order type
             model.addAttribute("enabledPaymentMethods", enabledPaymentMethods);
+            model.addAttribute("customerAddresses", customerAddresses);
+            model.addAttribute("defaultAddress", defaultAddress);
+            model.addAttribute("hasAddresses", !customerAddresses.isEmpty());
             
             return "client/menu";
             
@@ -287,20 +300,50 @@ public class ClientController {
             OrderType orderType = OrderType.valueOf((String) orderData.get("orderType"));
             PaymentMethodType paymentMethod = PaymentMethodType.valueOf((String) orderData.get("paymentMethod"));
             
-            // For DELIVERY orders, validate customer has address
+            // For DELIVERY orders, get selected address
             String deliveryAddress = null;
             String deliveryReferences = null;
+            Double deliveryLatitude = null;
+            Double deliveryLongitude = null;
             
             if (orderType == OrderType.DELIVERY) {
-                // Use customer's registered address
-                if (customer.getAddress() == null || customer.getAddress().trim().isEmpty()) {
+                // Get address from frontend selection (new map-based system)
+                String addressFromFrontend = (String) orderData.get("deliveryAddress");
+                Object addressIdObj = orderData.get("deliveryAddressId");
+                
+                if (addressIdObj != null && !addressIdObj.toString().isEmpty()) {
+                    // Verify the address belongs to the customer
+                    Long addressId = Long.valueOf(addressIdObj.toString());
+                    var selectedAddress = customerAddressService.getAddressById(addressId, customer.getIdCustomer());
+                    
+                    if (selectedAddress.isPresent()) {
+                        CustomerAddress addr = selectedAddress.get();
+                        deliveryAddress = addr.getDisplayAddress();
+                        deliveryLatitude = addr.getLatitude();
+                        deliveryLongitude = addr.getLongitude();
+                        // Get reference from saved address if not provided from frontend
+                        String frontendReferences = (String) orderData.get("deliveryReferences");
+                        if (frontendReferences == null || frontendReferences.trim().isEmpty()) {
+                            deliveryReferences = addr.getReference();
+                        } else {
+                            deliveryReferences = frontendReferences;
+                        }
+                    } else if (addressFromFrontend != null && !addressFromFrontend.trim().isEmpty()) {
+                        deliveryAddress = addressFromFrontend;
+                        deliveryReferences = (String) orderData.get("deliveryReferences");
+                    }
+                } else if (addressFromFrontend != null && !addressFromFrontend.trim().isEmpty()) {
+                    deliveryAddress = addressFromFrontend;
+                    deliveryReferences = (String) orderData.get("deliveryReferences");
+                }
+                
+                // Validate delivery address is provided
+                if (deliveryAddress == null || deliveryAddress.trim().isEmpty()) {
                     return ResponseEntity.badRequest().body(Map.of(
                         "success", false,
-                        "message", "Para pedidos a domicilio debes tener una dirección registrada en tu perfil"
+                        "message", "Para pedidos a domicilio debes seleccionar una dirección guardada"
                     ));
                 }
-                deliveryAddress = customer.getAddress();
-                deliveryReferences = (String) orderData.get("deliveryReferences");
             }
             
             BigDecimal taxRate = new BigDecimal(systemConfigurationService.getConfiguration().getTaxRate().toString());
@@ -314,6 +357,8 @@ public class ClientController {
                     .paymentMethod(paymentMethod)
                     .deliveryAddress(deliveryAddress)
                     .deliveryReferences(deliveryReferences)
+                    .deliveryLatitude(deliveryLatitude)
+                    .deliveryLongitude(deliveryLongitude)
                     .taxRate(taxRate)
                     .status(OrderStatus.PENDING)
                     .customer(customer)
@@ -376,10 +421,14 @@ public class ClientController {
             // Validate stock
             Map<Long, String> stockErrors = orderService.validateStock(orderDetails);
             if (!stockErrors.isEmpty()) {
+                // Build error message with item names
+                String itemNames = stockErrors.values().stream()
+                    .collect(Collectors.joining(", "));
+                
                 return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", "Stock insuficiente para algunos items",
-                    "stockErrors", stockErrors
+                    "message", "Stock insuficiente para: " + itemNames + ". ¡Te invitamos a ver otras opciones deliciosas en nuestro menú!",
+                    "errorType", "STOCK_ERROR"
                 ));
             }
             
@@ -824,7 +873,6 @@ public class ClientController {
             existing.setFullName(profileDTO.getFullName());
             existing.setUsername(profileDTO.getUsername());
             existing.setPhone(profileDTO.getPhone());
-            existing.setAddress(profileDTO.getAddress());
             
             customerService.update(existing.getIdCustomer(), existing);
             
@@ -899,11 +947,14 @@ public class ClientController {
             profileDTO.setFullName(customer.getFullName());
             profileDTO.setUsername(customer.getUsername());
             profileDTO.setPhone(customer.getPhone());
-            profileDTO.setAddress(customer.getAddress());
+            
+            // Get customer addresses for the map
+            var addresses = customerAddressService.getAddressesByCustomerId(customer.getIdCustomer());
             
             model.addAttribute("customer", customer); // For display (email, etc.)
             model.addAttribute("profileDTO", profileDTO); // For profile form binding
             model.addAttribute("passwordDTO", new ChangePasswordDTO()); // For password form binding
+            model.addAttribute("addresses", addresses); // For addresses section
             return "client/profile";
             
         } catch (Exception e) {
@@ -1091,5 +1142,183 @@ public class ClientController {
         map.put("itemIds", itemIds);
         
         return map;
+    }
+
+    // ========== ADDRESS MANAGEMENT ENDPOINTS ==========
+
+    /**
+     * Get all addresses for the current customer (AJAX)
+     */
+    @GetMapping("/addresses")
+    @ResponseBody
+    public ResponseEntity<List<Map<String, Object>>> getAddresses(Authentication authentication) {
+        try {
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            var addresses = customerAddressService.getAddressesByCustomerId(customer.getIdCustomer());
+            
+            List<Map<String, Object>> addressList = addresses.stream()
+                    .map(addr -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", addr.getIdAddress());
+                        map.put("label", addr.getLabel());
+                        map.put("address", addr.getAddress());
+                        map.put("reference", addr.getReference());
+                        map.put("latitude", addr.getLatitude());
+                        map.put("longitude", addr.getLongitude());
+                        map.put("isDefault", addr.getIsDefault());
+                        map.put("displayAddress", addr.getDisplayAddress());
+                        return map;
+                    })
+                    .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(addressList);
+        } catch (Exception e) {
+            log.error("Error fetching addresses", e);
+            return ResponseEntity.badRequest().body(List.of());
+        }
+    }
+
+    /**
+     * Create a new address (AJAX)
+     */
+    @PostMapping("/addresses")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> createAddress(
+            @RequestBody Map<String, Object> addressData,
+            Authentication authentication) {
+        try {
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            String label = (String) addressData.get("label");
+            String address = (String) addressData.get("address");
+            String reference = (String) addressData.get("reference");
+            Double latitude = ((Number) addressData.get("latitude")).doubleValue();
+            Double longitude = ((Number) addressData.get("longitude")).doubleValue();
+            boolean setAsDefault = Boolean.TRUE.equals(addressData.get("setAsDefault"));
+            
+            var newAddress = customerAddressService.createAddress(
+                    customer.getIdCustomer(), label, address, reference, 
+                    latitude, longitude, setAsDefault);
+            
+            log.info("Address created for customer {}: {}", customer.getUsername(), label);
+            
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Dirección guardada exitosamente",
+                    "addressId", newAddress.getIdAddress()
+            ));
+        } catch (Exception e) {
+            log.error("Error creating address", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Error al guardar dirección: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Update an existing address (AJAX)
+     */
+    @PutMapping("/addresses/{addressId}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> updateAddress(
+            @PathVariable Long addressId,
+            @RequestBody Map<String, Object> addressData,
+            Authentication authentication) {
+        try {
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            String label = (String) addressData.get("label");
+            String address = (String) addressData.get("address");
+            String reference = (String) addressData.get("reference");
+            Double latitude = ((Number) addressData.get("latitude")).doubleValue();
+            Double longitude = ((Number) addressData.get("longitude")).doubleValue();
+            boolean setAsDefault = Boolean.TRUE.equals(addressData.get("setAsDefault"));
+            
+            customerAddressService.updateAddress(
+                    addressId, customer.getIdCustomer(), label, address, 
+                    reference, latitude, longitude, setAsDefault);
+            
+            log.info("Address {} updated for customer {}", addressId, customer.getUsername());
+            
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Dirección actualizada exitosamente"
+            ));
+        } catch (Exception e) {
+            log.error("Error updating address", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Error al actualizar dirección: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Delete an address (AJAX)
+     */
+    @DeleteMapping("/addresses/{addressId}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> deleteAddress(
+            @PathVariable Long addressId,
+            Authentication authentication) {
+        try {
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            boolean deleted = customerAddressService.deleteAddress(addressId, customer.getIdCustomer());
+            
+            if (deleted) {
+                log.info("Address {} deleted for customer {}", addressId, customer.getUsername());
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Dirección eliminada exitosamente"
+                ));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "No se encontró la dirección"
+                ));
+            }
+        } catch (Exception e) {
+            log.error("Error deleting address", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Error al eliminar dirección: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Set an address as default (AJAX)
+     */
+    @PostMapping("/addresses/{addressId}/set-default")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> setDefaultAddress(
+            @PathVariable Long addressId,
+            Authentication authentication) {
+        try {
+            Customer customer = customerService.findByUsernameOrEmail(authentication.getName())
+                    .orElseThrow(() -> new IllegalStateException("Cliente no encontrado"));
+            
+            customerAddressService.setAsDefault(addressId, customer.getIdCustomer());
+            
+            log.info("Address {} set as default for customer {}", addressId, customer.getUsername());
+            
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Dirección establecida como predeterminada"
+            ));
+        } catch (Exception e) {
+            log.error("Error setting default address", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Error: " + e.getMessage()
+            ));
+        }
     }
 }

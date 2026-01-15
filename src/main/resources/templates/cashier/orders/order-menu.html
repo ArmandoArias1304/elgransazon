@@ -1204,6 +1204,8 @@
         const qty = quantity || 1;
         let promotionAppliedPrice = null;
         let appliedPromotion = null;
+        let appliedPromotionId = null;
+        let promotionLabel = null;
 
         // Si no se seleccionó promoción manualmente, aplicar automáticamente la mejor
         if (!selectedPromotionId) {
@@ -1248,61 +1250,46 @@
             }
           }
 
-          if (appliedPromotion) {
-            console.log("Applying promotion:", promotion);
+          console.log("Applying promotion:", appliedPromotion);
 
-            // Validate minimum quantity for BUY_X_PAY_Y promotions
-            if (promotion.promotionType === "BUY_X_PAY_Y") {
-              const requiredQuantity = promotion.buyQuantity;
-              if (quantity < requiredQuantity) {
-                Swal.fire({
-                  icon: "warning",
-                  title: "Cantidad insuficiente",
-                  text: `Esta promoción requiere mínimo ${requiredQuantity} unidades`,
-                  confirmButtonColor: "#38e07b",
-                });
-                return;
-              }
-            }
-
-            // Calculate promotion price based on type
-            if (promotion.promotionType === "BUY_X_PAY_Y") {
-              // For BUY_X_PAY_Y: price per unit after promotion
-              const buyQty = promotion.buyQuantity;
-              const payQty = promotion.payQuantity;
-              const sets = Math.floor(quantity / buyQty);
-              const remaining = quantity % buyQty;
-              const discountedTotal =
-                sets * payQty * currentItem.price +
-                remaining * currentItem.price;
-              promotionAppliedPrice = discountedTotal / quantity;
-            } else if (promotion.promotionType === "PERCENTAGE_DISCOUNT") {
-              const discount = promotion.discountPercentage / 100;
-              const originalTotal = currentItem.price * quantity;
-              const discountedTotal = originalTotal * (1 - discount);
-              promotionAppliedPrice = discountedTotal / quantity;
-            } else if (promotion.promotionType === "FIXED_AMOUNT_DISCOUNT") {
-              promotionAppliedPrice = Math.max(
-                0,
-                currentItem.price - promotion.discountAmount
-              );
-            }
-
-            appliedPromotionId = promotion.id;
-            promotionLabel = promotion.displayLabel;
-            console.log("Promotion price calculated:", promotionAppliedPrice);
+          // Calculate promotion price based on type
+          if (appliedPromotion.promotionType === "BUY_X_PAY_Y") {
+            // For BUY_X_PAY_Y: price per unit after promotion
+            const buyQty = appliedPromotion.buyQuantity;
+            const payQty = appliedPromotion.payQuantity;
+            const sets = Math.floor(qty / buyQty);
+            const remaining = qty % buyQty;
+            const discountedTotal =
+              sets * payQty * currentItem.price + remaining * currentItem.price;
+            promotionAppliedPrice = discountedTotal / qty;
+          } else if (appliedPromotion.promotionType === "PERCENTAGE_DISCOUNT") {
+            const discount = appliedPromotion.discountPercentage / 100;
+            const originalTotal = currentItem.price * qty;
+            const discountedTotal = originalTotal * (1 - discount);
+            promotionAppliedPrice = discountedTotal / qty;
+          } else if (
+            appliedPromotion.promotionType === "FIXED_AMOUNT_DISCOUNT"
+          ) {
+            promotionAppliedPrice = Math.max(
+              0,
+              currentItem.price - appliedPromotion.discountAmount
+            );
           }
+
+          appliedPromotionId = appliedPromotion.id;
+          promotionLabel = appliedPromotion.displayLabel;
+          console.log("Promotion price calculated:", promotionAppliedPrice);
         }
 
         const cartItem = {
           id: currentItem.id,
           name: currentItem.name,
           price: currentItem.price,
-          quantity: quantity || 1,
+          quantity: qty,
           comments: comments || "",
           subtotal: promotionAppliedPrice
-            ? promotionAppliedPrice * quantity
-            : currentItem.price * quantity,
+            ? promotionAppliedPrice * qty
+            : currentItem.price * qty,
           image: currentItem.image,
           promotionAppliedPrice: promotionAppliedPrice,
           appliedPromotionId: appliedPromotionId,
@@ -1316,7 +1303,7 @@
         Swal.fire({
           icon: "success",
           title: "Agregado al carrito",
-          text: `${cartItem.name} x${quantity}${
+          text: `${cartItem.name} x${qty}${
             promotionLabel ? " (" + promotionLabel + ")" : ""
           }`,
           timer: 1500,

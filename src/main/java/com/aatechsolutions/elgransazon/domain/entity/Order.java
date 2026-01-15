@@ -71,6 +71,13 @@ public class Order implements Serializable {
     @Column(name = "delivery_references", length = 500)
     private String deliveryReferences;
 
+    // GPS Coordinates for delivery location
+    @Column(name = "delivery_latitude")
+    private Double deliveryLatitude;
+
+    @Column(name = "delivery_longitude")
+    private Double deliveryLongitude;
+
     // ========== Relationships ==========
 
     // NOTE: Table is optional - only required for DINE_IN orders

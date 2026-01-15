@@ -1080,11 +1080,15 @@
                 discountedTotal =
                   sets * bestPromotion.payQuantity * item.price +
                   remaining * item.price;
+                // Round subtotal directly, price per unit is for display only
+                discountedTotal = Math.round(discountedTotal * 100) / 100;
+                item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
               } else if (
                 bestPromotion.promotionType === "PERCENTAGE_DISCOUNT"
               ) {
                 const discount = bestPromotion.discountPercentage / 100;
                 discountedTotal = originalTotal * (1 - discount);
+                item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
               } else if (
                 bestPromotion.promotionType === "FIXED_AMOUNT_DISCOUNT"
               ) {
@@ -1093,10 +1097,10 @@
                   item.price - bestPromotion.discountAmount
                 );
                 discountedTotal = pricePerUnit * newQuantity;
+                item.promotionAppliedPrice = pricePerUnit;
               }
 
-              item.promotionAppliedPrice = discountedTotal / newQuantity;
-              item.subtotal = discountedTotal;
+              item.subtotal = Math.round(discountedTotal * 100) / 100;
               item.appliedPromotionId = bestPromotion.id;
               item.promotionLabel = bestPromotion.displayLabel;
             } else {
@@ -1125,12 +1129,16 @@
                 discountedTotal =
                   sets * appliedPromotion.payQuantity * item.price +
                   remaining * item.price;
+                // Round subtotal directly, price per unit is for display only
+                discountedTotal = Math.round(discountedTotal * 100) / 100;
+                item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
               } else if (
                 appliedPromotion.promotionType === "PERCENTAGE_DISCOUNT"
               ) {
                 // Para descuentos porcentuales (50%, 30%, etc.)
                 const discount = appliedPromotion.discountPercentage / 100;
                 discountedTotal = originalTotal * (1 - discount);
+                item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
               } else if (
                 appliedPromotion.promotionType === "FIXED_AMOUNT_DISCOUNT"
               ) {
@@ -1140,10 +1148,10 @@
                   item.price - appliedPromotion.discountAmount
                 );
                 discountedTotal = pricePerUnit * newQuantity;
+                item.promotionAppliedPrice = pricePerUnit;
               }
 
-              item.promotionAppliedPrice = discountedTotal / newQuantity;
-              item.subtotal = discountedTotal;
+              item.subtotal = Math.round(discountedTotal * 100) / 100;
             } else {
               // Si no se encuentra la promoción, calcular precio normal
               item.subtotal = item.price * newQuantity;
@@ -1608,11 +1616,39 @@
             }
 
             promotionAppliedPrice = discountedTotal / qty; // Price per unit with discount
+            // IMPORTANT: Round subtotal directly for BUY_X_PAY_Y to avoid precision errors
+            discountedTotal = Math.round(discountedTotal * 100) / 100;
+            promotionAppliedPrice = Math.round(promotionAppliedPrice * 100) / 100;
             console.log(
               "Final promotion price per unit:",
               promotionAppliedPrice
             );
           }
+        }
+
+        // Calculate final subtotal with proper rounding
+        let finalSubtotal;
+        if (promotionAppliedPrice && appliedPromotion) {
+          // For promotions: recalculate to ensure precision
+          const originalTotal = currentItem.price * qty;
+          let discountedTotal = originalTotal;
+
+          if (appliedPromotion.promotionType === "BUY_X_PAY_Y") {
+            const sets = Math.floor(qty / appliedPromotion.buyQuantity);
+            const remaining = qty % appliedPromotion.buyQuantity;
+            discountedTotal =
+              sets * appliedPromotion.payQuantity * currentItem.price +
+              remaining * currentItem.price;
+          } else if (appliedPromotion.promotionType === "PERCENTAGE_DISCOUNT") {
+            const discount = appliedPromotion.discountPercentage / 100;
+            discountedTotal = originalTotal * (1 - discount);
+          } else if (appliedPromotion.promotionType === "FIXED_AMOUNT_DISCOUNT") {
+            const pricePerUnit = Math.max(0, currentItem.price - appliedPromotion.discountAmount);
+            discountedTotal = pricePerUnit * qty;
+          }
+          finalSubtotal = Math.round(discountedTotal * 100) / 100;
+        } else {
+          finalSubtotal = Math.round(currentItem.price * qty * 100) / 100;
         }
 
         const cartItem = {
@@ -1621,9 +1657,7 @@
           price: currentItem.price,
           quantity: qty,
           comments: comments || "",
-          subtotal: promotionAppliedPrice
-            ? promotionAppliedPrice * qty
-            : currentItem.price * qty,
+          subtotal: finalSubtotal,
           image: currentItem.image,
           promotionAppliedPrice: promotionAppliedPrice,
           appliedPromotionId: selectedPromotionId,
@@ -1672,21 +1706,21 @@
           floatingCartCount.textContent = cart.length;
         }
 
-        // Calculate subtotal, IVA, savings and total
-        const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
+        // Calculate subtotal, IVA, savings and total with proper rounding
+        const subtotal = Math.round(cart.reduce((sum, item) => sum + item.subtotal, 0) * 100) / 100;
 
-        // Calculate total savings from promotions
-        const totalSavings = cart.reduce((sum, item) => {
+        // Calculate total savings from promotions with proper rounding
+        const totalSavings = Math.round(cart.reduce((sum, item) => {
           if (item.promotionAppliedPrice) {
             const originalTotal = item.price * item.quantity;
             const discountedTotal = item.subtotal;
             return sum + (originalTotal - discountedTotal);
           }
           return sum;
-        }, 0);
+        }, 0) * 100) / 100;
 
-        const iva = subtotal * taxMultiplier; // Use tax rate from system configuration
-        const total = subtotal + iva;
+        const iva = Math.round(subtotal * taxMultiplier * 100) / 100; // Use tax rate from system configuration
+        const total = Math.round((subtotal + iva) * 100) / 100;
 
         cartSubtotal.textContent = `$${subtotal.toFixed(2)}`;
         cartIVA.textContent = `$${iva.toFixed(2)}`;
@@ -1954,13 +1988,14 @@
           document.getElementById("paymentMethod")?.value || "CASH";
         console.log("Payment Method:", paymentMethod);
 
-        // Prepare items array
+        // Prepare items array - include subtotal for precision with BUY_X_PAY_Y promotions
         const items = cart.map((item) => ({
           itemId: item.id,
           quantity: item.quantity,
           comments: item.comments || "",
           promotionPrice: item.promotionAppliedPrice || null,
           promotionId: item.appliedPromotionId || null,
+          subtotal: item.subtotal || null, // Send subtotal directly to avoid precision errors
         }));
 
         // Get delivery info if DELIVERY order type

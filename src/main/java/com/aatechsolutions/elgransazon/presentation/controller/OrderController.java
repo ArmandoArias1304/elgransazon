@@ -2000,9 +2000,22 @@ public class OrderController {
                                 quantity
                             );
                             
-                            // Calculate price per unit with discount
-                            BigDecimal calculatedPricePerUnit = calculatedDiscountedTotal
-                                .divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+                            // IMPORTANT FIX: For BUY_X_PAY_Y promotions, we must set the subtotal
+                            // directly from the calculated total to avoid precision errors.
+                            // The promotionAppliedPrice is stored with 2 decimals for display purposes only.
+                            BigDecimal calculatedPricePerUnit;
+                            if (promotion.getPromotionType() == PromotionType.BUY_X_PAY_Y) {
+                                // For BUY_X_PAY_Y: store the price per unit with 2 decimals for display
+                                // BUT we'll set the correct subtotal directly to avoid precision loss
+                                calculatedPricePerUnit = calculatedDiscountedTotal
+                                    .divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+                                // Store the CORRECT subtotal directly in the builder
+                                detailBuilder.subtotal(calculatedDiscountedTotal.setScale(2, RoundingMode.HALF_UP));
+                            } else {
+                                // For percentage and fixed discounts, 2 decimals is fine
+                                calculatedPricePerUnit = calculatedDiscountedTotal
+                                    .divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+                            }
                             
                             log.info("BACKEND VALIDATION - Item: {}, Qty: {}, Promotion: {}, " +
                                     "Original Price/Unit: ${}, Calculated Price/Unit: ${}, " +

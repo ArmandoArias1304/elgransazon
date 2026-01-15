@@ -382,10 +382,12 @@ public class ClientController {
                 BigDecimal unitPrice = itemMenu.getPrice();
                 BigDecimal promotionPrice = null;
                 Long promotionId = null;
+                BigDecimal frontendSubtotal = null;
                 
                 // Check if promotion was applied in frontend
                 Object promotionPriceObj = itemData.get("promotionPrice");
                 Object promotionIdObj = itemData.get("promotionId");
+                Object subtotalObj = itemData.get("subtotal");
                 
                 if (promotionPriceObj != null && !promotionPriceObj.toString().isEmpty()) {
                     try {
@@ -406,17 +408,38 @@ public class ClientController {
                     }
                 }
                 
-                OrderDetail detail = OrderDetail.builder()
+                // Get subtotal from frontend to preserve precision for BUY_X_PAY_Y promotions
+                if (subtotalObj != null && !subtotalObj.toString().isEmpty()) {
+                    try {
+                        frontendSubtotal = new BigDecimal(subtotalObj.toString())
+                                .setScale(2, RoundingMode.HALF_UP);
+                        log.debug("Using subtotal from frontend: {} for item {}", frontendSubtotal, itemId);
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid subtotal format: {}", subtotalObj);
+                    }
+                }
+                
+                // Build the order detail
+                OrderDetail.OrderDetailBuilder detailBuilder = OrderDetail.builder()
                         .itemMenu(itemMenu)
                         .quantity(quantity)
                         .unitPrice(unitPrice)
                         .promotionAppliedPrice(promotionPrice)
                         .appliedPromotionId(promotionId)
                         .comments(comments)
-                        .itemStatus(OrderStatus.PENDING)
-                        .build();
+                        .itemStatus(OrderStatus.PENDING);
                 
-                detail.calculateSubtotal();
+                // If frontend sent subtotal (for BUY_X_PAY_Y precision), use it directly
+                if (frontendSubtotal != null && promotionId != null) {
+                    detailBuilder.subtotal(frontendSubtotal);
+                }
+                
+                OrderDetail detail = detailBuilder.build();
+                
+                // Only calculate subtotal if not already set from frontend
+                if (detail.getSubtotal() == null) {
+                    detail.calculateSubtotal();
+                }
                 orderDetails.add(detail);
             }
             
@@ -612,10 +635,12 @@ public class ClientController {
                 BigDecimal unitPrice = itemMenu.getPrice();
                 BigDecimal promotionPrice = null;
                 Long promotionId = null;
+                BigDecimal frontendSubtotal = null;
 
                 // Check if promotion was applied in frontend
                 Object promotionPriceObj = itemData.get("promotionPrice");
                 Object promotionIdObj = itemData.get("promotionId");
+                Object subtotalObj = itemData.get("subtotal");
 
                 if (promotionPriceObj != null && !promotionPriceObj.toString().isEmpty()) {
                     try {
@@ -635,18 +660,39 @@ public class ClientController {
                         log.warn("Invalid promotion ID format: {}", promotionIdObj);
                     }
                 }
+                
+                // Get subtotal from frontend to preserve precision for BUY_X_PAY_Y promotions
+                if (subtotalObj != null && !subtotalObj.toString().isEmpty()) {
+                    try {
+                        frontendSubtotal = new BigDecimal(subtotalObj.toString())
+                                .setScale(2, RoundingMode.HALF_UP);
+                        log.debug("Using subtotal from frontend: {} for item {}", frontendSubtotal, itemId);
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid subtotal format: {}", subtotalObj);
+                    }
+                }
 
-                OrderDetail detail = OrderDetail.builder()
+                // Build the order detail
+                OrderDetail.OrderDetailBuilder detailBuilder = OrderDetail.builder()
                         .itemMenu(itemMenu)
                         .quantity(quantity)
                         .unitPrice(unitPrice)
                         .promotionAppliedPrice(promotionPrice)
                         .appliedPromotionId(promotionId)
                         .comments(comments)
-                        .itemStatus(OrderStatus.PENDING)
-                        .build();
-
-                detail.calculateSubtotal();
+                        .itemStatus(OrderStatus.PENDING);
+                
+                // If frontend sent subtotal (for BUY_X_PAY_Y precision), use it directly
+                if (frontendSubtotal != null && promotionId != null) {
+                    detailBuilder.subtotal(frontendSubtotal);
+                }
+                
+                OrderDetail detail = detailBuilder.build();
+                
+                // Only calculate subtotal if not already set from frontend
+                if (detail.getSubtotal() == null) {
+                    detail.calculateSubtotal();
+                }
                 newItems.add(detail);
             }
 

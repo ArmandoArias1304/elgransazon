@@ -122,8 +122,19 @@ public class OrderDetail implements Serializable {
     /**
      * Calculate subtotal from quantity and unit price
      * If promotion is applied, uses promotionAppliedPrice instead of unitPrice
+     * 
+     * IMPORTANT: For BUY_X_PAY_Y promotions, the subtotal should be set directly
+     * by the controller to avoid precision errors from divide/multiply operations.
+     * This method will skip recalculation if subtotal is already set.
      */
     public void calculateSubtotal() {
+        // If subtotal is already set (e.g., for BUY_X_PAY_Y promotions), don't recalculate
+        if (this.subtotal != null && this.subtotal.compareTo(BigDecimal.ZERO) > 0) {
+            // Ensure it's rounded to 2 decimals
+            this.subtotal = this.subtotal.setScale(2, java.math.RoundingMode.HALF_UP);
+            return;
+        }
+        
         if (this.quantity != null) {
             // Use promotional price if available, otherwise use regular price
             BigDecimal priceToUse = (this.promotionAppliedPrice != null) 
@@ -131,7 +142,10 @@ public class OrderDetail implements Serializable {
                 : this.unitPrice;
             
             if (priceToUse != null) {
-                this.subtotal = priceToUse.multiply(BigDecimal.valueOf(this.quantity));
+                // Multiply and round to 2 decimals to ensure precision
+                this.subtotal = priceToUse
+                    .multiply(BigDecimal.valueOf(this.quantity))
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
             }
         }
     }

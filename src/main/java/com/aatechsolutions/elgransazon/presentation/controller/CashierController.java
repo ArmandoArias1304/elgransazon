@@ -1252,35 +1252,54 @@ public class CashierController {
                                 .anyMatch(promotionItem -> promotionItem.getIdItemMenu().equals(itemId));
                             
                             if (promotionAppliesToItem) {
-                                // SECURITY: Recalculate price in backend (don't trust frontend)
-                                BigDecimal calculatedDiscountedTotal = promotion.calculateDiscountedPrice(
-                                    item.getPrice(), 
-                                    quantity
-                                );
-                                
-                                // Calculate price per unit with discount
-                                BigDecimal calculatedPricePerUnit = calculatedDiscountedTotal
-                                    .divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
-                                
-                                log.info("CASHIER BACKEND VALIDATION - Item: {}, Qty: {}, Promotion: {}, " +
-                                        "Original Price/Unit: ${}, Calculated Price/Unit: ${}, " +
-                                        "Calculated Total: ${}", 
-                                        item.getName(), quantity, promotion.getName(),
-                                        item.getPrice(), calculatedPricePerUnit, calculatedDiscountedTotal);
-                                
-                                // Set the VALIDATED promotion data
-                                detailBuilder.appliedPromotionId(promotionId);
-                                detailBuilder.promotionAppliedPrice(calculatedPricePerUnit);
-                                
                                 // Validate minimum quantity for BUY_X_PAY_Y promotions
                                 if (promotion.getPromotionType() == PromotionType.BUY_X_PAY_Y) {
                                     if (quantity < promotion.getBuyQuantity()) {
                                         log.warn("Quantity {} is less than required {} for promotion {}. Applying no promotion.",
                                                 quantity, promotion.getBuyQuantity(), promotion.getName());
                                         // Don't apply promotion if minimum quantity not met
-                                        detailBuilder.appliedPromotionId(null);
-                                        detailBuilder.promotionAppliedPrice(null);
+                                    } else {
+                                        // SECURITY: Recalculate price in backend (don't trust frontend)
+                                        BigDecimal calculatedDiscountedTotal = promotion.calculateDiscountedPrice(
+                                            item.getPrice(), 
+                                            quantity
+                                        ).setScale(2, RoundingMode.HALF_UP);
+                                        
+                                        // For BUY_X_PAY_Y: Calculate price per unit (for display only), rounded to 2 decimals
+                                        BigDecimal calculatedPricePerUnit = calculatedDiscountedTotal
+                                            .divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+                                        
+                                        log.info("CASHIER BACKEND VALIDATION (BUY_X_PAY_Y) - Item: {}, Qty: {}, Promotion: {}, " +
+                                                "Original Price/Unit: ${}, Calculated Price/Unit: ${}, " +
+                                                "Calculated Total (direct): ${}", 
+                                                item.getName(), quantity, promotion.getName(),
+                                                item.getPrice(), calculatedPricePerUnit, calculatedDiscountedTotal);
+                                        
+                                        // Set the VALIDATED promotion data
+                                        detailBuilder.appliedPromotionId(promotionId);
+                                        detailBuilder.promotionAppliedPrice(calculatedPricePerUnit);
+                                        // Set subtotal directly to avoid precision errors from divide/multiply cycle
+                                        detailBuilder.subtotal(calculatedDiscountedTotal);
                                     }
+                                } else {
+                                    // For other promotion types (PERCENTAGE_DISCOUNT, FIXED_AMOUNT_DISCOUNT)
+                                    BigDecimal calculatedDiscountedTotal = promotion.calculateDiscountedPrice(
+                                        item.getPrice(), 
+                                        quantity
+                                    );
+                                    
+                                    BigDecimal calculatedPricePerUnit = calculatedDiscountedTotal
+                                        .divide(BigDecimal.valueOf(quantity), 2, RoundingMode.HALF_UP);
+                                    
+                                    log.info("CASHIER BACKEND VALIDATION - Item: {}, Qty: {}, Promotion: {}, " +
+                                            "Original Price/Unit: ${}, Calculated Price/Unit: ${}, " +
+                                            "Calculated Total: ${}", 
+                                            item.getName(), quantity, promotion.getName(),
+                                            item.getPrice(), calculatedPricePerUnit, calculatedDiscountedTotal);
+                                    
+                                    // Set the VALIDATED promotion data
+                                    detailBuilder.appliedPromotionId(promotionId);
+                                    detailBuilder.promotionAppliedPrice(calculatedPricePerUnit);
                                 }
                             } else {
                                 log.warn("Promotion {} does not apply to item {}", promotionId, item.getName());
@@ -1294,7 +1313,11 @@ public class CashierController {
                 }
                 
                 OrderDetail detail = detailBuilder.build();
-                detail.calculateSubtotal();
+                
+                // Only calculate subtotal if not already set (for BUY_X_PAY_Y, it's set directly)
+                if (detail.getSubtotal() == null) {
+                    detail.calculateSubtotal();
+                }
                 orderDetails.add(detail);
             }
         }

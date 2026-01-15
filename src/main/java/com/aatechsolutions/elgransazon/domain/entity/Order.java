@@ -222,11 +222,13 @@ public class Order implements Serializable {
 
     /**
      * Calculate subtotal from order details
+     * Each OrderDetail.subtotal is already rounded to 2 decimals
      */
     public void calculateSubtotal() {
         this.subtotal = orderDetails.stream()
                 .map(OrderDetail::getSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -245,7 +247,8 @@ public class Order implements Serializable {
      */
     public void calculateTotal() {
         if (this.subtotal != null && this.taxAmount != null) {
-            this.total = this.subtotal.add(this.taxAmount);
+            this.total = this.subtotal.add(this.taxAmount)
+                    .setScale(2, RoundingMode.HALF_UP);
         }
     }
 

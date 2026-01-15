@@ -480,6 +480,28 @@ public class ItemMenuController {
     }
 
     /**
+     * Get maximum available quantity for an item based on ingredient stock (AJAX)
+     */
+    @GetMapping("/{id}/max-quantity")
+    @ResponseBody
+    public Map<String, Object> getMaxQuantity(@PathVariable Long id) {
+        log.debug("Getting max available quantity for menu item {}", id);
+        
+        Map<String, Object> response = new HashMap<>();
+        try {
+            int maxQuantity = itemMenuService.getMaxAvailableQuantity(id);
+            response.put("maxQuantity", maxQuantity);
+            response.put("success", true);
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("maxQuantity", 0);
+        }
+        
+        return response;
+    }
+
+    /**
      * Get item cost calculation (AJAX)
      */
     @GetMapping("/{id}/cost")

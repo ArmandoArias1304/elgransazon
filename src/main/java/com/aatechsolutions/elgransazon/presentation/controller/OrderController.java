@@ -1283,6 +1283,34 @@ public class OrderController {
     }
 
     /**
+     * Get maximum available quantity for a menu item based on ingredient stock (AJAX)
+     */
+    @GetMapping("/menu-items/{itemId}/max-quantity")
+    @ResponseBody
+    public Map<String, Object> getMaxQuantity(
+            @PathVariable String role,
+            @PathVariable Long itemId,
+            Authentication authentication) {
+        
+        log.debug("Getting max available quantity for menu item {} (role: {})", itemId, role);
+        validateRole(role, authentication);
+        
+        Map<String, Object> response = new HashMap<>();
+        try {
+            int maxQuantity = itemMenuService.getMaxAvailableQuantity(itemId);
+            response.put("maxQuantity", maxQuantity);
+            response.put("success", true);
+        } catch (Exception e) {
+            log.error("Error getting max quantity for item {}", itemId, e);
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("maxQuantity", 0);
+        }
+        
+        return response;
+    }
+
+    /**
      * Cancel an order (AJAX)
      */
     @PostMapping("/{id}/cancel")

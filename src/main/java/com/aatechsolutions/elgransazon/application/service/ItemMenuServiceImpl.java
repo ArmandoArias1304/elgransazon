@@ -408,6 +408,14 @@ public class ItemMenuServiceImpl implements ItemMenuService {
     }
 
     @Override
+    public int getMaxAvailableQuantity(Long itemMenuId) {
+        log.debug("Getting max available quantity for menu item {}", itemMenuId);
+
+        ItemMenu item = findByIdOrThrow(itemMenuId);
+        return item.getMaxAvailableQuantity();
+    }
+
+    @Override
     @Transactional
     public void updateItemAvailability(Long itemMenuId) {
         log.debug("Updating availability for menu item ID: {}", itemMenuId);

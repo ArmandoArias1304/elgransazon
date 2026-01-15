@@ -141,6 +141,12 @@ public interface ItemMenuService {
     boolean hasEnoughStock(Long itemMenuId, int quantity);
 
     /**
+     * Get the maximum quantity of an item that can be prepared
+     * based on current ingredient stock levels
+     */
+    int getMaxAvailableQuantity(Long itemMenuId);
+
+    /**
      * Update the availability of a menu item based on current stock
      */
     void updateItemAvailability(Long itemMenuId);

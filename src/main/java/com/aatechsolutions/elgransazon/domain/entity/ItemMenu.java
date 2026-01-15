@@ -219,6 +219,42 @@ public class ItemMenu implements Serializable {
     }
 
     /**
+     * Calculate the maximum quantity of this item that can be prepared
+     * based on current ingredient stock levels.
+     * @return Maximum quantity available, or 99 if no recipe (unlimited)
+     */
+    public int getMaxAvailableQuantity() {
+        if (!hasRecipe() || ingredients.isEmpty()) {
+            return 99; // Items without recipe have unlimited availability
+        }
+
+        int minAvailable = Integer.MAX_VALUE;
+        
+        for (ItemIngredient itemIngredient : ingredients) {
+            if (itemIngredient.getIngredient() == null || 
+                itemIngredient.getIngredient().getCurrentStock() == null ||
+                itemIngredient.getQuantity() == null ||
+                itemIngredient.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            
+            // Calculate how many items we can make with this ingredient
+            // Available = floor(currentStock / quantityPerItem)
+            BigDecimal currentStock = itemIngredient.getIngredient().getCurrentStock();
+            BigDecimal quantityPerItem = itemIngredient.getQuantity();
+            
+            int availableForThisIngredient = currentStock
+                    .divide(quantityPerItem, 0, RoundingMode.FLOOR)
+                    .intValue();
+            
+            minAvailable = Math.min(minAvailable, availableForThisIngredient);
+        }
+        
+        // Cap at 99 and ensure at least 0
+        return Math.min(99, Math.max(0, minAvailable == Integer.MAX_VALUE ? 99 : minAvailable));
+    }
+
+    /**
      * Update availability based on current stock
      * Should be called after stock changes
      */

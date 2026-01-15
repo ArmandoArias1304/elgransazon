@@ -537,6 +537,157 @@
       let itemPromotionsMap = new Map();
       let promotionsLoaded = false; // Flag to track if promotions are loaded
 
+      // Stock cache para evitar llamadas repetidas al servidor
+      let stockCache = {};
+      let modalMaxQuantity = 99;
+
+      // Función para obtener la cantidad máxima disponible de un item
+      async function fetchMaxQuantity(itemId) {
+        if (stockCache[itemId] !== undefined) {
+          return stockCache[itemId];
+        }
+        try {
+          const response = await fetch(
+            `/client/menu-items/${itemId}/max-quantity`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            stockCache[itemId] = data.maxQuantity;
+            return data.maxQuantity;
+          }
+        } catch (error) {
+          console.error("Error fetching max quantity:", error);
+        }
+        return 99; // Default si hay error
+      }
+
+      // Función para obtener stock del cache (sync)
+      function getMaxQuantity(itemId) {
+        return stockCache[itemId] !== undefined ? stockCache[itemId] : 99;
+      }
+
+      // Calcular cantidad disponible considerando items en carrito
+      function getAvailableQuantityForItem(itemId, maxFromServer) {
+        const quantityInCart = cart
+          .filter((item) => item.id === itemId)
+          .reduce((sum, item) => sum + item.quantity, 0);
+        return Math.max(0, maxFromServer - quantityInCart);
+      }
+
+      // Actualizar estado del botón + del modal
+      function updateModalPlusButtonState(maxQuantity) {
+        const plusBtn = document.querySelector("#modal-plus-btn");
+        if (!plusBtn) return;
+
+        if (window.modalQuantity >= maxQuantity) {
+          plusBtn.disabled = true;
+          plusBtn.classList.add("opacity-50", "cursor-not-allowed");
+          plusBtn.classList.remove("hover:bg-primary", "hover:text-white");
+          plusBtn.title = "Stock máximo alcanzado";
+        } else {
+          plusBtn.disabled = false;
+          plusBtn.classList.remove("opacity-50", "cursor-not-allowed");
+          plusBtn.classList.add("hover:bg-primary", "hover:text-white");
+          plusBtn.title = "";
+        }
+      }
+
+      /**
+       * Get the best discount promotion for a given item and quantity
+       * Returns the promotion that gives the maximum discount in monetary terms
+       */
+      function getBestDiscountPromotion(itemId, price, quantity) {
+        const promotions = itemPromotionsMap.get(parseInt(itemId)) || [];
+
+        // Filter only discount promotions (not BUY_X_PAY_Y)
+        const discountPromotions = promotions.filter(
+          (p) =>
+            p.promotionType === "PERCENTAGE_DISCOUNT" ||
+            p.promotionType === "FIXED_AMOUNT_DISCOUNT"
+        );
+
+        if (discountPromotions.length === 0) return null;
+
+        let bestPromotion = null;
+        let maxDiscount = 0;
+
+        discountPromotions.forEach((promo) => {
+          let discount = 0;
+          const originalTotal = price * quantity;
+
+          if (promo.promotionType === "PERCENTAGE_DISCOUNT") {
+            discount = originalTotal * (promo.discountPercentage / 100);
+          } else if (promo.promotionType === "FIXED_AMOUNT_DISCOUNT") {
+            discount = Math.min(promo.discountAmount * quantity, originalTotal);
+          }
+
+          if (discount > maxDiscount) {
+            maxDiscount = discount;
+            bestPromotion = promo;
+          }
+        });
+
+        return bestPromotion;
+      }
+
+      /**
+       * Get the best BUY_X_PAY_Y promotion for a given quantity
+       * Returns the promotion that gives the maximum discount for the specified quantity
+       * If multiple promotions give same discount, prioritizes the one with higher buyQuantity
+       */
+      function getBestBuyXPayYPromotion(itemId, price, quantity) {
+        const promotions = itemPromotionsMap.get(parseInt(itemId)) || [];
+
+        // Filter only BUY_X_PAY_Y promotions that meet the minimum quantity
+        const buyXPayYPromotions = promotions.filter(
+          (p) => p.promotionType === "BUY_X_PAY_Y" && quantity >= p.buyQuantity
+        );
+
+        if (buyXPayYPromotions.length === 0) return null;
+
+        let bestPromotion = null;
+        let maxDiscount = 0;
+        let maxBuyQuantity = 0;
+
+        buyXPayYPromotions.forEach((promo) => {
+          const sets = Math.floor(quantity / promo.buyQuantity);
+          const remaining = quantity % promo.buyQuantity;
+          const discountedTotal =
+            sets * promo.payQuantity * price + remaining * price;
+          const originalTotal = price * quantity;
+          const discount = originalTotal - discountedTotal;
+
+          // Seleccionar si:
+          // 1. Tiene mayor descuento, O
+          // 2. Mismo descuento pero mayor buyQuantity (más específico)
+          if (
+            discount > maxDiscount ||
+            (discount === maxDiscount && promo.buyQuantity > maxBuyQuantity)
+          ) {
+            maxDiscount = discount;
+            maxBuyQuantity = promo.buyQuantity;
+            bestPromotion = promo;
+          }
+        });
+
+        return bestPromotion;
+      }
+
+      /**
+       * Automatically select the best promotion for an item with given quantity
+       * Priority: BUY_X_PAY_Y (if quantity qualifies) > Best Discount Promotion
+       */
+      function getAutoBestPromotion(itemId, price, quantity) {
+        // First check for applicable BUY_X_PAY_Y promotions
+        const bestBuyXPayY = getBestBuyXPayYPromotion(itemId, price, quantity);
+        if (bestBuyXPayY) {
+          return bestBuyXPayY;
+        }
+
+        // If no BUY_X_PAY_Y applies, get best discount promotion
+        return getBestDiscountPromotion(itemId, price, quantity);
+      }
+
       // Load promotions from server
       async function loadPromotions() {
         try {
@@ -690,10 +841,34 @@
       }
 
       // Update item quantity in cart
-      function updateCartItemQuantity(index, delta) {
+      async function updateCartItemQuantity(index, delta) {
         if (cart[index]) {
           const item = cart[index];
           const newQuantity = item.quantity + delta;
+
+          // Si se incrementa, verificar stock disponible
+          if (delta > 0) {
+            const maxFromServer = await fetchMaxQuantity(item.id);
+            const quantityInCart = cart
+              .filter((c) => c.id === item.id)
+              .reduce((sum, c) => sum + c.quantity, 0);
+            const availableQty = maxFromServer - quantityInCart + item.quantity; // +item.quantity porque ya está incluido en quantityInCart
+
+            if (newQuantity > availableQty) {
+              Swal.fire({
+                icon: "warning",
+                title: "Stock insuficiente",
+                text: `Solo hay ${availableQty} unidades disponibles de este producto`,
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+              });
+              updateCartPlusButtonsState();
+              return;
+            }
+          }
 
           if (newQuantity > 0 && newQuantity <= 99) {
             item.quantity = newQuantity;
@@ -814,36 +989,29 @@
                         ? `
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Cantidad</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Cantidad <span id="stock-indicator" class="text-xs font-normal text-gray-500"></span></label>
                             <div class="flex items-center gap-3">
                                 <button onclick="updateQuantity(-1)" class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-200 hover:bg-primary hover:text-white font-bold transition-all text-xl">
                                     −
                                 </button>
                                 <span id="modal-quantity" class="text-3xl font-black w-16 text-center">1</span>
-                                <button onclick="updateQuantity(1)" class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-200 hover:bg-primary hover:text-white font-bold transition-all text-xl">
+                                <button id="modal-plus-btn" onclick="updateQuantity(1)" class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-200 hover:bg-primary hover:text-white font-bold transition-all text-xl">
                                     +
                                 </button>
                             </div>
                         </div>
                         
+                        ${
+                          itemPromotions.length > 0
+                            ? `
                         <div>
                             <label class="block text-xs font-bold text-gray-700 mb-2">
                                 <span class="material-symbols-outlined text-green-600 align-middle text-sm mr-1">local_offer</span>
-                                Promociones (${itemPromotions.length})
+                                Promociones disponibles (${
+                                  itemPromotions.length
+                                })
                             </label>
                             <div class="flex gap-1.5 flex-wrap">
-                                <!-- Botón "Sin promoción" -->
-                                <button 
-                                    type="button"
-                                    class="promotion-btn flex-1 min-w-fit px-2 py-1.5 rounded-lg border border-gray-300 bg-white hover:border-primary hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-0.5 relative text-xs"
-                                    data-promo-id=""
-                                    onclick="selectPromotion(this, '')"
-                                >
-                                    <span class="material-symbols-outlined text-gray-500 text-base">cancel</span>
-                                    <span class="font-semibold text-gray-700 text-center leading-tight">Sin promo</span>
-                                    <span class="material-symbols-outlined text-primary hidden check-icon absolute top-0.5 right-0.5 text-sm">check_circle</span>
-                                </button>
-                                
                                 <!-- Botones de promociones -->
                                 ${itemPromotions
                                   .map(
@@ -852,6 +1020,7 @@
                                     type="button"
                                     class="promotion-btn flex-1 min-w-fit px-2 py-1.5 rounded-lg border border-amber-400 bg-gradient-to-br from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all flex flex-col items-center justify-center gap-0.5 relative text-xs"
                                     data-promo-id="${promo.id}"
+                                    data-promo-type="${promo.promotionType}"
                                     onclick="selectPromotion(this, '${promo.id}')"
                                 >
                                     <span class="material-symbols-outlined text-amber-600 text-base">local_offer</span>
@@ -864,7 +1033,14 @@
                                   .join("")}
                             </div>
                             <input type="hidden" id="promotion-selector" value="" />
+                            <p class="text-xs text-gray-500 mt-2">
+                                <span class="material-symbols-outlined text-xs align-middle">info</span>
+                                Se aplicará automáticamente la mejor promoción disponible
+                            </p>
                         </div>
+                        `
+                            : ""
+                        }
                         
                         <div>
                             <label class="block text-sm font-bold text-gray-700 mb-2">Comentarios especiales (opcional)</label>
@@ -903,16 +1079,39 @@
             actions: "mt-6",
           },
           backdrop: "rgba(0,0,0,0.6)",
-          didOpen: () => {
+          didOpen: async () => {
             // Variable global para la cantidad
             window.modalQuantity = 1;
 
-            // Seleccionar por defecto "Sin promoción"
-            const defaultBtn = document.querySelector(
-              '.promotion-btn[data-promo-id=""]'
+            // Cargar stock máximo disponible
+            const maxFromServer = await fetchMaxQuantity(itemId);
+            const availableQty = getAvailableQuantityForItem(
+              itemId,
+              maxFromServer
             );
-            if (defaultBtn) {
-              selectPromotion(defaultBtn, "");
+            window.modalMaxQuantity = availableQty;
+
+            // Mostrar indicador de stock si es limitado
+            const stockIndicator = document.getElementById("stock-indicator");
+            if (stockIndicator && availableQty < 99) {
+              stockIndicator.textContent = `(máx. ${availableQty} disponibles)`;
+              if (availableQty <= 5) {
+                stockIndicator.classList.add("text-orange-500");
+              }
+            }
+
+            // Actualizar estado del botón +
+            updateModalPlusButtonState(availableQty);
+
+            // Pre-seleccionar automáticamente la mejor promoción
+            const bestPromo = getAutoBestPromotion(itemId, itemPrice, 1);
+            if (bestPromo) {
+              const promoBtn = document.querySelector(
+                `.promotion-btn[data-promo-id="${bestPromo.id}"]`
+              );
+              if (promoBtn) {
+                selectPromotion(promoBtn, bestPromo.id);
+              }
             }
           },
         }).then((result) => {
@@ -975,12 +1174,78 @@
 
       // Update quantity in modal
       function updateQuantity(delta) {
-        window.modalQuantity = Math.max(
-          1,
-          Math.min(99, window.modalQuantity + delta)
-        );
+        const maxQty = window.modalMaxQuantity || 99;
+        const newQuantity = window.modalQuantity + delta;
+
+        // Verificar límites: mínimo 1, máximo según stock disponible
+        if (newQuantity < 1 || newQuantity > maxQty) {
+          updateModalPlusButtonState(maxQty);
+          return;
+        }
+
+        window.modalQuantity = newQuantity;
         document.getElementById("modal-quantity").textContent =
           window.modalQuantity;
+
+        // Actualizar estado del botón +
+        updateModalPlusButtonState(maxQty);
+
+        // Reevaluar y seleccionar automáticamente la mejor promoción para la nueva cantidad
+        if (currentItem) {
+          const itemId = parseInt(currentItem.id);
+          const itemPrice = parseFloat(currentItem.price);
+          const bestPromo = getAutoBestPromotion(
+            itemId,
+            itemPrice,
+            newQuantity
+          );
+
+          // Deseleccionar todas las promociones primero
+          document.querySelectorAll(".promotion-btn").forEach((btn) => {
+            btn.classList.remove(
+              "border-primary",
+              "bg-primary/10",
+              "ring-2",
+              "ring-primary"
+            );
+            const checkIcon = btn.querySelector(".check-icon");
+            if (checkIcon) {
+              checkIcon.classList.add("hidden");
+            }
+          });
+
+          // Actualizar el input hidden
+          const hiddenInput = document.getElementById("promotion-selector");
+
+          // Seleccionar la mejor promoción si existe
+          if (bestPromo) {
+            const promoBtn = document.querySelector(
+              `.promotion-btn[data-promo-id="${bestPromo.id}"]`
+            );
+            if (promoBtn) {
+              // Marcar visualmente el botón
+              promoBtn.classList.add(
+                "border-primary",
+                "bg-primary/10",
+                "ring-2",
+                "ring-primary"
+              );
+              const checkIcon = promoBtn.querySelector(".check-icon");
+              if (checkIcon) {
+                checkIcon.classList.remove("hidden");
+              }
+              // Actualizar el valor del input hidden
+              if (hiddenInput) {
+                hiddenInput.value = bestPromo.id;
+              }
+            }
+          } else {
+            // No hay promoción aplicable, limpiar el input hidden
+            if (hiddenInput) {
+              hiddenInput.value = "";
+            }
+          }
+        }
       }
 
       // Increment quantity (kept for compatibility)
@@ -1006,15 +1271,24 @@
         let promotionAppliedPrice = null;
         let appliedPromotion = null;
 
-        // Check if promotion was selected
-        if (selectedPromotionId) {
+        // Si no se seleccionó promoción manualmente, buscar la mejor automáticamente
+        let promoId = selectedPromotionId;
+        if (!promoId) {
+          const itemId = parseInt(currentItem.id);
+          const itemPrice = parseFloat(currentItem.price);
+          const bestPromo = getAutoBestPromotion(itemId, itemPrice, qty);
+          if (bestPromo) {
+            promoId = bestPromo.id;
+          }
+        }
+
+        // Check if promotion was selected (manual or auto)
+        if (promoId) {
           const promotions =
             itemPromotionsMap.get(parseInt(currentItem.id)) || [];
-          appliedPromotion = promotions.find(
-            (p) => p.id == selectedPromotionId
-          );
+          appliedPromotion = promotions.find((p) => p.id == promoId);
 
-          console.log("Selected promotion ID:", selectedPromotionId);
+          console.log("Selected promotion ID:", promoId);
           console.log("Promotions for item:", promotions);
           console.log("Found promotion:", appliedPromotion);
 
@@ -1100,7 +1374,7 @@
             : currentItem.price * qty,
           image: currentItem.image,
           promotionAppliedPrice: promotionAppliedPrice,
-          appliedPromotionId: selectedPromotionId,
+          appliedPromotionId: promoId,
           promotionLabel: appliedPromotion
             ? appliedPromotion.displayLabel
             : null,
@@ -1263,8 +1537,10 @@
                   ${item.quantity}
                 </span>
                 <button
+                  id="cart-plus-btn-${index}"
+                  data-item-id="${item.id}"
                   onclick="updateCartItemQuantity(${index}, 1)"
-                  class="quantity-btn flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  class="cart-plus-btn quantity-btn flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 >
                   <span class="material-symbols-outlined text-base">add</span>
                 </button>
@@ -1296,6 +1572,35 @@
           .join("");
 
         cartItemsContainer.innerHTML = cartHTML;
+
+        // Actualizar estado de botones + del carrito según stock
+        updateCartPlusButtonsState();
+      }
+
+      // Función para actualizar el estado de los botones + del carrito
+      async function updateCartPlusButtonsState() {
+        const plusButtons = document.querySelectorAll(".cart-plus-btn");
+        for (const btn of plusButtons) {
+          const itemId = parseInt(btn.dataset.itemId);
+          const index = parseInt(btn.id.replace("cart-plus-btn-", ""));
+
+          if (cart[index]) {
+            const maxFromServer = await fetchMaxQuantity(itemId);
+            const quantityInCart = cart
+              .filter((c) => c.id === itemId)
+              .reduce((sum, c) => sum + c.quantity, 0);
+
+            if (quantityInCart >= maxFromServer) {
+              btn.disabled = true;
+              btn.classList.add("opacity-50", "cursor-not-allowed");
+              btn.title = "Stock máximo alcanzado";
+            } else {
+              btn.disabled = false;
+              btn.classList.remove("opacity-50", "cursor-not-allowed");
+              btn.title = "";
+            }
+          }
+        }
       }
 
       // Remove from cart

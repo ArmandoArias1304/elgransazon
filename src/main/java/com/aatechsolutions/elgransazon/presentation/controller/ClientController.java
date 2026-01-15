@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -388,7 +389,8 @@ public class ClientController {
                 
                 if (promotionPriceObj != null && !promotionPriceObj.toString().isEmpty()) {
                     try {
-                        promotionPrice = new BigDecimal(promotionPriceObj.toString());
+                        promotionPrice = new BigDecimal(promotionPriceObj.toString())
+                                .setScale(2, RoundingMode.HALF_UP);
                         log.debug("Using promotion price from frontend: {} for item {}", promotionPrice, itemId);
                     } catch (NumberFormatException e) {
                         log.warn("Invalid promotion price format: {}", promotionPriceObj);
@@ -617,7 +619,8 @@ public class ClientController {
 
                 if (promotionPriceObj != null && !promotionPriceObj.toString().isEmpty()) {
                     try {
-                        promotionPrice = new BigDecimal(promotionPriceObj.toString());
+                        promotionPrice = new BigDecimal(promotionPriceObj.toString())
+                                .setScale(2, RoundingMode.HALF_UP);
                         log.debug("Using promotion price from frontend: {} for item {}", promotionPrice, itemId);
                     } catch (NumberFormatException e) {
                         log.warn("Invalid promotion price format: {}", promotionPriceObj);
@@ -821,6 +824,29 @@ public class ClientController {
         } catch (Exception e) {
             log.error("Error fetching active promotions", e);
             return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /**
+     * Get maximum available quantity for a menu item based on ingredient stock (AJAX)
+     */
+    @GetMapping("/menu-items/{id}/max-quantity")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getMaxQuantity(@PathVariable Long id) {
+        log.debug("Getting max available quantity for menu item {}", id);
+        
+        Map<String, Object> response = new java.util.HashMap<>();
+        try {
+            int maxQuantity = itemMenuService.getMaxAvailableQuantity(id);
+            response.put("maxQuantity", maxQuantity);
+            response.put("success", true);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting max quantity for item {}", id, e);
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("maxQuantity", 0);
+            return ResponseEntity.ok(response);
         }
     }
 

@@ -526,6 +526,62 @@
       let itemPromotionsMap = new Map();
       let promotionsLoaded = false; // Flag to track if promotions are loaded
 
+      // Stock cache para evitar llamadas repetidas al servidor
+      let stockCache = {};
+      let modalMaxQuantity = 99;
+
+      // Función para obtener la cantidad máxima disponible de un item
+      async function fetchMaxQuantity(itemId) {
+        if (stockCache[itemId] !== undefined) {
+          return stockCache[itemId];
+        }
+        try {
+          const currentRole = /*[[${currentRole}]]*/ "cashier";
+          const response = await fetch(
+            `/${currentRole}/orders/menu-items/${itemId}/max-quantity`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            stockCache[itemId] = data.maxQuantity;
+            return data.maxQuantity;
+          }
+        } catch (error) {
+          console.error("Error fetching max quantity:", error);
+        }
+        return 99; // Default si hay error
+      }
+
+      // Función para obtener stock del cache (sync)
+      function getMaxQuantity(itemId) {
+        return stockCache[itemId] !== undefined ? stockCache[itemId] : 99;
+      }
+
+      // Calcular cantidad disponible considerando items en carrito
+      function getAvailableQuantityForItem(itemId, maxFromServer) {
+        const quantityInCart = cart
+          .filter((item) => item.id === itemId)
+          .reduce((sum, item) => sum + item.quantity, 0);
+        return Math.max(0, maxFromServer - quantityInCart);
+      }
+
+      // Actualizar estado del botón + del modal
+      function updateModalPlusButtonState(maxQuantity) {
+        const plusBtn = document.querySelector("#modal-plus-btn");
+        if (!plusBtn) return;
+
+        if (window.modalQuantity >= maxQuantity) {
+          plusBtn.disabled = true;
+          plusBtn.classList.add("opacity-50", "cursor-not-allowed");
+          plusBtn.classList.remove("hover:bg-primary", "hover:text-white");
+          plusBtn.title = "Stock máximo alcanzado";
+        } else {
+          plusBtn.disabled = false;
+          plusBtn.classList.remove("opacity-50", "cursor-not-allowed");
+          plusBtn.classList.add("hover:bg-primary", "hover:text-white");
+          plusBtn.title = "";
+        }
+      }
+
       // Load promotions from server
       async function loadPromotions() {
         try {
@@ -786,10 +842,34 @@
       }
 
       // Update item quantity in cart
-      function updateCartItemQuantity(index, delta) {
+      async function updateCartItemQuantity(index, delta) {
         if (cart[index]) {
           const item = cart[index];
           const newQuantity = item.quantity + delta;
+
+          // Si se incrementa, verificar stock disponible
+          if (delta > 0) {
+            const maxFromServer = await fetchMaxQuantity(item.id);
+            const quantityInCart = cart
+              .filter((c) => c.id === item.id)
+              .reduce((sum, c) => sum + c.quantity, 0);
+            const availableQty = maxFromServer - quantityInCart + item.quantity; // +item.quantity porque ya está incluido en quantityInCart
+
+            if (newQuantity > availableQty) {
+              Swal.fire({
+                icon: "warning",
+                title: "Stock insuficiente",
+                text: `Solo hay ${availableQty} unidades disponibles de este producto`,
+                toast: true,
+                position: "top-end",
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+              });
+              updateCartPlusButtonsState();
+              return;
+            }
+          }
 
           if (newQuantity > 0 && newQuantity <= 99) {
             item.quantity = newQuantity;
@@ -956,13 +1036,13 @@
                         ? `
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">Cantidad</label>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Cantidad <span id="stock-indicator" class="text-xs font-normal text-gray-500"></span></label>
                             <div class="flex items-center gap-3">
                                 <button onclick="updateQuantity(-1)" class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-200 hover:bg-primary hover:text-white font-bold transition-all text-xl">
                                     −
                                 </button>
                                 <span id="modal-quantity" class="text-3xl font-black w-16 text-center">1</span>
-                                <button onclick="updateQuantity(1)" class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-200 hover:bg-primary hover:text-white font-bold transition-all text-xl">
+                                <button id="modal-plus-btn" onclick="updateQuantity(1)" class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-200 hover:bg-primary hover:text-white font-bold transition-all text-xl">
                                     +
                                 </button>
                             </div>
@@ -1052,9 +1132,29 @@
             actions: "mt-6",
           },
           backdrop: "rgba(0,0,0,0.6)",
-          didOpen: () => {
+          didOpen: async () => {
             // Variable global para la cantidad
             window.modalQuantity = 1;
+
+            // Cargar stock máximo disponible
+            const maxFromServer = await fetchMaxQuantity(itemId);
+            const availableQty = getAvailableQuantityForItem(
+              itemId,
+              maxFromServer
+            );
+            window.modalMaxQuantity = availableQty;
+
+            // Mostrar indicador de stock si es limitado
+            const stockIndicator = document.getElementById("stock-indicator");
+            if (stockIndicator && availableQty < 99) {
+              stockIndicator.textContent = `(máx. ${availableQty} disponibles)`;
+              if (availableQty <= 5) {
+                stockIndicator.classList.add("text-orange-500");
+              }
+            }
+
+            // Actualizar estado del botón +
+            updateModalPlusButtonState(availableQty);
 
             // Pre-seleccionar automáticamente la mejor promoción
             const bestPromo = getAutoBestPromotion(itemId, itemPrice, 1);
@@ -1119,12 +1219,21 @@
 
       // Update quantity in modal
       function updateQuantity(delta) {
-        window.modalQuantity = Math.max(
-          1,
-          Math.min(99, window.modalQuantity + delta)
-        );
+        const maxQty = window.modalMaxQuantity || 99;
+        const newQuantity = window.modalQuantity + delta;
+
+        // Verificar límites: mínimo 1, máximo según stock disponible
+        if (newQuantity < 1 || newQuantity > maxQty) {
+          updateModalPlusButtonState(maxQty);
+          return;
+        }
+
+        window.modalQuantity = newQuantity;
         document.getElementById("modal-quantity").textContent =
           window.modalQuantity;
+
+        // Actualizar estado del botón +
+        updateModalPlusButtonState(maxQty);
 
         // Reevaluar y actualizar la mejor promoción cuando cambia la cantidad
         if (currentItem) {
@@ -1415,8 +1524,10 @@
                   ${item.quantity}
                 </span>
                 <button
+                  id="cart-plus-btn-${index}"
+                  data-item-id="${item.id}"
                   onclick="updateCartItemQuantity(${index}, 1)"
-                  class="quantity-btn flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  class="cart-plus-btn quantity-btn flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                 >
                   <span class="material-symbols-outlined text-base">add</span>
                 </button>
@@ -1448,6 +1559,35 @@
           .join("");
 
         cartItemsContainer.innerHTML = cartHTML;
+
+        // Actualizar estado de botones + del carrito según stock
+        updateCartPlusButtonsState();
+      }
+
+      // Función para actualizar el estado de los botones + del carrito
+      async function updateCartPlusButtonsState() {
+        const plusButtons = document.querySelectorAll(".cart-plus-btn");
+        for (const btn of plusButtons) {
+          const itemId = parseInt(btn.dataset.itemId);
+          const index = parseInt(btn.id.replace("cart-plus-btn-", ""));
+
+          if (cart[index]) {
+            const maxFromServer = await fetchMaxQuantity(itemId);
+            const quantityInCart = cart
+              .filter((c) => c.id === itemId)
+              .reduce((sum, c) => sum + c.quantity, 0);
+
+            if (quantityInCart >= maxFromServer) {
+              btn.disabled = true;
+              btn.classList.add("opacity-50", "cursor-not-allowed");
+              btn.title = "Stock máximo alcanzado";
+            } else {
+              btn.disabled = false;
+              btn.classList.remove("opacity-50", "cursor-not-allowed");
+              btn.title = "";
+            }
+          }
+        }
       }
 
       // Remove from cart

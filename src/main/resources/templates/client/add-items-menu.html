@@ -408,12 +408,24 @@
             class="sticky bottom-0 z-20 border-t border-slate-200/80 bg-white dark:border-slate-800/80 dark:bg-slate-900/70 p-4 shadow-lg"
           >
             <div class="space-y-2.5">
-              <!-- Subtotal -->
+              <!-- Subtotal (sin IVA) -->
               <div
                 class="flex justify-between text-sm font-semibold text-gray-600 dark:text-gray-400"
               >
                 <span>Subtotal</span>
                 <span id="cartSubtotal">$0.00</span>
+              </div>
+
+              <!-- Descuento (solo se muestra cuando hay promoción) -->
+              <div
+                id="cartDiscountContainer"
+                class="hidden flex justify-between text-sm font-semibold text-green-600 dark:text-green-400"
+              >
+                <span class="flex items-center gap-1">
+                  <span class="material-symbols-outlined text-sm">local_offer</span>
+                  Descuento
+                </span>
+                <span id="cartDiscount">-$0.00</span>
               </div>
 
               <!-- IVA -->
@@ -422,31 +434,6 @@
               >
                 <span>IVA (<span th:text="${config.taxRate}">16</span>%)</span>
                 <span id="cartIVA">$0.00</span>
-              </div>
-
-              <!-- Savings (shown only when there are active promotions) -->
-              <div
-                id="cartSavingsContainer"
-                class="hidden flex justify-between items-center bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800"
-              >
-                <div class="flex items-center gap-2">
-                  <span
-                    class="material-symbols-outlined text-green-600 dark:text-green-400 text-xl"
-                  >
-                    savings
-                  </span>
-                  <span
-                    class="text-sm font-bold text-green-800 dark:text-green-300"
-                  >
-                    Total Ahorrado
-                  </span>
-                </div>
-                <span
-                  id="cartSavings"
-                  class="text-green-600 dark:text-green-400 font-black text-lg"
-                >
-                  $0.00
-                </span>
               </div>
 
               <!-- Total -->
@@ -1436,9 +1423,9 @@
         const cartItemsContainer = document.getElementById("cartItems");
         const itemCount = document.getElementById("cartItemCount");
         const floatingCartCount = document.getElementById("floatingCartCount");
-        const cartSubtotal = document.getElementById("cartSubtotal");
-        const cartIVA = document.getElementById("cartIVA");
-        const cartTotal = document.getElementById("cartTotal");
+        const cartSubtotalEl = document.getElementById("cartSubtotal");
+        const cartIVAEl = document.getElementById("cartIVA");
+        const cartTotalEl = document.getElementById("cartTotal");
         const submitBtn = document.getElementById("submitOrderBtn");
 
         console.log("updateCartUI called - cart length:", cart.length);
@@ -1449,37 +1436,46 @@
           floatingCartCount.textContent = cart.length;
         }
 
-        // Calculate subtotal, IVA, savings and total with proper rounding
-        const subtotal = Math.round(cart.reduce((sum, item) => sum + item.subtotal, 0) * 100) / 100;
+        // ============================================================
+        // LÓGICA DE CÁLCULO (precios ya incluyen IVA):
+        // - Total = suma de item.subtotal (precio final con IVA, ya calculado)
+        // - SubtotalSinIVA = suma de (item.price / (1+IVA) × quantity)
+        // - SubtotalConPromoSinIVA = Total / (1+IVA)
+        // - Descuento = SubtotalSinIVA - SubtotalConPromoSinIVA
+        // - IVA = Total - SubtotalConPromoSinIVA
+        // REDONDEAR para mostrar, igual que el backend
+        // ============================================================
 
-        // Calculate total savings from promotions
-        const totalSavings = Math.round(cart.reduce((sum, item) => {
+        const round2 = (value) => Math.round(value * 100) / 100;
+
+        let totalFinal = 0;
+        let subtotalOriginalSinIVA = 0;
+        let hayPromocion = false;
+
+        cart.forEach(item => {
+          totalFinal += item.subtotal;
+          subtotalOriginalSinIVA += (item.price / (1 + taxMultiplier)) * item.quantity;
           if (item.promotionAppliedPrice) {
-            const originalTotal = item.price * item.quantity;
-            const discountedTotal = item.subtotal;
-            return sum + (originalTotal - discountedTotal);
+            hayPromocion = true;
           }
-          return sum;
-        }, 0) * 100) / 100;
+        });
 
-        const iva = Math.round(subtotal * taxMultiplier * 100) / 100; // Use tax rate from system configuration
-        const total = Math.round((subtotal + iva) * 100) / 100;
+        const subtotalConPromoSinIVA = totalFinal / (1 + taxMultiplier);
+        const descuento = subtotalOriginalSinIVA - subtotalConPromoSinIVA;
+        const iva = totalFinal - subtotalConPromoSinIVA;
 
-        cartSubtotal.textContent = `$${subtotal.toFixed(2)}`;
-        cartIVA.textContent = `$${iva.toFixed(2)}`;
-        cartTotal.textContent = `$${total.toFixed(2)}`;
+        cartSubtotalEl.textContent = `$${round2(subtotalOriginalSinIVA).toFixed(2)}`;
+        cartIVAEl.textContent = `$${round2(iva).toFixed(2)}`;
+        cartTotalEl.textContent = `$${round2(totalFinal).toFixed(2)}`;
 
-        // Update savings display
-        const savingsContainer = document.getElementById(
-          "cartSavingsContainer"
-        );
-        const savingsElement = document.getElementById("cartSavings");
-        if (savingsContainer && savingsElement) {
-          if (totalSavings > 0) {
-            savingsElement.textContent = `$${totalSavings.toFixed(2)}`;
-            savingsContainer.classList.remove("hidden");
+        const discountContainer = document.getElementById("cartDiscountContainer");
+        const discountElement = document.getElementById("cartDiscount");
+        if (discountContainer && discountElement) {
+          if (hayPromocion && descuento > 0.001) {
+            discountElement.textContent = `-$${round2(descuento).toFixed(2)}`;
+            discountContainer.classList.remove("hidden");
           } else {
-            savingsContainer.classList.add("hidden");
+            discountContainer.classList.add("hidden");
           }
         }
 

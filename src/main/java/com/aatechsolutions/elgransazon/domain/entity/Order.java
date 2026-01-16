@@ -221,44 +221,65 @@ public class Order implements Serializable {
     }
 
     /**
-     * Calculate subtotal from order details
-     * Each OrderDetail.subtotal is already rounded to 2 decimals
+     * Recalculate all order amounts.
+     * 
+     * IMPORTANT: OrderDetail.subtotal already includes IVA (prices are stored with tax included).
+     * Therefore:
+     * - total = sum of OrderDetail.subtotal (final price with IVA)
+     * - subtotal = total / (1 + taxRate/100) (price without IVA, for display purposes)
+     * - taxAmount = total - subtotal (IVA amount, for display purposes)
      */
-    public void calculateSubtotal() {
-        this.subtotal = orderDetails.stream()
+    public void recalculateAmounts() {
+        // Step 1: Total is the sum of all order details (already includes IVA)
+        this.total = orderDetails.stream()
                 .map(OrderDetail::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
+        
+        // Step 2: Calculate subtotal (price without IVA) from total
+        // subtotal = total / (1 + taxRate/100)
+        if (this.taxRate != null && this.taxRate.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal taxMultiplier = BigDecimal.ONE.add(
+                    this.taxRate.divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP)
+            );
+            this.subtotal = this.total.divide(taxMultiplier, 2, RoundingMode.HALF_UP);
+            // Step 3: Tax amount is the difference
+            this.taxAmount = this.total.subtract(this.subtotal);
+        } else {
+            // No tax rate, subtotal equals total
+            this.subtotal = this.total;
+            this.taxAmount = BigDecimal.ZERO;
+        }
+    }
+    
+    /**
+     * @deprecated Use recalculateAmounts() instead. 
+     * This method is kept for backward compatibility but now delegates to recalculateAmounts().
+     */
+    @Deprecated
+    public void calculateSubtotal() {
+        // Legacy method - now part of recalculateAmounts()
+        // Does nothing on its own, call recalculateAmounts() instead
     }
 
     /**
-     * Calculate tax amount based on subtotal and tax rate
+     * @deprecated Use recalculateAmounts() instead.
+     * This method is kept for backward compatibility but now delegates to recalculateAmounts().
      */
+    @Deprecated
     public void calculateTaxAmount() {
-        if (this.subtotal != null && this.taxRate != null) {
-            this.taxAmount = this.subtotal
-                    .multiply(this.taxRate)
-                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        }
+        // Legacy method - now part of recalculateAmounts()
+        // Does nothing on its own, call recalculateAmounts() instead
     }
 
     /**
-     * Calculate total (subtotal + tax)
+     * @deprecated Use recalculateAmounts() instead.
+     * This method is kept for backward compatibility but now delegates to recalculateAmounts().
      */
+    @Deprecated
     public void calculateTotal() {
-        if (this.subtotal != null && this.taxAmount != null) {
-            this.total = this.subtotal.add(this.taxAmount)
-                    .setScale(2, RoundingMode.HALF_UP);
-        }
-    }
-
-    /**
-     * Recalculate all amounts
-     */
-    public void recalculateAmounts() {
-        calculateSubtotal();
-        calculateTaxAmount();
-        calculateTotal();
+        // Legacy method - now part of recalculateAmounts()
+        // Does nothing on its own, call recalculateAmounts() instead
     }
 
     /**

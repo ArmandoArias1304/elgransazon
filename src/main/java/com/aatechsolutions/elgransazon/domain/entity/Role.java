@@ -47,6 +47,7 @@ public class Role implements Serializable {
     public static final String PROGRAMMER = "ROLE_PROGRAMMER";
 
     /**
+     * 
      * Constructor for creating roles with just the name
      */
     public Role(String nombreRol) {

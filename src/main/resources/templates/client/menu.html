@@ -640,6 +640,10 @@
       // Tax rate from system configuration
       const taxRate = /*[[${config.taxRate}]]*/ 0.0; // Tax rate as percentage (e.g., 19.0 for 19%)
       const taxMultiplier = taxRate / 100; // Convert to decimal (e.g., 0.19)
+      
+      // Payment methods for different order types
+      const restaurantPaymentMethods = /*[[${enabledPaymentMethods}]]*/ [];
+      const deliveryPaymentMethods = /*[[${deliveryPaymentMethods}]]*/ [];
 
       // Active promotions - loaded via AJAX
       let activePromotions = [];
@@ -925,6 +929,58 @@
           // Clear the field when hiding it
           document.getElementById("deliveryReferences").value = "";
         }
+        
+        // Update payment methods based on order type
+        updatePaymentMethodsForOrderType(newType);
+      }
+      
+      // Update payment methods dropdown based on order type
+      function updatePaymentMethodsForOrderType(orderType) {
+        const paymentMethodSelect = document.getElementById("paymentMethod");
+        if (!paymentMethodSelect) return;
+        
+        // Choose the correct payment methods list
+        const methods = orderType === "DELIVERY" ? deliveryPaymentMethods : restaurantPaymentMethods;
+        
+        // Save current selection if possible
+        const currentSelection = paymentMethodSelect.value;
+        
+        // Clear and rebuild options
+        paymentMethodSelect.innerHTML = '';
+        
+        if (methods.length === 0) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'No hay métodos disponibles';
+          option.disabled = true;
+          paymentMethodSelect.appendChild(option);
+          return;
+        }
+        
+        methods.forEach((method, index) => {
+          const option = document.createElement('option');
+          option.value = method; // The enum name (e.g., "CASH")
+          
+          // Map method names to display text and icons
+          const displayInfo = {
+            'CASH': { icon: '💵', name: 'Efectivo' },
+            'CREDIT_CARD': { icon: '💳', name: 'Tarjeta de Crédito' },
+            'DEBIT_CARD': { icon: '💳', name: 'Tarjeta de Débito' },
+            'TRANSFER': { icon: '🏦', name: 'Transferencia' }
+          };
+          
+          const info = displayInfo[method] || { icon: '💰', name: method };
+          option.textContent = `${info.icon} ${info.name}`;
+          
+          // Try to preserve previous selection or select first
+          if (method === currentSelection || (index === 0 && !currentSelection)) {
+            option.selected = true;
+          }
+          
+          paymentMethodSelect.appendChild(option);
+        });
+        
+        console.log(`Payment methods updated for ${orderType}:`, methods);
       }
 
       // Toggle order details section

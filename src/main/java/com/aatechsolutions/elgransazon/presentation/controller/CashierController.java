@@ -434,12 +434,23 @@ public class CashierController {
             // Get system configuration for tax rate
             SystemConfiguration config = systemConfigurationService.getConfiguration();
             
-            // Get enabled payment methods
-            Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
+            // Get enabled payment methods based on order type
+            Map<PaymentMethodType, Boolean> paymentMethods = type == OrderType.DELIVERY 
+                ? config.getDeliveryPaymentMethods() 
+                : config.getPaymentMethods();
             List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
                 .filter(Map.Entry::getValue)
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
+            
+            // Validate at least one payment method is enabled
+            if (enabledPaymentMethods.isEmpty()) {
+                String orderTypeText = type == OrderType.DELIVERY ? "entregas a domicilio" : "el restaurante";
+                log.warn("No payment methods enabled for {} in system configuration", orderTypeText);
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                    "No hay métodos de pago habilitados para " + orderTypeText + ". Por favor contacte al administrador.");
+                return "redirect:/cashier/orders";
+            }
             
             model.addAttribute("orderType", type);
             model.addAttribute("selectedTable", selectedTable);
@@ -614,8 +625,10 @@ public class CashierController {
             // Get system configuration for tax rate
             SystemConfiguration config = systemConfigurationService.getConfiguration();
 
-            // Get enabled payment methods from system configuration
-            Map<PaymentMethodType, Boolean> paymentMethodsMap = config.getPaymentMethods();
+            // Get enabled payment methods based on order type
+            Map<PaymentMethodType, Boolean> paymentMethodsMap = order.getOrderType() == OrderType.DELIVERY 
+                ? config.getDeliveryPaymentMethods() 
+                : config.getPaymentMethods();
             List<PaymentMethodType> enabledPaymentMethods = paymentMethodsMap.entrySet().stream()
                     .filter(Map.Entry::getValue)
                     .map(Map.Entry::getKey)
@@ -695,11 +708,12 @@ public class CashierController {
                 return "redirect:/cashier/orders";
             }
 
-            // Verify payment method is enabled in configuration
+            // Verify payment method is enabled in configuration based on order type
             SystemConfiguration config = systemConfigurationService.getConfiguration();
-            if (order.getPaymentMethod() != null && !config.isPaymentMethodEnabled(order.getPaymentMethod())) {
+            if (order.getPaymentMethod() != null && !config.isPaymentMethodEnabledForOrderType(order.getPaymentMethod(), order.getOrderType())) {
+                String context = order.getOrderType() == OrderType.DELIVERY ? " para entregas a domicilio" : "";
                 redirectAttributes.addFlashAttribute("errorMessage", 
-                    "El método de pago seleccionado (" + order.getPaymentMethod().getDisplayName() + ") está deshabilitado en la configuración");
+                    "El método de pago seleccionado (" + order.getPaymentMethod().getDisplayName() + ") está deshabilitado" + context);
                 return "redirect:/cashier/orders/edit/" + id;
             }
 

@@ -65,8 +65,8 @@ public class OrderServiceImpl implements OrderService {
         // 3. Validate customer information based on order type
         validateCustomerInformation(order);
 
-        // 4. Validate payment method is enabled
-        validatePaymentMethod(order.getPaymentMethod());
+        // 4. Validate payment method is enabled (considering order type for DELIVERY)
+        validatePaymentMethod(order.getPaymentMethod(), order.getOrderType());
 
         // 5. Validate items are active
         validateItemsActive(orderDetails);
@@ -1308,9 +1308,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Validate payment method is enabled
+     * Validate payment method is enabled based on order type
+     * For DELIVERY orders, uses deliveryPaymentMethods configuration
+     * For other orders (DINE_IN, TAKEOUT), uses paymentMethods configuration
      */
-    private void validatePaymentMethod(PaymentMethodType paymentMethod) {
+    private void validatePaymentMethod(PaymentMethodType paymentMethod, OrderType orderType) {
         SystemConfiguration config = systemConfigurationRepository.findAll()
             .stream()
             .findFirst()
@@ -1318,10 +1320,13 @@ public class OrderServiceImpl implements OrderService {
                 "No se encontró la configuración del sistema"
             ));
 
-        if (!config.isPaymentMethodEnabled(paymentMethod)) {
+        boolean isEnabled = config.isPaymentMethodEnabledForOrderType(paymentMethod, orderType);
+        
+        if (!isEnabled) {
+            String orderTypeText = orderType == OrderType.DELIVERY ? "entregas a domicilio" : "el restaurante";
             throw new IllegalStateException(
-                String.format("El método de pago '%s' no está habilitado", 
-                              paymentMethod.getDisplayName())
+                String.format("El método de pago '%s' no está habilitado para %s", 
+                              paymentMethod.getDisplayName(), orderTypeText)
             );
         }
     }

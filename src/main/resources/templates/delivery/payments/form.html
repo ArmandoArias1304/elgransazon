@@ -236,45 +236,84 @@
                     ></h2>
                   </div>
 
-                  <!-- Payment Methods (RESTRICTED FOR DELIVERY - CASH ONLY) -->
+                  <!-- Payment Methods (Enabled for Delivery) -->
+                  <!-- Payment Method (Fixed - from order) -->
                   <div class="space-y-4">
                     <h3 class="text-lg font-bold text-gray-900">
-                      Método de Pago <span class="text-red-500">*</span>
+                      Método de Pago del Pedido
                     </h3>
-                    <div class="grid grid-cols-3 gap-3">
-                      <!-- CASH (Selected & Active) -->
-                      <button
-                        type="button"
-                        data-method="CASH"
-                        class="payment-method-btn active flex flex-col items-center justify-center gap-2 rounded-xl p-4 cursor-default"
-                        onclick="void(0)"
+                    
+                    <!-- Show the order's payment method -->
+                    <div 
+                      th:class="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())} 
+                        ? 'flex items-center gap-4 p-5 rounded-xl border-2 border-primary bg-primary/10' 
+                        : 'flex items-center gap-4 p-5 rounded-xl border-2 border-red-300 bg-red-50'"
+                    >
+                      <!-- Icon based on payment method -->
+                      <div 
+                        th:class="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())} 
+                          ? 'w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center' 
+                          : 'w-14 h-14 rounded-xl bg-red-100 flex items-center justify-center'"
                       >
-                        <span class="material-symbols-outlined text-3xl">payments</span>
-                        <span class="font-semibold text-sm">Efectivo</span>
-                      </button>
-
-                      <!-- CARD (Disabled) -->
-                      <button type="button" class="payment-method-btn flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-gray-400 bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed" disabled>
-                        <span class="material-symbols-outlined text-3xl">credit_card</span>
-                        <span class="font-semibold text-sm">Tarjeta</span>
-                      </button>
+                        <span 
+                          th:class="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())} 
+                            ? 'material-symbols-outlined text-3xl text-primary' 
+                            : 'material-symbols-outlined text-3xl text-red-500'"
+                          th:text="${order.paymentMethod.name() == 'CASH'} ? 'payments' : 
+                                   (${order.paymentMethod.name() == 'CREDIT_CARD'} ? 'credit_card' : 
+                                   (${order.paymentMethod.name() == 'DEBIT_CARD'} ? 'credit_card' : 'account_balance'))"
+                        ></span>
+                      </div>
                       
-                      <!-- TRANSFER (Disabled) -->
-                      <button type="button" class="payment-method-btn flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-gray-400 bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed" disabled>
-                        <span class="material-symbols-outlined text-3xl">account_balance</span>
-                        <span class="font-semibold text-sm">Transfer</span>
-                      </button>
+                      <!-- Payment method info -->
+                      <div class="flex-1">
+                        <p 
+                          th:class="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())} 
+                            ? 'text-xl font-bold text-gray-900' 
+                            : 'text-xl font-bold text-red-700'"
+                          th:text="${order.paymentMethod.displayName}"
+                        ></p>
+                        
+                        <!-- Status badge -->
+                        <span 
+                          th:if="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}"
+                          class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary-dark mt-1"
+                        >
+                          <span class="material-symbols-outlined text-sm">check_circle</span>
+                          Habilitado para Delivery
+                        </span>
+                        <span 
+                          th:unless="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}"
+                          class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 mt-1"
+                        >
+                          <span class="material-symbols-outlined text-sm">block</span>
+                          Deshabilitado para Delivery
+                        </span>
+                      </div>
                     </div>
-                    <!-- Hidden input fixed to CASH -->
+                    
+                    <!-- Hidden input with order's payment method -->
                     <input
                       type="hidden"
                       name="paymentMethod"
                       id="paymentMethodInput"
-                      value="CASH"
+                      th:value="${order.paymentMethod.name()}"
                     />
-                     <p class="text-sm text-yellow-600 font-medium mt-1 flex items-center gap-1">
+                    
+                    <!-- Info message -->
+                    <p 
+                      th:if="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}"
+                      class="text-sm text-gray-500 font-medium flex items-center gap-1"
+                    >
                       <span class="material-symbols-outlined text-sm">info</span>
-                      Delivery solo puede cobrar en Efectivo
+                      Este es el método de pago seleccionado al crear el pedido
+                    </p>
+                    <p 
+                      th:unless="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}"
+                      class="text-sm text-red-600 font-medium flex items-center gap-1"
+                    >
+                      <span class="material-symbols-outlined text-sm">warning</span>
+                      Este método de pago fue deshabilitado. Contacte al administrador.
                     </p>
                   </div>
 
@@ -536,7 +575,25 @@
 
               <!-- Confirm Button -->
               <div class="mt-8 pt-6">
+                <!-- Show disabled button when payment method is disabled for delivery -->
+                <div th:unless="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}" class="text-center">
+                  <button
+                    type="button"
+                    disabled
+                    class="w-full rounded-xl py-4 text-xl font-bold text-white bg-gray-400 cursor-not-allowed opacity-60"
+                  >
+                    <div class="flex items-center justify-center gap-2">
+                      <span class="material-symbols-outlined">block</span>
+                      <span>Pago No Disponible</span>
+                    </div>
+                  </button>
+                  <p class="mt-3 text-sm text-red-500 font-medium">
+                    El método de pago "<span th:text="${order.paymentMethod.displayName}"></span>" está deshabilitado para delivery
+                  </p>
+                </div>
+                <!-- Show normal button when payment method is enabled -->
                 <button
+                  th:if="${#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}"
                   type="submit"
                   class="primary-button w-full rounded-xl py-4 text-xl font-bold text-white"
                 >
@@ -785,6 +842,28 @@
         calculateChange();
       }
 
+      // Payment method names mapping
+      const paymentMethodNames = {
+        'CASH': 'Efectivo',
+        'CREDIT_CARD': 'Tarjeta de Crédito',
+        'DEBIT_CARD': 'Tarjeta de Débito',
+        'TRANSFER': 'Transferencia'
+      };
+
+      // Select payment method (visual only - the order already has its payment method)
+      function selectPaymentMethod(method) {
+        // Update button states
+        document.querySelectorAll('.payment-method-btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        const selectedBtn = document.querySelector(`[data-method="${method}"]`);
+        if (selectedBtn) {
+          selectedBtn.classList.add('active');
+        }
+        // Note: We don't change the hidden input because the payment method
+        // is fixed to what was selected when the order was created
+      }
+
       // Form validation
       document
         .getElementById("paymentForm")
@@ -792,12 +871,12 @@
           const paymentMethod =
             document.getElementById("paymentMethodInput").value;
 
-          if (!paymentMethod || paymentMethod !== "CASH") {
+          if (!paymentMethod) {
             e.preventDefault();
             Swal.fire({
               icon: "error",
               title: "Error",
-              text: "Solo está permitido el pago en efectivo para repartidores.",
+              text: "No se pudo determinar el método de pago del pedido.",
               confirmButtonColor: "#38e07b",
             });
             return false;
@@ -807,12 +886,13 @@
           e.preventDefault();
           const tip = parseFloat(document.getElementById("tip").value) || 0;
           const totalWithTip = orderTotal + tip;
+          const paymentMethodName = paymentMethodNames[paymentMethod] || paymentMethod;
 
           Swal.fire({
             title: "¿Confirmar cobro?",
             html: `
             <div class="text-left space-y-2">
-              <p class="text-base"><strong>Método de pago:</strong> Efectivo</p>
+              <p class="text-base"><strong>Método de pago:</strong> ${paymentMethodName}</p>
               <p class="text-base"><strong>Total del pedido:</strong> $${orderTotal.toFixed(
                 2
               )}</p>

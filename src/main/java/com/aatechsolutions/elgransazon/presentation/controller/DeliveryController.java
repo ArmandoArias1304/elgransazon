@@ -99,8 +99,12 @@ public class DeliveryController {
         readyOrders.addAll(onTheWayOrders);
         readyOrders.addAll(deliveredOrders);
         
+        // Get system configuration for delivery payment methods
+        SystemConfiguration config = configurationService.getConfiguration();
+        
         model.addAttribute("orders", readyOrders);
         model.addAttribute("currentEmployee", currentEmployee);
+        model.addAttribute("config", config);
         
         return "delivery/orders/pending";
     }
@@ -152,7 +156,7 @@ public class DeliveryController {
 
     /**
      * Show payment form for a DELIVERED order
-     * Only cash payment is allowed for delivery orders
+     * Shows payment methods enabled for delivery
      */
     @GetMapping("/payments/form/{orderId}")
     public String showPaymentForm(
@@ -182,20 +186,24 @@ public class DeliveryController {
                         return "redirect:/delivery/orders/pending";
                     }
                     
-                    // Validate that payment method is CASH
-                    if (order.getPaymentMethod() != PaymentMethodType.CASH) {
-                        redirectAttributes.addFlashAttribute("errorMessage", 
-                            "Solo puedes cobrar pedidos con pago en efectivo. Este pedido tiene pago con " + 
-                            order.getPaymentMethod().getDisplayName());
-                        return "redirect:/delivery/orders/pending";
-                    }
-                    
                     // Get system configuration
                     SystemConfiguration config = configurationService.getConfiguration();
+                    
+                    // Get enabled delivery payment methods for the view
+                    List<PaymentMethodType> enabledDeliveryPaymentMethods = java.util.Arrays.stream(PaymentMethodType.values())
+                            .filter(config::isDeliveryPaymentMethodEnabled)
+                            .collect(Collectors.toList());
+                    
+                    // Convert to strings for Thymeleaf (to avoid static class access issues)
+                    List<String> enabledPaymentMethodNames = enabledDeliveryPaymentMethods.stream()
+                            .map(PaymentMethodType::name)
+                            .collect(Collectors.toList());
                     
                     model.addAttribute("order", order);
                     model.addAttribute("config", config);
                     model.addAttribute("currentEmployee", currentEmployee);
+                    model.addAttribute("enabledPaymentMethods", enabledDeliveryPaymentMethods);
+                    model.addAttribute("enabledPaymentMethodNames", enabledPaymentMethodNames);
                     
                     return "delivery/payments/form";
                 })
@@ -206,13 +214,15 @@ public class DeliveryController {
     }
 
     /**
-     * Process payment for a DELIVERED order (CASH only)
+     * Process payment for a DELIVERED order
+     * Validates that the payment method is enabled for delivery
      */
     @PostMapping("/payments/process/{orderId}")
     public String processPayment(
             @PathVariable Long orderId,
             @RequestParam(required = false, defaultValue = "0") BigDecimal tip,
             Authentication authentication,
+            Model model,
             RedirectAttributes redirectAttributes) {
         
         String username = authentication.getName();
@@ -235,16 +245,34 @@ public class DeliveryController {
                 !order.getDeliveredBy().getIdEmpleado().equals(currentEmployee.getIdEmpleado())) {
                 throw new IllegalStateException("Solo puedes cobrar pedidos que tú entregaste");
             }
-            
-            // Validate that payment method is CASH
-            if (order.getPaymentMethod() != PaymentMethodType.CASH) {
-                throw new IllegalStateException("Solo puedes cobrar pedidos con pago en efectivo");
-            }
 
-            // Get system configuration to validate payment method is enabled
+            // Get system configuration to validate payment method is enabled FOR DELIVERY
             SystemConfiguration config = configurationService.getConfiguration();
-            if (!config.isPaymentMethodEnabled(PaymentMethodType.CASH)) {
-                throw new IllegalStateException("El pago en efectivo está deshabilitado en la configuración del sistema");
+            PaymentMethodType paymentMethod = order.getPaymentMethod();
+            if (!config.isDeliveryPaymentMethodEnabled(paymentMethod)) {
+                // Stay on the same page showing the error message
+                log.warn("Payment method {} is disabled for delivery", paymentMethod.getDisplayName());
+                
+                // Get enabled delivery payment methods for the view
+                List<PaymentMethodType> enabledDeliveryPaymentMethods = java.util.Arrays.stream(PaymentMethodType.values())
+                        .filter(config::isDeliveryPaymentMethodEnabled)
+                        .collect(Collectors.toList());
+                
+                // Convert to strings for Thymeleaf
+                List<String> enabledPaymentMethodNames = enabledDeliveryPaymentMethods.stream()
+                        .map(PaymentMethodType::name)
+                        .collect(Collectors.toList());
+                
+                model.addAttribute("order", order);
+                model.addAttribute("config", config);
+                model.addAttribute("currentEmployee", currentEmployee);
+                model.addAttribute("enabledPaymentMethods", enabledDeliveryPaymentMethods);
+                model.addAttribute("enabledPaymentMethodNames", enabledPaymentMethodNames);
+                model.addAttribute("errorMessage", 
+                    "El método de pago '" + paymentMethod.getDisplayName() + 
+                    "' está deshabilitado para entregas a domicilio. Por favor contacte al administrador.");
+                
+                return "delivery/payments/form";
             }
             
             // Validate tip

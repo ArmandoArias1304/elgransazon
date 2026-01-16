@@ -67,6 +67,11 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
             existingConfig.setPaymentMethods(configuration.getPaymentMethods());
         }
         
+        // Update delivery payment methods if provided
+        if (configuration.getDeliveryPaymentMethods() != null) {
+            existingConfig.setDeliveryPaymentMethods(configuration.getDeliveryPaymentMethods());
+        }
+        
         SystemConfiguration saved = configurationRepository.save(existingConfig);
         log.info("System configuration updated successfully");
         return saved;
@@ -87,6 +92,16 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
             paymentMethods.put(PaymentMethodType.CREDIT_CARD, true);
             paymentMethods.put(PaymentMethodType.DEBIT_CARD, true);
             configuration.setPaymentMethods(paymentMethods);
+        }
+        
+        // Initialize delivery payment methods if not set
+        if (configuration.getDeliveryPaymentMethods() == null || configuration.getDeliveryPaymentMethods().isEmpty()) {
+            Map<PaymentMethodType, Boolean> deliveryPaymentMethods = new HashMap<>();
+            deliveryPaymentMethods.put(PaymentMethodType.CASH, true); // Cash enabled by default for delivery
+            deliveryPaymentMethods.put(PaymentMethodType.CREDIT_CARD, false);
+            deliveryPaymentMethods.put(PaymentMethodType.DEBIT_CARD, false);
+            deliveryPaymentMethods.put(PaymentMethodType.TRANSFER, false);
+            configuration.setDeliveryPaymentMethods(deliveryPaymentMethods);
         }
         
         SystemConfiguration saved = configurationRepository.save(configuration);

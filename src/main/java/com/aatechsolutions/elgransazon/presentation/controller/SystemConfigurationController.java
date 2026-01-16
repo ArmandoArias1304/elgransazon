@@ -79,6 +79,10 @@ public class SystemConfigurationController {
             @RequestParam(value = "paymentCreditCard", required = false) Boolean paymentCreditCard,
             @RequestParam(value = "paymentDebitCard", required = false) Boolean paymentDebitCard,
             @RequestParam(value = "paymentTransfer", required = false) Boolean paymentTransfer,
+            @RequestParam(value = "deliveryPaymentCash", required = false) Boolean deliveryPaymentCash,
+            @RequestParam(value = "deliveryPaymentCreditCard", required = false) Boolean deliveryPaymentCreditCard,
+            @RequestParam(value = "deliveryPaymentDebitCard", required = false) Boolean deliveryPaymentDebitCard,
+            @RequestParam(value = "deliveryPaymentTransfer", required = false) Boolean deliveryPaymentTransfer,
             RedirectAttributes redirectAttributes,
             Model model) {
 
@@ -109,13 +113,21 @@ public class SystemConfigurationController {
         }
 
         try {
-            // Update payment methods
+            // Update restaurant/in-house payment methods
             Map<PaymentMethodType, Boolean> paymentMethods = new HashMap<>();
             paymentMethods.put(PaymentMethodType.CASH, paymentCash != null && paymentCash);
             paymentMethods.put(PaymentMethodType.CREDIT_CARD, paymentCreditCard != null && paymentCreditCard);
             paymentMethods.put(PaymentMethodType.DEBIT_CARD, paymentDebitCard != null && paymentDebitCard);
             paymentMethods.put(PaymentMethodType.TRANSFER, paymentTransfer != null && paymentTransfer);
             configuration.setPaymentMethods(paymentMethods);
+
+            // Update delivery payment methods (separate from restaurant)
+            Map<PaymentMethodType, Boolean> deliveryPaymentMethods = new HashMap<>();
+            deliveryPaymentMethods.put(PaymentMethodType.CASH, deliveryPaymentCash != null && deliveryPaymentCash);
+            deliveryPaymentMethods.put(PaymentMethodType.CREDIT_CARD, deliveryPaymentCreditCard != null && deliveryPaymentCreditCard);
+            deliveryPaymentMethods.put(PaymentMethodType.DEBIT_CARD, deliveryPaymentDebitCard != null && deliveryPaymentDebitCard);
+            deliveryPaymentMethods.put(PaymentMethodType.TRANSFER, deliveryPaymentTransfer != null && deliveryPaymentTransfer);
+            configuration.setDeliveryPaymentMethods(deliveryPaymentMethods);
 
             configurationService.updateConfiguration(configuration);
             

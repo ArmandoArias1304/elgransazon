@@ -236,6 +236,37 @@
                     <h3 class="text-lg font-bold text-gray-900">
                       Método de Pago <span class="text-red-500">*</span>
                     </h3>
+                    
+                    <!-- Order type indicator for payment methods -->
+                    <div 
+                      th:if="${order.orderType.name() == 'DELIVERY'}"
+                      class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg"
+                    >
+                      <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined">local_shipping</span>
+                        <p class="font-medium text-sm">
+                          Este es un pedido de <strong>Entrega a Domicilio</strong>. 
+                          Se muestran los métodos de pago habilitados para Delivery.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <!-- Warning if order has a payment method that is now disabled -->
+                    <div 
+                      th:if="${order.paymentMethod != null and !#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}"
+                      class="bg-amber-50 border-l-4 border-amber-500 text-amber-800 px-4 py-3 rounded-lg mb-4"
+                    >
+                      <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined">warning</span>
+                        <p class="font-medium">
+                          El método de pago original (<span th:text="${order.paymentMethod.displayName}"></span>) fue deshabilitado 
+                          <span th:if="${order.orderType.name() == 'DELIVERY'}">para entregas a domicilio</span>
+                          <span th:unless="${order.orderType.name() == 'DELIVERY'}">en el restaurante</span>.
+                          Por favor seleccione un método de pago habilitado.
+                        </p>
+                      </div>
+                    </div>
+                    
                     <div class="grid grid-cols-3 gap-3">
                       <button
                         type="button"
@@ -247,10 +278,9 @@
                         <span class="material-symbols-outlined text-3xl">
                           <th:block th:switch="${method.name()}">
                             <th:block th:case="'CASH'">payments</th:block>
-                            <th:block th:case="'CARD'">credit_card</th:block>
-                            <th:block th:case="'TRANSFER'"
-                              >account_balance</th:block
-                            >
+                            <th:block th:case="'CREDIT_CARD'">credit_card</th:block>
+                            <th:block th:case="'DEBIT_CARD'">credit_card</th:block>
+                            <th:block th:case="'TRANSFER'">account_balance</th:block>
                             <th:block th:case="*">payment</th:block>
                           </th:block>
                         </span>
@@ -258,14 +288,27 @@
                           class="font-semibold text-sm"
                           th:text="${method.displayName}"
                         ></span>
+                        <!-- Enabled badge -->
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                          <span class="material-symbols-outlined text-xs">check_circle</span>
+                          Habilitado
+                        </span>
                       </button>
                     </div>
+                    
                     <input
                       type="hidden"
                       name="paymentMethod"
                       id="paymentMethodInput"
-                      th:value="${currentPaymentMethod}"
+                      th:value="${order.paymentMethod != null and #lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())} ? ${order.paymentMethod} : (${enabledPaymentMethods.size() > 0} ? ${enabledPaymentMethods[0]} : '')"
                     />
+                    
+                    <!-- Info about enabled payment methods -->
+                    <p class="text-sm text-gray-500 font-medium flex items-center gap-1">
+                      <span class="material-symbols-outlined text-sm">info</span>
+                      <span th:if="${order.orderType.name() == 'DELIVERY'}">Métodos de pago habilitados para entregas a domicilio</span>
+                      <span th:unless="${order.orderType.name() == 'DELIVERY'}">Métodos de pago habilitados en el restaurante</span>
+                    </p>
                   </div>
 
                   <!-- Change Calculator -->

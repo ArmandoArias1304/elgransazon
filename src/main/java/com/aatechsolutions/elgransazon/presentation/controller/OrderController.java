@@ -381,9 +381,13 @@ public class OrderController {
         // Get system configuration
         SystemConfiguration config = systemConfigurationService.getConfiguration();
         
-        // Get enabled payment methods from configuration
-        Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
-        List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
+        // Get enabled payment methods based on order type
+        // For DELIVERY orders, use deliveryPaymentMethods; for others use regular paymentMethods
+        Map<PaymentMethodType, Boolean> paymentMethodsMap = type == OrderType.DELIVERY 
+                ? config.getDeliveryPaymentMethods() 
+                : config.getPaymentMethods();
+        
+        List<PaymentMethodType> enabledPaymentMethods = paymentMethodsMap.entrySet().stream()
                 .filter(Map.Entry::getValue)
                 .map(Map.Entry::getKey)
                 .sorted(Comparator.comparing(PaymentMethodType::name))
@@ -391,8 +395,10 @@ public class OrderController {
         
         // Validate at least one payment method is enabled
         if (enabledPaymentMethods.isEmpty()) {
-            log.warn("No payment methods enabled in system configuration");
-            redirectAttributes.addFlashAttribute("errorMessage", "No hay métodos de pago habilitados. Por favor contacte al administrador.");
+            String orderTypeText = type == OrderType.DELIVERY ? "entregas a domicilio" : "el restaurante";
+            log.warn("No payment methods enabled for {} in system configuration", orderTypeText);
+            redirectAttributes.addFlashAttribute("errorMessage", 
+                "No hay métodos de pago habilitados para " + orderTypeText + ". Por favor contacte al administrador.");
             return "redirect:/" + role + "/orders";
         }
 
@@ -467,9 +473,13 @@ public class OrderController {
         // Get system configuration
         SystemConfiguration config = systemConfigurationService.getConfiguration();
         
-        // Get enabled payment methods from configuration
-        Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
-        List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
+        // Get enabled payment methods based on order type
+        // For DELIVERY orders, use deliveryPaymentMethods; for others use regular paymentMethods
+        Map<PaymentMethodType, Boolean> paymentMethodsMap = order.getOrderType() == OrderType.DELIVERY 
+                ? config.getDeliveryPaymentMethods() 
+                : config.getPaymentMethods();
+        
+        List<PaymentMethodType> enabledPaymentMethods = paymentMethodsMap.entrySet().stream()
                 .filter(Map.Entry::getValue)
                 .map(Map.Entry::getKey)
                 .sorted(Comparator.comparing(PaymentMethodType::name))
@@ -836,9 +846,12 @@ public class OrderController {
             })
             .collect(Collectors.toList());
 
-        // Get enabled payment methods
-        Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
-        List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
+        // Get enabled payment methods based on current order type
+        // For DELIVERY orders, use deliveryPaymentMethods; for others use regular paymentMethods
+        Map<PaymentMethodType, Boolean> paymentMethodsMap = (order.getOrderType() == OrderType.DELIVERY) 
+            ? config.getDeliveryPaymentMethods() 
+            : config.getPaymentMethods();
+        List<PaymentMethodType> enabledPaymentMethods = paymentMethodsMap.entrySet().stream()
             .filter(Map.Entry::getValue)
             .map(Map.Entry::getKey)
             .collect(Collectors.toList());
@@ -1118,7 +1131,9 @@ public class OrderController {
                         })
                         .collect(Collectors.toList());
                     
-                    Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
+                    Map<PaymentMethodType, Boolean> paymentMethods = order.getOrderType() == OrderType.DELIVERY 
+                        ? config.getDeliveryPaymentMethods() 
+                        : config.getPaymentMethods();
                     List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
                         .filter(Map.Entry::getValue)
                         .map(Map.Entry::getKey)
@@ -1195,10 +1210,12 @@ public class OrderController {
             if (order.getPaymentMethod() != null) {
                 SystemConfigurationService configService = systemConfigurationService; // Accessed via field
                 SystemConfiguration config = configService.getConfiguration();
-                if (!config.isPaymentMethodEnabled(order.getPaymentMethod())) {
+                // Validate based on order type - DELIVERY orders use deliveryPaymentMethods
+                if (!config.isPaymentMethodEnabledForOrderType(order.getPaymentMethod(), order.getOrderType())) {
                     // Use redirect to preserve the order data on reload
+                    String context = order.getOrderType() == OrderType.DELIVERY ? " para entregas a domicilio" : "";
                     redirectAttributes.addFlashAttribute("errorMessage", 
-                        "El método de pago seleccionado (" + order.getPaymentMethod().getDisplayName() + ") está deshabilitado en la configuración");
+                        "El método de pago seleccionado (" + order.getPaymentMethod().getDisplayName() + ") está deshabilitado" + context);
                     return "redirect:/" + role + "/orders/edit/" + id;
                 }
             }
@@ -2089,8 +2106,10 @@ public class OrderController {
             })
             .collect(Collectors.toList());
         
-        Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
-        List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
+        Map<PaymentMethodType, Boolean> paymentMethodsMap = (order.getOrderType() == OrderType.DELIVERY) 
+            ? config.getDeliveryPaymentMethods() 
+            : config.getPaymentMethods();
+        List<PaymentMethodType> enabledPaymentMethods = paymentMethodsMap.entrySet().stream()
             .filter(Map.Entry::getValue)
             .map(Map.Entry::getKey)
             .collect(Collectors.toList());

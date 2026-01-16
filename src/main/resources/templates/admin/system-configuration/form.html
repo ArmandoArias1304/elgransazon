@@ -653,6 +653,112 @@
                       </div>
                     </label>
                   </div>
+                  <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Estos métodos de pago aplican para pedidos en restaurante (para comer aquí y para llevar).
+                  </p>
+                </div>
+
+                <!-- Delivery Payment Methods - Separate Section -->
+                <div>
+                  <label
+                    class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3"
+                  >
+                    <span class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-primary">local_shipping</span>
+                      Métodos de Pago para Delivery
+                    </span>
+                  </label>
+                  <div
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+                  >
+                    <label
+                      class="flex items-center gap-3 p-4 rounded-xl border-2 border-orange-200 dark:border-orange-900 hover:border-orange-400 cursor-pointer transition-colors bg-orange-50/50 dark:bg-orange-900/10"
+                    >
+                      <input
+                        type="checkbox"
+                        id="deliveryPaymentCash"
+                        name="deliveryPaymentCash"
+                        th:checked="${configuration.deliveryPaymentMethods?.get(T(com.aatechsolutions.elgransazon.domain.entity.PaymentMethodType).CASH) ?: true}"
+                        class="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                      />
+                      <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-orange-500"
+                          >payments</span
+                        >
+                        <span
+                          class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >Efectivo</span
+                        >
+                      </div>
+                    </label>
+
+                    <label
+                      class="flex items-center gap-3 p-4 rounded-xl border-2 border-orange-200 dark:border-orange-900 hover:border-orange-400 cursor-pointer transition-colors bg-orange-50/50 dark:bg-orange-900/10"
+                    >
+                      <input
+                        type="checkbox"
+                        id="deliveryPaymentCreditCard"
+                        name="deliveryPaymentCreditCard"
+                        th:checked="${configuration.deliveryPaymentMethods?.get(T(com.aatechsolutions.elgransazon.domain.entity.PaymentMethodType).CREDIT_CARD) ?: false}"
+                        class="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                      />
+                      <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-orange-500"
+                          >credit_card</span
+                        >
+                        <span
+                          class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >Tarjeta de Crédito</span
+                        >
+                      </div>
+                    </label>
+
+                    <label
+                      class="flex items-center gap-3 p-4 rounded-xl border-2 border-orange-200 dark:border-orange-900 hover:border-orange-400 cursor-pointer transition-colors bg-orange-50/50 dark:bg-orange-900/10"
+                    >
+                      <input
+                        type="checkbox"
+                        id="deliveryPaymentDebitCard"
+                        name="deliveryPaymentDebitCard"
+                        th:checked="${configuration.deliveryPaymentMethods?.get(T(com.aatechsolutions.elgransazon.domain.entity.PaymentMethodType).DEBIT_CARD) ?: false}"
+                        class="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                      />
+                      <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-orange-500"
+                          >credit_card</span
+                        >
+                        <span
+                          class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >Tarjeta de Débito</span
+                        >
+                      </div>
+                    </label>
+
+                    <label
+                      class="flex items-center gap-3 p-4 rounded-xl border-2 border-orange-200 dark:border-orange-900 hover:border-orange-400 cursor-pointer transition-colors bg-orange-50/50 dark:bg-orange-900/10"
+                    >
+                      <input
+                        type="checkbox"
+                        id="deliveryPaymentTransfer"
+                        name="deliveryPaymentTransfer"
+                        th:checked="${configuration.deliveryPaymentMethods?.get(T(com.aatechsolutions.elgransazon.domain.entity.PaymentMethodType).TRANSFER) ?: false}"
+                        class="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                      />
+                      <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-orange-500"
+                          >account_balance</span
+                        >
+                        <span
+                          class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                          >Transferencia</span
+                        >
+                      </div>
+                    </label>
+                  </div>
+                  <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Estos métodos de pago aplican exclusivamente para pedidos de entrega a domicilio (delivery). 
+                    Puedes desactivar métodos aquí sin afectar los pagos del restaurante.
+                  </p>
                 </div>
 
                 <div class="flex justify-end">

@@ -71,13 +71,23 @@ public class SystemConfiguration implements Serializable {
     @Builder.Default
     private Integer averageConsumptionTimeMinutes = 120; // Default: 2 hours
 
-    // Payment methods with enable/disable status
+    // Payment methods with enable/disable status (for restaurant/in-house orders)
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "system_payment_methods", joinColumns = @JoinColumn(name = "system_configuration_id"))
     @MapKeyEnumerated(EnumType.STRING)
     @Column(name = "enabled")
     @Builder.Default
     private Map<PaymentMethodType, Boolean> paymentMethods = new HashMap<>();
+
+    // Delivery payment methods with enable/disable status (separate from restaurant)
+    // This allows disabling payment methods ONLY for delivery without affecting restaurant payments
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "system_delivery_payment_methods", joinColumns = @JoinColumn(name = "system_configuration_id"))
+    @MapKeyEnumerated(EnumType.STRING)
+    @MapKeyColumn(name = "payment_method_type")
+    @Column(name = "enabled")
+    @Builder.Default
+    private Map<PaymentMethodType, Boolean> deliveryPaymentMethods = new HashMap<>();
 
     @OneToMany(mappedBy = "systemConfiguration", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("dayOfWeek ASC")
@@ -113,6 +123,15 @@ public class SystemConfiguration implements Serializable {
             this.paymentMethods.put(PaymentMethodType.CREDIT_CARD, true);
             this.paymentMethods.put(PaymentMethodType.DEBIT_CARD, true);
             this.paymentMethods.put(PaymentMethodType.TRANSFER, false); // Disabled by default
+        }
+        // Initialize delivery payment methods if not set
+        // By default, only CASH is enabled for delivery
+        if (this.deliveryPaymentMethods == null || this.deliveryPaymentMethods.isEmpty()) {
+            this.deliveryPaymentMethods = new HashMap<>();
+            this.deliveryPaymentMethods.put(PaymentMethodType.CASH, true); // Cash enabled by default for delivery
+            this.deliveryPaymentMethods.put(PaymentMethodType.CREDIT_CARD, false); // Disabled by default
+            this.deliveryPaymentMethods.put(PaymentMethodType.DEBIT_CARD, false); // Disabled by default
+            this.deliveryPaymentMethods.put(PaymentMethodType.TRANSFER, false); // Disabled by default
         }
     }
 
@@ -158,6 +177,23 @@ public class SystemConfiguration implements Serializable {
     // Helper method to check if a payment method is enabled
     public boolean isPaymentMethodEnabled(PaymentMethodType type) {
         return paymentMethods.getOrDefault(type, false);
+    }
+
+    // Helper method to check if a delivery payment method is enabled
+    public boolean isDeliveryPaymentMethodEnabled(PaymentMethodType type) {
+        return deliveryPaymentMethods.getOrDefault(type, false);
+    }
+
+    /**
+     * Check if a payment method is enabled based on order type
+     * For DELIVERY orders, uses deliveryPaymentMethods
+     * For other orders (DINE_IN, TAKEOUT), uses paymentMethods
+     */
+    public boolean isPaymentMethodEnabledForOrderType(PaymentMethodType type, OrderType orderType) {
+        if (orderType == OrderType.DELIVERY) {
+            return isDeliveryPaymentMethodEnabled(type);
+        }
+        return isPaymentMethodEnabled(type);
     }
 
     // Helper method to get active social networks

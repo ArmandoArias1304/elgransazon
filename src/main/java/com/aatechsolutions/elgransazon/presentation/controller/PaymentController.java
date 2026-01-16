@@ -73,9 +73,13 @@ public class PaymentController {
                     // Get system configuration
                     SystemConfiguration config = systemConfigurationService.getConfiguration();
                     
-                    // Get enabled payment methods
-                    Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
-                    List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
+                    // Get enabled payment methods based on order type
+                    // For DELIVERY orders, use delivery payment methods
+                    // For other orders (DINE_IN, TAKEOUT), use restaurant payment methods
+                    Map<PaymentMethodType, Boolean> paymentMethodsMap = order.getOrderType() == OrderType.DELIVERY 
+                        ? config.getDeliveryPaymentMethods() 
+                        : config.getPaymentMethods();
+                    List<PaymentMethodType> enabledPaymentMethods = paymentMethodsMap.entrySet().stream()
                         .filter(Map.Entry::getValue)
                         .map(Map.Entry::getKey)
                         .filter(method -> {
@@ -94,8 +98,14 @@ public class PaymentController {
                         return "redirect:/admin/orders";
                     }
 
+                    // Create list of enabled payment method names for Thymeleaf validation
+                    List<String> enabledPaymentMethodNames = enabledPaymentMethods.stream()
+                        .map(PaymentMethodType::name)
+                        .collect(Collectors.toList());
+
                     model.addAttribute("order", order);
                     model.addAttribute("enabledPaymentMethods", enabledPaymentMethods);
+                    model.addAttribute("enabledPaymentMethodNames", enabledPaymentMethodNames);
                     
                     return "admin/payments/form";
                 })
@@ -114,12 +124,17 @@ public class PaymentController {
             @RequestParam PaymentMethodType paymentMethod,
             @RequestParam(required = false, defaultValue = "0") BigDecimal tip,
             Authentication authentication,
+            Model model,
             RedirectAttributes redirectAttributes,
             jakarta.servlet.http.HttpSession session) {
         
         String username = authentication.getName();
         log.info("Processing payment for order ID: {} by user: {}", orderId, username);
         log.info("Payment method: {}, Tip: {}", paymentMethod, tip);
+
+        // Check if user is a waiter
+        boolean isWaiter = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_WAITER"));
 
         try {
             // Find the order
@@ -133,14 +148,50 @@ public class PaymentController {
 
             // Get system configuration to validate payment method
             SystemConfiguration config = systemConfigurationService.getConfiguration();
-            if (!config.isPaymentMethodEnabled(paymentMethod)) {
-                throw new IllegalStateException("El método de pago seleccionado no está habilitado: " + paymentMethod.getDisplayName());
+            
+            // Validate payment method based on order type
+            boolean isPaymentMethodEnabled = order.getOrderType() == OrderType.DELIVERY 
+                ? config.isDeliveryPaymentMethodEnabled(paymentMethod)
+                : config.isPaymentMethodEnabled(paymentMethod);
+            
+            if (!isPaymentMethodEnabled) {
+                // Stay on the same page showing the error message
+                log.warn("Payment method {} is disabled for order type {}", paymentMethod.getDisplayName(), order.getOrderType());
+                
+                // Get enabled payment methods based on order type
+                Map<PaymentMethodType, Boolean> paymentMethodsMap = order.getOrderType() == OrderType.DELIVERY 
+                    ? config.getDeliveryPaymentMethods() 
+                    : config.getPaymentMethods();
+                List<PaymentMethodType> enabledPaymentMethods = paymentMethodsMap.entrySet().stream()
+                    .filter(Map.Entry::getValue)
+                    .map(Map.Entry::getKey)
+                    .filter(method -> {
+                        // Filter specifically for waiters - they cannot see CASH or TRANSFER options
+                        if (isWaiter) {
+                            return method != PaymentMethodType.CASH && method != PaymentMethodType.TRANSFER;
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList());
+                
+                // Convert to strings for Thymeleaf
+                List<String> enabledPaymentMethodNames = enabledPaymentMethods.stream()
+                        .map(PaymentMethodType::name)
+                        .collect(Collectors.toList());
+                
+                String orderTypeLabel = order.getOrderType() == OrderType.DELIVERY ? "entregas a domicilio" : "el restaurante";
+                
+                model.addAttribute("order", order);
+                model.addAttribute("enabledPaymentMethods", enabledPaymentMethods);
+                model.addAttribute("enabledPaymentMethodNames", enabledPaymentMethodNames);
+                model.addAttribute("errorMessage", 
+                    "El método de pago '" + paymentMethod.getDisplayName() + 
+                    "' está deshabilitado para " + orderTypeLabel + ". Por favor seleccione otro método de pago.");
+                
+                return "admin/payments/form";
             }
 
             // Check restriction for waiters
-            boolean isWaiter = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_WAITER"));
-            
             if (isWaiter && (paymentMethod == PaymentMethodType.CASH || paymentMethod == PaymentMethodType.TRANSFER)) {
                 throw new IllegalStateException("Los meseros no pueden procesar pagos en " + paymentMethod.getDisplayName());
             }

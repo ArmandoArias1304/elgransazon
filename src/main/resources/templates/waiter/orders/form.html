@@ -108,7 +108,14 @@
               class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1"
               th:text="${order.idOrder != null ? 'Editar Pedido' : 'Nuevo Pedido'}"
             ></h1>
-            <p class="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            <p th:if="${order.idOrder != null}" class="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              Pedido
+              <span
+                class="font-mono font-semibold text-primary"
+                th:text="${order.orderNumber}"
+              ></span>
+            </p>
+            <p th:if="${order.idOrder == null}" class="text-sm sm:text-base text-gray-600 dark:text-gray-400">
               Complete la información del pedido
             </p>
           </div>
@@ -688,7 +695,16 @@
       }
 
       function calculateTotal() {
-        let subtotal = 0;
+        // ============================================================
+        // Los precios YA INCLUYEN IVA, por lo tanto:
+        // - total = suma de (price * qty) donde price ya tiene IVA
+        // - subtotalSinIVA = total / (1 + taxRate/100)
+        // - iva = total - subtotalSinIVA
+        // ============================================================
+        const taxMultiplier = taxRate / 100;
+        const round2 = (value) => Math.round(value * 100) / 100;
+
+        let totalConIVA = 0;
 
         if (isEditMode) {
           // In edit mode, calculate from hidden inputs
@@ -702,7 +718,7 @@
             const qty = parseInt(quantities[index].value || 0);
             const item = availableItems.find((i) => i.idItemMenu == itemId);
             if (item) {
-              subtotal += item.price * qty;
+              totalConIVA += item.price * qty;
             }
           });
         } else {
@@ -715,20 +731,21 @@
               const option = select.options[select.selectedIndex];
               const price = parseFloat(option.dataset.price || 0);
               const qty = parseInt(quantities[index].value || 0);
-              subtotal += price * qty;
+              totalConIVA += price * qty;
             }
           });
         }
 
-        const taxAmount = subtotal * (taxRate / 100);
-        const total = subtotal + taxAmount;
+        // Calcular subtotal sin IVA y el IVA derivado del total
+        const subtotalSinIVA = totalConIVA / (1 + taxMultiplier);
+        const taxAmount = totalConIVA - subtotalSinIVA;
 
         document.getElementById("subtotalDisplay").textContent =
-          "$" + subtotal.toFixed(2);
+          "$" + round2(subtotalSinIVA).toFixed(2);
         document.getElementById("taxDisplay").textContent =
-          "$" + taxAmount.toFixed(2);
+          "$" + round2(taxAmount).toFixed(2);
         document.getElementById("totalDisplay").textContent =
-          "$" + total.toFixed(2);
+          "$" + round2(totalConIVA).toFixed(2);
       }
 
       // Form validation and submission

@@ -45,7 +45,8 @@ public class WaiterPaymentController {
     /**
      * Show payment form for an order
      * Only DELIVERED orders can be paid
-     * Waiters can only collect NON-CASH payments
+     * Waiters can only collect CREDIT_CARD and DEBIT_CARD payments
+     * Waiters CANNOT collect DELIVERY orders - those go to delivery person or cashier
      */
     @GetMapping("/form/{orderId}")
     public String showPaymentForm(
@@ -66,28 +67,38 @@ public class WaiterPaymentController {
                         return "redirect:/waiter/orders";
                     }
 
-                    // Validate that payment method is NOT cash
-                    if (order.getPaymentMethod() == PaymentMethodType.CASH) {
+                    // Validate that order is NOT DELIVERY - waiters cannot collect delivery payments
+                    if (order.getOrderType() == OrderType.DELIVERY) {
                         redirectAttributes.addFlashAttribute("errorMessage", 
-                            "Los meseros no pueden cobrar pagos en EFECTIVO. Por favor, dirija al cliente a caja.");
+                            "Los meseros no pueden cobrar pedidos de entrega a domicilio. Por favor, dirija al repartidor o cajero.");
+                        return "redirect:/waiter/orders";
+                    }
+
+                    // Validate that payment method is allowed for waiters (only CREDIT_CARD and DEBIT_CARD)
+                    // Waiters cannot collect CASH or TRANSFER payments
+                    if (order.getPaymentMethod() == PaymentMethodType.CASH || 
+                        order.getPaymentMethod() == PaymentMethodType.TRANSFER) {
+                        redirectAttributes.addFlashAttribute("errorMessage", 
+                            "Los meseros solo pueden cobrar pagos con tarjeta de crédito o débito. Por favor, dirija al cliente a caja.");
                         return "redirect:/waiter/orders";
                     }
 
                     // Get system configuration
                     SystemConfiguration config = systemConfigurationService.getConfiguration();
                     
-                    // Get enabled payment methods (excluding CASH)
+                    // Get enabled payment methods (only CREDIT_CARD and DEBIT_CARD for waiters)
                     Map<PaymentMethodType, Boolean> paymentMethods = config.getPaymentMethods();
                     List<PaymentMethodType> enabledPaymentMethods = paymentMethods.entrySet().stream()
                         .filter(Map.Entry::getValue)
                         .map(Map.Entry::getKey)
-                        .filter(method -> method != PaymentMethodType.CASH) // Exclude CASH
+                        .filter(method -> method == PaymentMethodType.CREDIT_CARD || 
+                                          method == PaymentMethodType.DEBIT_CARD) // Only cards
                         .collect(Collectors.toList());
 
-                    // Check if there are enabled non-cash payment methods
+                    // Check if there are enabled card payment methods
                     if (enabledPaymentMethods.isEmpty()) {
                         redirectAttributes.addFlashAttribute("errorMessage", 
-                            "No hay métodos de pago no-efectivo habilitados en la configuración del sistema");
+                            "No hay métodos de pago con tarjeta habilitados en la configuración del sistema. Por favor, dirija al cliente a caja.");
                         return "redirect:/waiter/orders";
                     }
 
@@ -106,7 +117,8 @@ public class WaiterPaymentController {
 
     /**
      * Process payment for an order
-     * Waiter can only collect NON-CASH payment methods
+     * Waiter can only collect CREDIT_CARD and DEBIT_CARD payments
+     * Waiter CANNOT collect DELIVERY orders
      */
     @PostMapping("/process/{orderId}")
     public String processPayment(
@@ -121,14 +133,20 @@ public class WaiterPaymentController {
         log.info("Payment method: {}, Tip: {}", paymentMethod, tip);
 
         try {
-            // Validate that payment method is NOT cash
-            if (paymentMethod == PaymentMethodType.CASH) {
-                throw new IllegalStateException("Los meseros no pueden cobrar pagos en EFECTIVO. Por favor, dirija al cliente a caja.");
+            // Validate that payment method is allowed for waiters (only CREDIT_CARD and DEBIT_CARD)
+            if (paymentMethod != PaymentMethodType.CREDIT_CARD && 
+                paymentMethod != PaymentMethodType.DEBIT_CARD) {
+                throw new IllegalStateException("Los meseros solo pueden cobrar pagos con tarjeta de crédito o débito. Por favor, dirija al cliente a caja.");
             }
 
             // Find the order
             Order order = waiterOrderService.findByIdWithDetails(orderId)
                     .orElseThrow(() -> new IllegalArgumentException("Orden no encontrada"));
+
+            // Validate that order is NOT DELIVERY - waiters cannot collect delivery payments
+            if (order.getOrderType() == OrderType.DELIVERY) {
+                throw new IllegalStateException("Los meseros no pueden cobrar pedidos de entrega a domicilio. Por favor, dirija al repartidor o cajero.");
+            }
 
             // Validate that order is in DELIVERED status
             if (order.getStatus() != OrderStatus.DELIVERED) {

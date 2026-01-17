@@ -217,6 +217,28 @@ public class PromotionController {
                 }
             }
 
+            // Validate fixed discount amount (if applicable)
+            if (promotion.getPromotionType() == PromotionType.FIXED_AMOUNT_DISCOUNT) {
+                Map<String, Object> validationResult = promotionService.validateFixedDiscountAmount(promotion);
+                boolean isValid = (boolean) validationResult.get("valid");
+                
+                if (!isValid) {
+                    @SuppressWarnings("unchecked")
+                    List<String> invalidItems = (List<String>) validationResult.get("invalidItems");
+                    String errorMsg = String.format(
+                        "El descuento de $%.2f es mayor que el precio de los siguientes items: %s. " +
+                        "El descuento fijo no puede ser mayor al precio del item.",
+                        promotion.getDiscountAmount(),
+                        String.join(", ", invalidItems)
+                    );
+                    
+                    log.warn("Fixed discount validation failed: {}", errorMsg);
+                    model.addAttribute("error", errorMsg);
+                    loadFormData(model, promotion, role);
+                    return role + "/promotions/form";
+                }
+            }
+
             promotionService.save(promotion);
             redirectAttributes.addFlashAttribute("success", 
                 "Promoción '" + promotion.getName() + "' creada exitosamente");
@@ -293,6 +315,29 @@ public class PromotionController {
             if (itemIds != null) {
                 for (Long itemId : itemIds) {
                     itemMenuService.findById(itemId).ifPresent(existing::addItem);
+                }
+            }
+
+            // Validate fixed discount amount (if applicable)
+            if (existing.getPromotionType() == PromotionType.FIXED_AMOUNT_DISCOUNT) {
+                Map<String, Object> validationResult = promotionService.validateFixedDiscountAmount(existing);
+                boolean isValid = (boolean) validationResult.get("valid");
+                
+                if (!isValid) {
+                    @SuppressWarnings("unchecked")
+                    List<String> invalidItems = (List<String>) validationResult.get("invalidItems");
+                    String errorMsg = String.format(
+                        "El descuento de $%.2f es mayor que el precio de los siguientes items: %s. " +
+                        "El descuento fijo no puede ser mayor al precio del item.",
+                        existing.getDiscountAmount(),
+                        String.join(", ", invalidItems)
+                    );
+                    
+                    log.warn("Fixed discount validation failed during update: {}", errorMsg);
+                    model.addAttribute("error", errorMsg);
+                    model.addAttribute("formAction", "/admin/promotions/" + id);
+                    loadFormData(model, promotion, role);
+                    return role + "/promotions/form";
                 }
             }
 

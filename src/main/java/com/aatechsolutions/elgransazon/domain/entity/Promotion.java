@@ -340,6 +340,14 @@ public class Promotion implements Serializable {
             return originalPrice.multiply(BigDecimal.valueOf(quantity));
         }
 
+        // Validate that discount is not greater than price
+        if (discountAmount.compareTo(originalPrice) > 0) {
+            throw new IllegalArgumentException(
+                String.format("El descuento fijo ($%.2f) no puede ser mayor que el precio del item ($%.2f)",
+                    discountAmount, originalPrice)
+            );
+        }
+
         // Discounted price per item (cannot be negative)
         BigDecimal discountedPrice = originalPrice.subtract(discountAmount);
         if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) {

@@ -1480,58 +1480,54 @@
         }
 
         // ============================================================
-        // NUEVA LÓGICA DE CÁLCULO (SIN REDONDEOS INTERMEDIOS):
+        // LÓGICA DE CÁLCULO CORRECTA:
         // El precio almacenado (item.price) ya incluye IVA
         //
-        // IMPORTANTE: Usar TODOS los dígitos en cálculos internos
-        // Solo TRUNCAR (no redondear) al mostrar en UI
-        // El TOTAL debe ser EXACTO
-        //
         // Fórmulas:
-        // - Total = suma de item.subtotal (precio final con IVA, ya calculado)
-        // - SubtotalSinIVA = suma de (item.price / 1.16 × quantity) [precio original sin IVA]
-        // - SubtotalConPromoSinIVA = Total / 1.16
-        // - Descuento = SubtotalSinIVA - SubtotalConPromoSinIVA
-        // - IVA = Total - SubtotalConPromoSinIVA
+        // - Subtotal (sin IVA) = suma de (precio original / (1 + taxRate) × cantidad)
+        // - Descuento (sin IVA) = suma de (descuento unitario / (1 + taxRate) × cantidad)
+        // - Base imponible = Subtotal - Descuento
+        // - IVA = Base imponible × taxRate
+        // - Total = Base imponible + IVA = Base imponible × (1 + taxRate)
         // ============================================================
 
         // Función para redondear a 2 decimales (igual que el backend)
         const round2 = (value) => Math.round(value * 100) / 100;
 
-        // 1. Calcular el TOTAL primero (suma de item.subtotal - precio final con IVA)
-        //    Este valor ya es exacto porque item.subtotal tiene el precio correcto con promoción
-        let totalFinal = 0;
-        let subtotalOriginalSinIVA = 0; // Precio original sin IVA (antes de descuentos)
+        let subtotalSinIVA = 0; // Precio original sin IVA (antes de descuentos)
+        let descuentoTotalSinIVA = 0; // Descuento total sin IVA
         let hayPromocion = false;
 
         cart.forEach((item) => {
-          // Total = suma de precios finales con IVA (ya tienen promoción aplicada)
-          totalFinal += item.subtotal;
+          // Precio original sin IVA
+          const precioOriginalSinIVA = item.price / (1 + taxMultiplier);
+          subtotalSinIVA += precioOriginalSinIVA * item.quantity;
 
-          // Subtotal original sin IVA = precio original / (1 + IVA) × cantidad
-          // Usamos item.price que es el precio original (sin promoción)
-          subtotalOriginalSinIVA +=
-            (item.price / (1 + taxMultiplier)) * item.quantity;
-
-          if (item.promotionAppliedPrice) {
+          // Si hay promoción, calcular el descuento sin IVA
+          if (item.promotionAppliedPrice !== null && item.promotionAppliedPrice !== undefined) {
             hayPromocion = true;
+            // Descuento unitario = precio original - precio con promoción
+            const descuentoUnitario = item.price - item.promotionAppliedPrice;
+            // Descuento unitario sin IVA
+            const descuentoUnitarioSinIVA = descuentoUnitario / (1 + taxMultiplier);
+            descuentoTotalSinIVA += descuentoUnitarioSinIVA * item.quantity;
           }
         });
 
-        // 2. Calcular subtotal con promoción sin IVA (usando todos los dígitos)
-        const subtotalConPromoSinIVA = totalFinal / (1 + taxMultiplier);
+        // Base imponible = Subtotal - Descuento (ambos sin IVA)
+        const baseImponible = subtotalSinIVA - descuentoTotalSinIVA;
 
-        // 3. Calcular descuento = diferencia entre subtotal original y subtotal con promo (ambos sin IVA)
-        const descuento = subtotalOriginalSinIVA - subtotalConPromoSinIVA;
+        // IVA = Base imponible × tasa de IVA
+        const iva = baseImponible * taxMultiplier;
 
-        // 4. Calcular IVA = Total - SubtotalConPromoSinIVA (esto da el IVA exacto)
-        const iva = totalFinal - subtotalConPromoSinIVA;
+        // Total = Base imponible + IVA
+        const totalFinal = baseImponible + iva;
 
-        // Actualizar UI (REDONDEAR para mostrar, igual que el backend)
-        cartSubtotalEl.textContent = `$${round2(subtotalOriginalSinIVA).toFixed(2)}`;
+        // Actualizar UI (REDONDEAR para mostrar)
+        cartSubtotalEl.textContent = `$${round2(subtotalSinIVA).toFixed(2)}`;
         cartIVAEl.textContent = `$${round2(iva).toFixed(2)}`;
-        // El total debe ser EXACTO (redondeado a 2 decimales para evitar errores de punto flotante)
-        cartTotalEl.textContent = `$${round2(totalFinal).toFixed(2)}`;
+        const totalRounded = round2(totalFinal);
+        cartTotalEl.textContent = totalRounded === 0 ? 'GRATIS' : `$${totalRounded.toFixed(2)}`;
 
         // Actualizar display de descuento
         const discountContainer = document.getElementById(
@@ -1539,8 +1535,8 @@
         );
         const discountElement = document.getElementById("cartDiscount");
         if (discountContainer && discountElement) {
-          if (hayPromocion && descuento > 0.001) {
-            discountElement.textContent = `-$${round2(descuento).toFixed(2)}`;
+          if (hayPromocion && descuentoTotalSinIVA > 0.001) {
+            discountElement.textContent = `-$${round2(descuentoTotalSinIVA).toFixed(2)}`;
             discountContainer.classList.remove("hidden");
           } else {
             discountContainer.classList.add("hidden");
@@ -1597,17 +1593,16 @@
                     : ""
                 }
                 <p class="text-sm font-black text-primary ${
-                  item.promotionAppliedPrice ? "mt-1" : ""
+                  item.promotionAppliedPrice !== null && item.promotionAppliedPrice !== undefined ? "mt-1" : ""
                 }">
                   ${
-                    item.promotionAppliedPrice
-                      ? `<span class="line-through text-gray-400 dark:text-gray-600 font-normal mr-1">$${item.price.toFixed(
-                          2,
-                        )}</span>
-                         <span class="text-green-600 dark:text-green-400">$${item.promotionAppliedPrice.toFixed(
-                           2,
-                         )}</span>
-                         <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">(aproximado)</span>`
+                    item.promotionAppliedPrice !== null && item.promotionAppliedPrice !== undefined
+                      ? item.promotionAppliedPrice === 0
+                        ? `<span class="line-through text-gray-400 dark:text-gray-600 font-normal mr-1">$${item.price.toFixed(2)}</span>
+                           <span class="text-green-600 dark:text-green-400 font-bold">GRATIS</span>`
+                        : `<span class="line-through text-gray-400 dark:text-gray-600 font-normal mr-1">$${item.price.toFixed(2)}</span>
+                           <span class="text-green-600 dark:text-green-400">$${item.promotionAppliedPrice.toFixed(2)}</span>
+                           <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">(aproximado)</span>`
                       : `$${item.price.toFixed(2)}`
                   }
                 </p>

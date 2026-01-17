@@ -150,7 +150,7 @@ public class Order implements Serializable {
     private BigDecimal taxAmount = BigDecimal.ZERO;
 
     @NotNull(message = "El total es requerido")
-    @DecimalMin(value = "0.0", inclusive = false, message = "El total debe ser mayor a 0")
+    @DecimalMin(value = "0.0", inclusive = true, message = "El total no puede ser negativo")
     @Column(name = "total", precision = 10, scale = 2, nullable = false)
     @Builder.Default
     private BigDecimal total = BigDecimal.ZERO;

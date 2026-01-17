@@ -249,4 +249,37 @@ public class PromotionServiceImpl implements PromotionService {
         log.debug("Finding all promotions ordered by priority");
         return promotionRepository.findAllByOrderByPriorityDescNameAsc();
     }
+
+    @Override
+    public java.util.Map<String, Object> validateFixedDiscountAmount(Promotion promotion) {
+        log.debug("Validating fixed discount amount for promotion: {}", promotion.getName());
+        
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        java.util.List<String> invalidItems = new java.util.ArrayList<>();
+        
+        // Only validate for FIXED_AMOUNT_DISCOUNT type
+        if (promotion.getPromotionType() == PromotionType.FIXED_AMOUNT_DISCOUNT 
+            && promotion.getDiscountAmount() != null) {
+            
+            BigDecimal discountAmount = promotion.getDiscountAmount();
+            
+            // Check each item in the promotion
+            for (com.aatechsolutions.elgransazon.domain.entity.ItemMenu item : promotion.getItems()) {
+                if (item.getPrice().compareTo(discountAmount) < 0) {
+                    // Discount is greater than item price - this is invalid
+                    invalidItems.add(String.format("%s ($%.2f)", 
+                        item.getName(), 
+                        item.getPrice()));
+                    log.warn("Invalid discount amount for item '{}': discount ${} > price ${}",
+                        item.getName(), discountAmount, item.getPrice());
+                }
+            }
+        }
+        
+        result.put("valid", invalidItems.isEmpty());
+        result.put("invalidItems", invalidItems);
+        result.put("discountAmount", promotion.getDiscountAmount());
+        
+        return result;
+    }
 }

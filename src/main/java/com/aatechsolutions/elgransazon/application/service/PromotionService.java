@@ -117,4 +117,11 @@ public interface PromotionService {
      * Find all promotions ordered by priority
      */
     List<Promotion> findAllOrderedByPriority();
+
+    /**
+     * Validate that fixed discount amount is not greater than item prices
+     * @param promotion The promotion to validate
+     * @return Map with validation results: "valid" (boolean) and "invalidItems" (list of item names)
+     */
+    java.util.Map<String, Object> validateFixedDiscountAmount(Promotion promotion);
 }

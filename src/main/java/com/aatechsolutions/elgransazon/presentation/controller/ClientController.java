@@ -390,68 +390,75 @@ public class ClientController {
                 ItemMenu itemMenu = itemMenuService.findById(itemId)
                         .orElseThrow(() -> new IllegalArgumentException("Item no encontrado: " + itemId));
                 
-                // Get promotion data from frontend (if user selected one)
-                BigDecimal unitPrice = itemMenu.getPrice();
-                BigDecimal promotionPrice = null;
+                // IMPORTANT: ALWAYS recalculate prices in backend (don't trust frontend values)
+                // Get promotion ID from frontend
                 Long promotionId = null;
-                BigDecimal frontendSubtotal = null;
-                
-                // Check if promotion was applied in frontend
-                Object promotionPriceObj = itemData.get("promotionPrice");
                 Object promotionIdObj = itemData.get("promotionId");
-                Object subtotalObj = itemData.get("subtotal");
-                
-                if (promotionPriceObj != null && !promotionPriceObj.toString().isEmpty()) {
-                    try {
-                        promotionPrice = new BigDecimal(promotionPriceObj.toString())
-                                .setScale(2, RoundingMode.HALF_UP);
-                        log.debug("Using promotion price from frontend: {} for item {}", promotionPrice, itemId);
-                    } catch (NumberFormatException e) {
-                        log.warn("Invalid promotion price format: {}", promotionPriceObj);
-                    }
-                }
-                
                 if (promotionIdObj != null && !promotionIdObj.toString().isEmpty()) {
                     try {
                         promotionId = Long.valueOf(promotionIdObj.toString());
-                        log.debug("Using promotion ID from frontend: {} for item {}", promotionId, itemId);
+                        log.debug("Promotion ID from frontend: {} for item {}", promotionId, itemId);
                     } catch (NumberFormatException e) {
                         log.warn("Invalid promotion ID format: {}", promotionIdObj);
                     }
                 }
                 
-                // Get subtotal from frontend to preserve precision for BUY_X_PAY_Y promotions
-                if (subtotalObj != null && !subtotalObj.toString().isEmpty()) {
-                    try {
-                        frontendSubtotal = new BigDecimal(subtotalObj.toString())
-                                .setScale(2, RoundingMode.HALF_UP);
-                        log.debug("Using subtotal from frontend: {} for item {}", frontendSubtotal, itemId);
-                    } catch (NumberFormatException e) {
-                        log.warn("Invalid subtotal format: {}", subtotalObj);
+                // Recalculate promotion price in backend (NEVER trust frontend values)
+                BigDecimal unitPrice = itemMenu.getPrice();
+                BigDecimal promotionAppliedPrice = null;
+                
+                if (promotionId != null) {
+                    // Fetch promotion from database
+                    Promotion promotion = promotionService.findById(promotionId)
+                            .orElse(null);
+                    
+                    if (promotion != null && promotion.isValidNow()) {
+                        // Recalculate based on promotion type
+                        switch (promotion.getPromotionType()) {
+                            case FIXED_AMOUNT_DISCOUNT:
+                                // Fixed discount: newPrice = originalPrice - discount
+                                promotionAppliedPrice = promotion.calculateFixedDiscount(unitPrice);
+                                log.debug("FIXED_AMOUNT_DISCOUNT: original={}, discount={}, final={}", 
+                                    unitPrice, promotion.getDiscountAmount(), promotionAppliedPrice);
+                                break;
+                                
+                            case PERCENTAGE_DISCOUNT:
+                                // Percentage discount: newPrice = originalPrice * (1 - discount%)
+                                promotionAppliedPrice = promotion.calculatePercentageDiscount(unitPrice);
+                                log.debug("PERCENTAGE_DISCOUNT: original={}, percentage={}, final={}", 
+                                    unitPrice, promotion.getDiscountAmount(), promotionAppliedPrice);
+                                break;
+                                
+                            case BUY_X_PAY_Y:
+                                // BUY_X_PAY_Y: only applies if quantity >= buyQuantity
+                                if (quantity >= promotion.getBuyQuantity()) {
+                                    promotionAppliedPrice = promotion.calculateBuyXPayY(unitPrice);
+                                    log.debug("BUY_X_PAY_Y: original={}, buy={}, pay={}, final={}", 
+                                        unitPrice, promotion.getBuyQuantity(), promotion.getPayQuantity(), promotionAppliedPrice);
+                                } else {
+                                    log.debug("BUY_X_PAY_Y not applied: quantity {} < buyQuantity {}", 
+                                        quantity, promotion.getBuyQuantity());
+                                }
+                                break;
+                        }
+                    } else {
+                        log.warn("Promotion {} is not active or doesn't exist, ignoring", promotionId);
                     }
                 }
                 
-                // Build the order detail
-                OrderDetail.OrderDetailBuilder detailBuilder = OrderDetail.builder()
+                // Build the order detail with recalculated values
+                OrderDetail detail = OrderDetail.builder()
                         .itemMenu(itemMenu)
                         .quantity(quantity)
                         .unitPrice(unitPrice)
-                        .promotionAppliedPrice(promotionPrice)
+                        .promotionAppliedPrice(promotionAppliedPrice)
                         .appliedPromotionId(promotionId)
                         .comments(comments)
-                        .itemStatus(OrderStatus.PENDING);
+                        .itemStatus(OrderStatus.PENDING)
+                        .build();
                 
-                // If frontend sent subtotal (for BUY_X_PAY_Y precision), use it directly
-                if (frontendSubtotal != null && promotionId != null) {
-                    detailBuilder.subtotal(frontendSubtotal);
-                }
-                
-                OrderDetail detail = detailBuilder.build();
-                
-                // Only calculate subtotal if not already set from frontend
-                if (detail.getSubtotal() == null) {
-                    detail.calculateSubtotal();
-                }
+                // Calculate subtotal (this will use promotionAppliedPrice if present)
+                detail.calculateSubtotal();
                 orderDetails.add(detail);
             }
             
@@ -646,68 +653,73 @@ public class ClientController {
                 ItemMenu itemMenu = itemMenuService.findById(itemId)
                         .orElseThrow(() -> new IllegalArgumentException("Item no encontrado: " + itemId));
 
-                // Get promotion data from frontend (if user selected one)
-                BigDecimal unitPrice = itemMenu.getPrice();
-                BigDecimal promotionPrice = null;
+                // IMPORTANT: ALWAYS recalculate prices in backend (don't trust frontend values)
+                // Get promotion ID from frontend
                 Long promotionId = null;
-                BigDecimal frontendSubtotal = null;
-
-                // Check if promotion was applied in frontend
-                Object promotionPriceObj = itemData.get("promotionPrice");
                 Object promotionIdObj = itemData.get("promotionId");
-                Object subtotalObj = itemData.get("subtotal");
-
-                if (promotionPriceObj != null && !promotionPriceObj.toString().isEmpty()) {
-                    try {
-                        promotionPrice = new BigDecimal(promotionPriceObj.toString())
-                                .setScale(2, RoundingMode.HALF_UP);
-                        log.debug("Using promotion price from frontend: {} for item {}", promotionPrice, itemId);
-                    } catch (NumberFormatException e) {
-                        log.warn("Invalid promotion price format: {}", promotionPriceObj);
-                    }
-                }
-
                 if (promotionIdObj != null && !promotionIdObj.toString().isEmpty()) {
                     try {
                         promotionId = Long.valueOf(promotionIdObj.toString());
-                        log.debug("Using promotion ID from frontend: {} for item {}", promotionId, itemId);
+                        log.debug("Promotion ID from frontend: {} for item {}", promotionId, itemId);
                     } catch (NumberFormatException e) {
                         log.warn("Invalid promotion ID format: {}", promotionIdObj);
                     }
                 }
                 
-                // Get subtotal from frontend to preserve precision for BUY_X_PAY_Y promotions
-                if (subtotalObj != null && !subtotalObj.toString().isEmpty()) {
-                    try {
-                        frontendSubtotal = new BigDecimal(subtotalObj.toString())
-                                .setScale(2, RoundingMode.HALF_UP);
-                        log.debug("Using subtotal from frontend: {} for item {}", frontendSubtotal, itemId);
-                    } catch (NumberFormatException e) {
-                        log.warn("Invalid subtotal format: {}", subtotalObj);
+                // Recalculate promotion price in backend (NEVER trust frontend values)
+                BigDecimal unitPrice = itemMenu.getPrice();
+                BigDecimal promotionAppliedPrice = null;
+                
+                if (promotionId != null) {
+                    // Fetch promotion from database
+                    Promotion promotion = promotionService.findById(promotionId)
+                            .orElse(null);
+                    
+                    if (promotion != null && promotion.isValidNow()) {
+                        // Recalculate based on promotion type
+                        switch (promotion.getPromotionType()) {
+                            case FIXED_AMOUNT_DISCOUNT:
+                                promotionAppliedPrice = promotion.calculateFixedDiscount(unitPrice);
+                                log.debug("FIXED_AMOUNT_DISCOUNT: original={}, discount={}, final={}", 
+                                    unitPrice, promotion.getDiscountAmount(), promotionAppliedPrice);
+                                break;
+                                
+                            case PERCENTAGE_DISCOUNT:
+                                promotionAppliedPrice = promotion.calculatePercentageDiscount(unitPrice);
+                                log.debug("PERCENTAGE_DISCOUNT: original={}, percentage={}, final={}", 
+                                    unitPrice, promotion.getDiscountAmount(), promotionAppliedPrice);
+                                break;
+                                
+                            case BUY_X_PAY_Y:
+                                // BUY_X_PAY_Y: only applies if quantity >= buyQuantity
+                                if (quantity >= promotion.getBuyQuantity()) {
+                                    promotionAppliedPrice = promotion.calculateBuyXPayY(unitPrice);
+                                    log.debug("BUY_X_PAY_Y: original={}, buy={}, pay={}, final={}", 
+                                        unitPrice, promotion.getBuyQuantity(), promotion.getPayQuantity(), promotionAppliedPrice);
+                                } else {
+                                    log.debug("BUY_X_PAY_Y not applied: quantity {} < buyQuantity {}", 
+                                        quantity, promotion.getBuyQuantity());
+                                }
+                                break;
+                        }
+                    } else {
+                        log.warn("Promotion {} is not active or doesn't exist, ignoring", promotionId);
                     }
                 }
 
-                // Build the order detail
-                OrderDetail.OrderDetailBuilder detailBuilder = OrderDetail.builder()
+                // Build the order detail with recalculated values
+                OrderDetail detail = OrderDetail.builder()
                         .itemMenu(itemMenu)
                         .quantity(quantity)
                         .unitPrice(unitPrice)
-                        .promotionAppliedPrice(promotionPrice)
+                        .promotionAppliedPrice(promotionAppliedPrice)
                         .appliedPromotionId(promotionId)
                         .comments(comments)
-                        .itemStatus(OrderStatus.PENDING);
+                        .itemStatus(OrderStatus.PENDING)
+                        .build();
                 
-                // If frontend sent subtotal (for BUY_X_PAY_Y precision), use it directly
-                if (frontendSubtotal != null && promotionId != null) {
-                    detailBuilder.subtotal(frontendSubtotal);
-                }
-                
-                OrderDetail detail = detailBuilder.build();
-                
-                // Only calculate subtotal if not already set from frontend
-                if (detail.getSubtotal() == null) {
-                    detail.calculateSubtotal();
-                }
+                // Calculate subtotal (this will use promotionAppliedPrice if present)
+                detail.calculateSubtotal();
                 newItems.add(detail);
             }
 

@@ -359,6 +359,84 @@ public class Promotion implements Serializable {
             .setScale(2, RoundingMode.HALF_UP);
     }
 
+    // ========== Public methods for unit price calculations (without quantity) ==========
+
+    /**
+     * Calculate discounted price per unit for BUY_X_PAY_Y promotion
+     * @param originalPrice The original price per unit
+     * @return The discounted price per unit
+     */
+    public BigDecimal calculateBuyXPayY(BigDecimal originalPrice) {
+        if (originalPrice == null || originalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        if (buyQuantity == null || payQuantity == null || buyQuantity <= 0 || payQuantity <= 0) {
+            return originalPrice;
+        }
+        if (buyQuantity <= payQuantity) {
+            return originalPrice;
+        }
+
+        // For unit price, calculate the effective price when buying buyQuantity items
+        // Example: 3x2 means pay for 2 items when buying 3
+        // Effective unit price = (originalPrice * payQuantity) / buyQuantity
+        return originalPrice
+            .multiply(BigDecimal.valueOf(payQuantity))
+            .divide(BigDecimal.valueOf(buyQuantity), 2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Calculate discounted price per unit for PERCENTAGE_DISCOUNT
+     * @param originalPrice The original price per unit
+     * @return The discounted price per unit
+     */
+    public BigDecimal calculatePercentageDiscount(BigDecimal originalPrice) {
+        if (originalPrice == null || originalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        if (discountPercentage == null || discountPercentage.compareTo(BigDecimal.ZERO) <= 0) {
+            return originalPrice;
+        }
+
+        // Price = originalPrice * (1 - percentage/100)
+        BigDecimal multiplier = BigDecimal.ONE
+            .subtract(discountPercentage.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
+        
+        return originalPrice
+            .multiply(multiplier)
+            .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Calculate discounted price per unit for FIXED_AMOUNT_DISCOUNT
+     * @param originalPrice The original price per unit
+     * @return The discounted price per unit
+     */
+    public BigDecimal calculateFixedDiscount(BigDecimal originalPrice) {
+        if (originalPrice == null || originalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        if (discountAmount == null || discountAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return originalPrice;
+        }
+
+        // Validate that discount is not greater than price
+        if (discountAmount.compareTo(originalPrice) > 0) {
+            throw new IllegalArgumentException(
+                String.format("El descuento fijo ($%.2f) no puede ser mayor que el precio del item ($%.2f)",
+                    discountAmount, originalPrice)
+            );
+        }
+
+        // Discounted price per unit (cannot be negative)
+        BigDecimal discountedPrice = originalPrice.subtract(discountAmount);
+        if (discountedPrice.compareTo(BigDecimal.ZERO) < 0) {
+            discountedPrice = BigDecimal.ZERO;
+        }
+
+        return discountedPrice.setScale(2, RoundingMode.HALF_UP);
+    }
+
     /**
      * Get display label for the promotion (for UI)
      * Examples: "2x1", "20% OFF", "-$5"

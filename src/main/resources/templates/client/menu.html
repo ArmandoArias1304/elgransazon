@@ -1765,42 +1765,46 @@
         }
 
         // ============================================================
-        // LÓGICA DE CÁLCULO (precios ya incluyen IVA):
-        // - Total = suma de item.subtotal (precio final con IVA, ya calculado)
-        // - SubtotalSinIVA = suma de (item.price / (1+IVA) × quantity)
-        // - SubtotalConPromoSinIVA = Total / (1+IVA)
-        // - Descuento = SubtotalSinIVA - SubtotalConPromoSinIVA
-        // - IVA = Total - SubtotalConPromoSinIVA
-        // REDONDEAR para mostrar, igual que el backend
+        // LÓGICA DE CÁLCULO CORRECTA:
+        // - Subtotal (sin IVA) = suma de (precio original / (1 + taxRate) × cantidad)
+        // - Descuento (sin IVA) = suma de (descuento unitario / (1 + taxRate) × cantidad)
+        // - Base imponible = Subtotal - Descuento
+        // - IVA = Base imponible × taxRate
+        // - Total = Base imponible × (1 + taxRate)
         // ============================================================
 
         const round2 = (value) => Math.round(value * 100) / 100;
 
-        let totalFinal = 0;
-        let subtotalOriginalSinIVA = 0;
+        let subtotalSinIVA = 0;
+        let descuentoTotalSinIVA = 0;
         let hayPromocion = false;
 
-        cart.forEach(item => {
-          totalFinal += item.subtotal;
-          subtotalOriginalSinIVA += (item.price / (1 + taxMultiplier)) * item.quantity;
-          if (item.promotionAppliedPrice) {
+        cart.forEach((item) => {
+          const precioOriginalSinIVA = item.price / (1 + taxMultiplier);
+          subtotalSinIVA += precioOriginalSinIVA * item.quantity;
+
+          if (item.promotionAppliedPrice !== null && item.promotionAppliedPrice !== undefined) {
             hayPromocion = true;
+            const descuentoUnitario = item.price - item.promotionAppliedPrice;
+            const descuentoUnitarioSinIVA = descuentoUnitario / (1 + taxMultiplier);
+            descuentoTotalSinIVA += descuentoUnitarioSinIVA * item.quantity;
           }
         });
 
-        const subtotalConPromoSinIVA = totalFinal / (1 + taxMultiplier);
-        const descuento = subtotalOriginalSinIVA - subtotalConPromoSinIVA;
-        const iva = totalFinal - subtotalConPromoSinIVA;
+        const baseImponible = subtotalSinIVA - descuentoTotalSinIVA;
+        const iva = baseImponible * taxMultiplier;
+        const totalFinal = baseImponible + iva;
 
-        cartSubtotalEl.textContent = `$${round2(subtotalOriginalSinIVA).toFixed(2)}`;
+        cartSubtotalEl.textContent = `$${round2(subtotalSinIVA).toFixed(2)}`;
         cartIVAEl.textContent = `$${round2(iva).toFixed(2)}`;
-        cartTotalEl.textContent = `$${round2(totalFinal).toFixed(2)}`;
+        const totalRounded = round2(totalFinal);
+        cartTotalEl.textContent = totalRounded === 0 ? 'GRATIS' : `$${totalRounded.toFixed(2)}`;
 
         const discountContainer = document.getElementById("cartDiscountContainer");
         const discountElement = document.getElementById("cartDiscount");
         if (discountContainer && discountElement) {
-          if (hayPromocion && descuento > 0.001) {
-            discountElement.textContent = `-$${round2(descuento).toFixed(2)}`;
+          if (hayPromocion && descuentoTotalSinIVA > 0.001) {
+            discountElement.textContent = `-$${round2(descuentoTotalSinIVA).toFixed(2)}`;
             discountContainer.classList.remove("hidden");
           } else {
             discountContainer.classList.add("hidden");
@@ -1869,13 +1873,12 @@
                   item.promotionAppliedPrice ? "mt-1" : ""
                 }">
                   ${
-                    item.promotionAppliedPrice
-                      ? `<span class="line-through text-gray-400 dark:text-gray-600 font-normal mr-1">$${item.price.toFixed(
-                          2
-                        )}</span>
-                         <span class="text-green-600 dark:text-green-400">$${item.promotionAppliedPrice.toFixed(
-                           2
-                         )}</span>`
+                    item.promotionAppliedPrice !== null && item.promotionAppliedPrice !== undefined
+                      ? item.promotionAppliedPrice === 0
+                        ? `<span class="line-through text-gray-400 dark:text-gray-600 font-normal mr-1">$${item.price.toFixed(2)}</span>
+                           <span class="text-green-600 dark:text-green-400 font-bold">GRATIS</span>`
+                        : `<span class="line-through text-gray-400 dark:text-gray-600 font-normal mr-1">$${item.price.toFixed(2)}</span>
+                           <span class="text-green-600 dark:text-green-400">$${item.promotionAppliedPrice.toFixed(2)}</span>`
                       : `$${item.price.toFixed(2)}`
                   }
                 </p>

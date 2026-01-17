@@ -80,6 +80,13 @@ public class CashierOrderServiceImpl implements OrderService {
     }
 
     @Override
+    public Order updateOrderInfo(Long id, Order updatedOrder) {
+        log.info("Cashier {} updating order info (no items) {}", getCurrentUsername(), id);
+        // Cashiers can update order info without touching items/stock
+        return adminOrderService.updateOrderInfo(id, updatedOrder);
+    }
+
+    @Override
     public Order cancel(Long id, String username) {
         Order order = findByIdOrThrow(id);
         

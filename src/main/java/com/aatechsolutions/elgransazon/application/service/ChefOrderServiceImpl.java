@@ -79,6 +79,11 @@ public class ChefOrderServiceImpl implements OrderService {
     }
 
     @Override
+    public Order updateOrderInfo(Long id, Order updatedOrder) {
+        throw new UnsupportedOperationException("El chef no puede modificar información de pedidos");
+    }
+
+    @Override
     public Order cancel(Long id, String username) {
         throw new UnsupportedOperationException("El chef no puede cancelar pedidos");
     }

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html xmlns:th="http://www.thymeleaf.org" lang="es">
   <head>
     <meta charset="UTF-8" />
@@ -21,6 +21,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
       tailwind.config = {
+        darkMode: "class",
         theme: {
           extend: {
             colors: {
@@ -44,7 +45,11 @@
     </script>
     <style>
       .material-symbols-outlined {
-        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
       }
 
       body {
@@ -54,14 +59,29 @@
       .payment-card {
         background: white;
         border-radius: 1.5rem;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1),
+        box-shadow:
+          0 4px 6px -1px rgb(0 0 0 / 0.1),
           0 2px 4px -2px rgb(0 0 0 / 0.1);
         transition: all 0.3s ease;
       }
 
+      .dark .payment-card {
+        background: #1f2937;
+        box-shadow:
+          0 4px 6px -1px rgb(0 0 0 / 0.3),
+          0 2px 4px -2px rgb(0 0 0 / 0.3);
+      }
+
       .payment-card:hover {
-        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+        box-shadow:
+          0 10px 15px -3px rgb(0 0 0 / 0.1),
           0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
+
+      .dark .payment-card:hover {
+        box-shadow:
+          0 10px 15px -3px rgb(0 0 0 / 0.3),
+          0 4px 6px -4px rgb(0 0 0 / 0.3);
       }
 
       .payment-method-btn {
@@ -140,19 +160,33 @@
         transition: all 0.2s ease;
       }
 
+      .dark .counter-btn {
+        background: #374151;
+        color: #d1d5db;
+      }
+
       .counter-btn:hover {
         background: #38e07b;
         color: white;
       }
+
+      .input-field {
+        transition: all 0.2s ease;
+      }
+
+      .input-field:focus {
+        border-color: #38e07b;
+        box-shadow: 0 0 0 3px rgba(56, 224, 123, 0.1);
+      }
     </style>
   </head>
   <body
-    class="bg-gradient-to-br from-background-light to-gray-50 font-display text-gray-800"
+    class="bg-gradient-to-br from-background-light to-gray-50 dark:from-gray-900 dark:to-gray-800 font-display text-gray-800 dark:text-gray-100"
   >
     <div class="flex min-h-screen flex-col">
       <!-- Header -->
       <header
-        class="bg-white border-b border-gray-200 shadow-lg sticky top-0 z-30"
+        class="bg-white dark:bg-gray-700 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-lg sticky top-0 z-30"
       >
         <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div class="flex items-center justify-between">
@@ -165,10 +199,14 @@
                 >
               </div>
               <div>
-                <h1 class="text-xl sm:text-2xl font-bold text-gray-900">
+                <h1
+                  class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white dark:text-white"
+                >
                   Procesamiento de Pago
                 </h1>
-                <p class="text-sm text-gray-600">
+                <p
+                  class="text-sm text-gray-600 dark:text-gray-400 dark:text-gray-400"
+                >
                   <span th:if="${order.table != null}">
                     Mesa <span th:text="${order.table.tableNumber}"></span> -
                   </span>
@@ -207,7 +245,7 @@
         >
           <!-- Payment Section (2/3 width) -->
           <div
-            class="lg:col-span-2 payment-card p-6 sm:p-8 flex flex-col space-y-6"
+            class="lg:col-span-2 payment-card dark:bg-gray-800 p-6 sm:p-8 flex flex-col space-y-6"
           >
             <form
               th:action="@{/cashier/payments/process/{id}(id=${order.idOrder})}"
@@ -221,11 +259,13 @@
                   <div
                     class="text-center bg-gradient-to-br from-primary/10 to-primary-dark/10 rounded-2xl p-6"
                   >
-                    <p class="text-base text-gray-600 font-medium">
+                    <p
+                      class="text-base text-gray-600 dark:text-gray-400 font-medium"
+                    >
                       Total a Pagar
                     </p>
                     <h2
-                      class="text-6xl sm:text-7xl font-black text-gray-900 tracking-tighter mt-2"
+                      class="text-6xl sm:text-7xl font-black text-primary tracking-tighter mt-2"
                       id="displayTotal"
                       th:text="${order.formattedTotal}"
                     ></h2>
@@ -233,54 +273,72 @@
 
                   <!-- Payment Methods -->
                   <div class="space-y-4">
-                    <h3 class="text-lg font-bold text-gray-900">
+                    <h3
+                      class="text-lg font-bold text-gray-900 dark:text-white dark:text-white"
+                    >
                       Método de Pago <span class="text-red-500">*</span>
                     </h3>
-                    
+
                     <!-- Order type indicator for payment methods -->
-                    <div 
+                    <div
                       th:if="${order.orderType.name() == 'DELIVERY'}"
-                      class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg"
+                      class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 px-4 py-3 rounded-lg"
                     >
                       <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined">local_shipping</span>
+                        <span class="material-symbols-outlined"
+                          >local_shipping</span
+                        >
                         <p class="font-medium text-sm">
-                          Este es un pedido de <strong>Entrega a Domicilio</strong>. 
-                          Se muestran los métodos de pago habilitados para Delivery.
+                          Este es un pedido de
+                          <strong>Entrega a Domicilio</strong>. Se muestran los
+                          métodos de pago habilitados para Delivery.
                         </p>
                       </div>
                     </div>
-                    
+
                     <!-- Warning if order has a payment method that is now disabled -->
-                    <div 
+                    <div
                       th:if="${order.paymentMethod != null and !#lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())}"
                       class="bg-amber-50 border-l-4 border-amber-500 text-amber-800 px-4 py-3 rounded-lg mb-4"
                     >
                       <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined">warning</span>
                         <p class="font-medium">
-                          El método de pago original (<span th:text="${order.paymentMethod.displayName}"></span>) fue deshabilitado 
-                          <span th:if="${order.orderType.name() == 'DELIVERY'}">para entregas a domicilio</span>
-                          <span th:unless="${order.orderType.name() == 'DELIVERY'}">en el restaurante</span>.
-                          Por favor seleccione un método de pago habilitado.
+                          El método de pago original (<span
+                            th:text="${order.paymentMethod.displayName}"
+                          ></span
+                          >) fue deshabilitado
+                          <span th:if="${order.orderType.name() == 'DELIVERY'}"
+                            >para entregas a domicilio</span
+                          >
+                          <span
+                            th:unless="${order.orderType.name() == 'DELIVERY'}"
+                            >en el restaurante</span
+                          >. Por favor seleccione un método de pago habilitado.
                         </p>
                       </div>
                     </div>
-                    
+
                     <div class="grid grid-cols-3 gap-3">
                       <button
                         type="button"
                         th:each="method, iterStat : ${enabledPaymentMethods}"
-                        th:data-method="${method}"
-                        th:class="${order.paymentMethod != null && order.paymentMethod == method} ? 'payment-method-btn active flex flex-col items-center justify-center gap-2 rounded-xl p-4' : 'payment-method-btn flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-gray-600'"
+                        th:data-method="${method.name()}"
+                        th:class="${order.paymentMethod != null && order.paymentMethod == method} ? 'payment-method-btn active flex flex-col items-center justify-center gap-2 rounded-xl p-4' : 'payment-method-btn flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-gray-600 dark:text-gray-400'"
                         onclick="selectPaymentMethod(this)"
                       >
                         <span class="material-symbols-outlined text-3xl">
                           <th:block th:switch="${method.name()}">
                             <th:block th:case="'CASH'">payments</th:block>
-                            <th:block th:case="'CREDIT_CARD'">credit_card</th:block>
-                            <th:block th:case="'DEBIT_CARD'">credit_card</th:block>
-                            <th:block th:case="'TRANSFER'">account_balance</th:block>
+                            <th:block th:case="'CREDIT_CARD'"
+                              >credit_card</th:block
+                            >
+                            <th:block th:case="'DEBIT_CARD'"
+                              >credit_card</th:block
+                            >
+                            <th:block th:case="'TRANSFER'"
+                              >account_balance</th:block
+                            >
                             <th:block th:case="*">payment</th:block>
                           </th:block>
                         </span>
@@ -289,39 +347,54 @@
                           th:text="${method.displayName}"
                         ></span>
                         <!-- Enabled badge -->
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                          <span class="material-symbols-outlined text-xs">check_circle</span>
+                        <span
+                          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700"
+                        >
+                          <span class="material-symbols-outlined text-xs"
+                            >check_circle</span
+                          >
                           Habilitado
                         </span>
                       </button>
                     </div>
-                    
+
                     <input
                       type="hidden"
                       name="paymentMethod"
                       id="paymentMethodInput"
-                      th:value="${order.paymentMethod != null and #lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())} ? ${order.paymentMethod} : (${enabledPaymentMethods.size() > 0} ? ${enabledPaymentMethods[0]} : '')"
+                      th:value="${order.paymentMethod != null and #lists.contains(enabledPaymentMethodNames, order.paymentMethod.name())} ? ${order.paymentMethod.name()} : (${enabledPaymentMethods.size() > 0} ? ${enabledPaymentMethods[0].name()} : '')"
                     />
-                    
+
                     <!-- Info about enabled payment methods -->
-                    <p class="text-sm text-gray-500 font-medium flex items-center gap-1">
-                      <span class="material-symbols-outlined text-sm">info</span>
-                      <span th:if="${order.orderType.name() == 'DELIVERY'}">Métodos de pago habilitados para entregas a domicilio</span>
-                      <span th:unless="${order.orderType.name() == 'DELIVERY'}">Métodos de pago habilitados en el restaurante</span>
+                    <p
+                      class="text-sm text-gray-500 font-medium flex items-center gap-1"
+                    >
+                      <span class="material-symbols-outlined text-sm"
+                        >info</span
+                      >
+                      <span th:if="${order.orderType.name() == 'DELIVERY'}"
+                        >Métodos de pago habilitados para entregas a
+                        domicilio</span
+                      >
+                      <span th:unless="${order.orderType.name() == 'DELIVERY'}"
+                        >Métodos de pago habilitados en el restaurante</span
+                      >
                     </p>
                   </div>
 
                   <!-- Change Calculator -->
                   <div class="space-y-4">
-                    <h3 class="text-lg font-bold text-gray-900">
+                    <h3
+                      class="text-lg font-bold text-gray-900 dark:text-white dark:text-white"
+                    >
                       Calculadora de Cambio
                     </h3>
                     <div
-                      class="space-y-5 rounded-xl bg-gray-50 border border-gray-200 p-5"
+                      class="space-y-5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 p-5"
                     >
                       <div>
                         <label
-                          class="block text-sm font-semibold text-gray-600 mb-2"
+                          class="block text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2"
                           for="amount-received"
                         >
                           Monto Recibido
@@ -332,7 +405,7 @@
                             >$</span
                           >
                           <input
-                            class="input-field w-full rounded-xl border-2 border-gray-300 bg-white p-4 pl-11 text-2xl font-bold text-gray-900 focus:outline-none"
+                            class="input-field w-full rounded-xl border-2 border-gray-300 bg-white dark:bg-gray-700 p-4 pl-11 text-2xl font-bold text-gray-900 dark:text-white focus:outline-none"
                             id="amount-received"
                             placeholder="0.00"
                             type="number"
@@ -344,7 +417,7 @@
                       </div>
                       <div class="border-t border-gray-300 pt-4">
                         <label
-                          class="block text-sm font-semibold text-gray-600 mb-2"
+                          class="block text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2"
                           for="change-due"
                         >
                           Cambio
@@ -372,14 +445,16 @@
                 <div class="space-y-6">
                   <!-- Split Bill Section -->
                   <div class="space-y-4">
-                    <h3 class="text-lg font-bold text-gray-900">
+                    <h3
+                      class="text-lg font-bold text-gray-900 dark:text-white dark:text-white"
+                    >
                       Dividir Cuenta
                     </h3>
                     <div
-                      class="space-y-4 rounded-xl bg-gray-50 border border-gray-200 p-5"
+                      class="space-y-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 p-5"
                     >
                       <div class="flex items-center justify-between">
-                        <p class="text-gray-600 font-medium">
+                        <p class="text-gray-600 dark:text-gray-400 font-medium">
                           Dividir en partes iguales
                         </p>
                         <div class="flex items-center gap-3">
@@ -393,7 +468,7 @@
                             >
                           </button>
                           <span
-                            class="text-2xl font-black text-gray-900 min-w-[2rem] text-center"
+                            class="text-2xl font-black text-gray-900 dark:text-white min-w-[2rem] text-center"
                             id="split-count"
                             >1</span
                           >
@@ -407,7 +482,9 @@
                         </div>
                       </div>
                       <div class="border-t border-gray-300 pt-4">
-                        <p class="text-gray-600 font-medium mb-2">
+                        <p
+                          class="text-gray-600 dark:text-gray-400 font-medium mb-2"
+                        >
                           Monto por persona
                         </p>
                         <p
@@ -422,40 +499,44 @@
 
                   <!-- Tip Section -->
                   <div class="space-y-4">
-                    <h3 class="text-lg font-bold text-gray-900">Propina</h3>
+                    <h3
+                      class="text-lg font-bold text-gray-900 dark:text-white dark:text-white"
+                    >
+                      Propina
+                    </h3>
                     <div class="grid grid-cols-4 gap-3">
                       <button
                         type="button"
                         onclick="setTipPercentage(0)"
-                        class="tip-btn rounded-xl bg-gray-100 border-2 border-gray-200 py-3 font-bold text-gray-700 text-sm"
+                        class="tip-btn rounded-xl bg-gray-100 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 py-3 font-bold text-gray-700 dark:text-gray-300 text-sm"
                       >
                         0%
                       </button>
                       <button
                         type="button"
                         onclick="setTipPercentage(10)"
-                        class="tip-btn rounded-xl bg-gray-100 border-2 border-gray-200 py-3 font-bold text-gray-700 text-sm"
+                        class="tip-btn rounded-xl bg-gray-100 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 py-3 font-bold text-gray-700 dark:text-gray-300 text-sm"
                       >
                         10%
                       </button>
                       <button
                         type="button"
                         onclick="setTipPercentage(15)"
-                        class="tip-btn rounded-xl bg-gray-100 border-2 border-gray-200 py-3 font-bold text-gray-700 text-sm"
+                        class="tip-btn rounded-xl bg-gray-100 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 py-3 font-bold text-gray-700 dark:text-gray-300 text-sm"
                       >
                         15%
                       </button>
                       <button
                         type="button"
                         onclick="setTipPercentage(20)"
-                        class="tip-btn rounded-xl bg-gray-100 border-2 border-gray-200 py-3 font-bold text-gray-700 text-sm"
+                        class="tip-btn rounded-xl bg-gray-100 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 py-3 font-bold text-gray-700 dark:text-gray-300 text-sm"
                       >
                         20%
                       </button>
                     </div>
                     <div>
                       <label
-                        class="block text-sm font-semibold text-gray-600 mb-2"
+                        class="block text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2"
                       >
                         Propina personalizada
                       </label>
@@ -471,7 +552,7 @@
                           step="0.01"
                           min="0"
                           value="0.00"
-                          class="input-field w-full rounded-xl border-2 border-gray-300 bg-white p-4 pl-11 text-xl font-bold text-gray-900 focus:outline-none"
+                          class="input-field w-full rounded-xl border-2 border-gray-300 bg-white dark:bg-gray-700 p-4 pl-11 text-xl font-bold text-gray-900 dark:text-white focus:outline-none"
                           placeholder="0.00"
                           oninput="calculateTotalWithTip()"
                         />
@@ -481,7 +562,8 @@
                       class="rounded-xl bg-primary/10 border-2 border-primary p-4"
                     >
                       <div class="flex justify-between items-center">
-                        <span class="text-gray-700 font-semibold"
+                        <span
+                          class="text-gray-700 dark:text-gray-300 font-semibold"
                           >Propina:</span
                         >
                         <span
@@ -495,21 +577,29 @@
 
                   <!-- Order Information -->
                   <div class="space-y-4">
-                    <h3 class="text-lg font-bold text-gray-900">
+                    <h3
+                      class="text-lg font-bold text-gray-900 dark:text-white dark:text-white"
+                    >
                       Información del Pedido
                     </h3>
                     <div
-                      class="space-y-3 rounded-xl bg-gray-50 border border-gray-200 p-5"
+                      class="space-y-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 p-5"
                     >
                       <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Número de orden:</span>
+                        <span
+                          class="text-gray-600 dark:text-gray-400 dark:text-gray-400"
+                          >Número de orden:</span
+                        >
                         <span
                           class="font-semibold"
                           th:text="${order.orderNumber}"
                         ></span>
                       </div>
                       <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Tipo:</span>
+                        <span
+                          class="text-gray-600 dark:text-gray-400 dark:text-gray-400"
+                          >Tipo:</span
+                        >
                         <span
                           class="font-semibold"
                           th:text="${order.orderType.displayName}"
@@ -519,7 +609,10 @@
                         class="flex justify-between text-sm"
                         th:if="${order.table != null}"
                       >
-                        <span class="text-gray-600">Mesa:</span>
+                        <span
+                          class="text-gray-600 dark:text-gray-400 dark:text-gray-400"
+                          >Mesa:</span
+                        >
                         <span class="font-semibold"
                           >Mesa #<span
                             th:text="${order.table.tableNumber}"
@@ -530,21 +623,30 @@
                         class="flex justify-between text-sm"
                         th:if="${order.customerName != null}"
                       >
-                        <span class="text-gray-600">Cliente:</span>
+                        <span
+                          class="text-gray-600 dark:text-gray-400 dark:text-gray-400"
+                          >Cliente:</span
+                        >
                         <span
                           class="font-semibold"
                           th:text="${order.customerName}"
                         ></span>
                       </div>
                       <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Estado:</span>
+                        <span
+                          class="text-gray-600 dark:text-gray-400 dark:text-gray-400"
+                          >Estado:</span
+                        >
                         <span
                           class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800"
                           th:text="${order.status.displayName}"
                         ></span>
                       </div>
                       <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Atendido por:</span>
+                        <span
+                          class="text-gray-600 dark:text-gray-400 dark:text-gray-400"
+                          >Atendido por:</span
+                        >
                         <span
                           class="font-semibold"
                           th:text="${order.employee != null ? order.employee.fullName : 'Cliente Web'}"
@@ -571,9 +673,11 @@
           </div>
 
           <!-- Order Details Sidebar (1/3 width) -->
-          <div class="payment-card p-6 flex flex-col max-h-[800px]">
+          <div
+            class="payment-card dark:bg-gray-800 p-6 flex flex-col max-h-[800px]"
+          >
             <h3
-              class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2"
+              class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"
             >
               <span class="material-symbols-outlined text-primary"
                 >shopping_cart</span
@@ -593,15 +697,15 @@
                 <div class="flex justify-between items-start">
                   <div class="flex-1">
                     <span
-                      class="text-gray-700 font-medium"
+                      class="text-gray-700 dark:text-gray-300 font-medium"
                       th:text="${detail.itemMenu.name}"
                     ></span>
-                    <span class="text-gray-600 text-sm ml-2">
+                    <span class="text-gray-600 dark:text-gray-400 text-sm ml-2">
                       x<span th:text="${detail.quantity}"></span>
                     </span>
                   </div>
                   <span
-                    class="font-bold text-gray-900"
+                    class="font-bold text-gray-900 dark:text-white dark:text-white"
                     th:text="${detail.formattedSubtotal}"
                   ></span>
                 </div>
@@ -636,13 +740,13 @@
             <!-- Summary -->
             <div class="border-t-2 border-gray-200 pt-4 space-y-3">
               <div
-                class="flex justify-between text-base font-medium text-gray-600"
+                class="flex justify-between text-base font-medium text-gray-600 dark:text-gray-400 dark:text-gray-400"
               >
                 <span>Subtotal</span>
                 <span th:text="${order.formattedSubtotal}"></span>
               </div>
               <div
-                class="flex justify-between text-base font-medium text-gray-600"
+                class="flex justify-between text-base font-medium text-gray-600 dark:text-gray-400 dark:text-gray-400"
               >
                 <span
                   >Impuestos (<span th:text="${order.taxRate}">0</span>%)</span
@@ -650,14 +754,14 @@
                 <span th:text="${order.formattedTaxAmount}"></span>
               </div>
               <div
-                class="flex justify-between text-base font-medium text-gray-600"
+                class="flex justify-between text-base font-medium text-gray-600 dark:text-gray-400 dark:text-gray-400"
                 id="tip-line"
               >
                 <span>Propina</span>
                 <span id="tip-summary">$0.00</span>
               </div>
               <div
-                class="flex justify-between items-center text-xl font-black text-gray-900 bg-primary/10 rounded-xl p-3"
+                class="flex justify-between items-center text-xl font-black text-gray-900 dark:text-white bg-primary/10 rounded-xl p-3"
               >
                 <span>Total</span>
                 <span
@@ -669,8 +773,12 @@
             </div>
 
             <!-- Waiter Info -->
-            <div class="mt-4 pt-4 border-t border-gray-200">
-              <div class="flex items-center gap-3 text-gray-600">
+            <div
+              class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"
+            >
+              <div
+                class="flex items-center gap-3 text-gray-600 dark:text-gray-400 dark:text-gray-400"
+              >
                 <div
                   class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center"
                 >
@@ -679,9 +787,13 @@
                   >
                 </div>
                 <div>
-                  <p class="text-xs font-medium text-gray-500">Atendido por</p>
                   <p
-                    class="text-sm font-bold text-gray-900"
+                    class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                  >
+                    Atendido por
+                  </p>
+                  <p
+                    class="text-sm font-bold text-gray-900 dark:text-white dark:text-white"
                     th:text="${order.employee != null ? order.employee.fullName : 'Cliente Web'}"
                   ></p>
                 </div>
@@ -755,12 +867,12 @@
         // Remove active class from all buttons
         document.querySelectorAll(".payment-method-btn").forEach((btn) => {
           btn.classList.remove("active");
-          btn.classList.add("text-gray-600");
+          btn.classList.add("text-gray-600", "dark:text-gray-400");
         });
 
         // Add active class to clicked button
         button.classList.add("active");
-        button.classList.remove("text-gray-600");
+        button.classList.remove("text-gray-600", "dark:text-gray-400");
 
         // Update hidden input
         const method = button.getAttribute("data-method");
@@ -844,7 +956,7 @@
 
           // Get payment method name (extract only text, ignore icon)
           const paymentMethodBtn = document.querySelector(
-            ".payment-method-btn.active"
+            ".payment-method-btn.active",
           );
           let paymentMethodName = "No seleccionado";
           if (paymentMethodBtn) {
@@ -861,17 +973,17 @@
             <div class="text-left space-y-2">
               <p class="text-base"><strong>Método de pago:</strong> ${paymentMethodName}</p>
               <p class="text-base"><strong>Total del pedido:</strong> $${orderTotal.toFixed(
-                2
+                2,
               )}</p>
               ${
                 tip > 0
                   ? `<p class="text-base"><strong>Propina:</strong> $${tip.toFixed(
-                      2
+                      2,
                     )}</p>`
                   : ""
               }
               <p class="text-xl font-bold mt-3 text-green-600"><strong>Total a pagar:</strong> $${totalWithTip.toFixed(
-                2
+                2,
               )}</p>
             </div>
           `,
@@ -943,6 +1055,20 @@
       // Initialize on page load
       document.addEventListener("DOMContentLoaded", function () {
         calculateTotalWithTip();
+
+        // Initialize payment method button states based on hidden input value
+        const selectedMethod =
+          document.getElementById("paymentMethodInput").value;
+        document.querySelectorAll(".payment-method-btn").forEach((btn) => {
+          const btnMethod = btn.getAttribute("data-method");
+          if (btnMethod === selectedMethod) {
+            btn.classList.add("active");
+            btn.classList.remove("text-gray-600", "dark:text-gray-400");
+          } else {
+            btn.classList.remove("active");
+            btn.classList.add("text-gray-600", "dark:text-gray-400");
+          }
+        });
       });
     </script>
 

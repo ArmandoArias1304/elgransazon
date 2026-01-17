@@ -67,6 +67,14 @@ public class WaiterOrderServiceImpl implements OrderService {
     }
 
     @Override
+    public Order updateOrderInfo(Long id, Order updatedOrder) {
+        Order existingOrder = findByIdOrThrow(id);
+        validateOrderOwnership(existingOrder);
+        log.info("Waiter {} updating order info (no items) {}", getCurrentUsername(), id);
+        return adminOrderService.updateOrderInfo(id, updatedOrder);
+    }
+
+    @Override
     public Order cancel(Long id, String username) {
         Order order = findByIdOrThrow(id);
         validateOrderOwnership(order);

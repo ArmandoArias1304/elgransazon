@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
   <head>
     <meta charset="utf-8" />
@@ -58,10 +58,16 @@
     </script>
     <style>
       .material-symbols-outlined {
-        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
       }
       .material-symbols-outlined.filled {
-        font-variation-settings: "FILL" 1, "wght" 500;
+        font-variation-settings:
+          "FILL" 1,
+          "wght" 500;
       }
 
       .menu-item-card {
@@ -70,7 +76,8 @@
 
       .menu-item-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1),
+        box-shadow:
+          0 10px 25px -5px rgb(0 0 0 / 0.1),
           0 8px 10px -6px rgb(0 0 0 / 0.1);
       }
 
@@ -417,7 +424,9 @@
                 class="hidden flex justify-between text-sm font-semibold text-green-600 dark:text-green-400"
               >
                 <span class="flex items-center gap-1">
-                  <span class="material-symbols-outlined text-sm">local_offer</span>
+                  <span class="material-symbols-outlined text-sm"
+                    >local_offer</span
+                  >
                   Descuento
                 </span>
                 <span id="cartDiscount">-$0.00</span>
@@ -550,7 +559,7 @@
         try {
           const currentRole = /*[[${currentRole}]]*/ "cashier";
           const response = await fetch(
-            `/${currentRole}/orders/menu-items/${itemId}/max-quantity`
+            `/${currentRole}/orders/menu-items/${itemId}/max-quantity`,
           );
           if (response.ok) {
             const data = await response.json();
@@ -600,7 +609,7 @@
           console.log("Loading promotions from server...");
           const currentRole = /*[[${currentRole}]]*/ "cashier";
           const response = await fetch(
-            `/${currentRole}/promotions/active-json`
+            `/${currentRole}/promotions/active-json`,
           );
           if (response.ok) {
             activePromotions = await response.json();
@@ -684,7 +693,7 @@
         const discountPromotions = promotions.filter(
           (p) =>
             p.promotionType === "PERCENTAGE_DISCOUNT" ||
-            p.promotionType === "FIXED_AMOUNT_DISCOUNT"
+            p.promotionType === "FIXED_AMOUNT_DISCOUNT",
         );
 
         if (discountPromotions.length === 0) return null;
@@ -721,7 +730,7 @@
 
         // Filter only BUY_X_PAY_Y promotions that meet the minimum quantity
         const buyXPayYPromotions = promotions.filter(
-          (p) => p.promotionType === "BUY_X_PAY_Y" && quantity >= p.buyQuantity
+          (p) => p.promotionType === "BUY_X_PAY_Y" && quantity >= p.buyQuantity,
         );
 
         if (buyXPayYPromotions.length === 0) return null;
@@ -773,7 +782,7 @@
       function scrollToCategory(button) {
         const categoryId = button.dataset.categoryId;
         const categorySection = document.getElementById(
-          "category-" + categoryId
+          "category-" + categoryId,
         );
         const menuContainer = categorySection.closest(".overflow-y-auto");
 
@@ -799,12 +808,12 @@
               "to-primary-dark",
               "text-white",
               "shadow-green",
-              "font-bold"
+              "font-bold",
             );
             btn.classList.add(
               "text-text-light-secondary",
               "dark:text-text-dark-secondary",
-              "font-semibold"
+              "font-semibold",
             );
             const icon = btn.querySelector(".material-symbols-outlined");
             if (icon) {
@@ -819,12 +828,12 @@
             "to-primary-dark",
             "text-white",
             "shadow-green",
-            "font-bold"
+            "font-bold",
           );
           button.classList.remove(
             "text-text-light-secondary",
             "dark:text-text-dark-secondary",
-            "font-semibold"
+            "font-semibold",
           );
           const activeIcon = button.querySelector(".material-symbols-outlined");
           if (activeIcon) {
@@ -890,7 +899,7 @@
             const bestPromotion = getAutoBestPromotion(
               item.id,
               item.price,
-              newQuantity
+              newQuantity,
             );
 
             if (bestPromotion) {
@@ -900,7 +909,7 @@
 
               if (bestPromotion.promotionType === "BUY_X_PAY_Y") {
                 const sets = Math.floor(
-                  newQuantity / bestPromotion.buyQuantity
+                  newQuantity / bestPromotion.buyQuantity,
                 );
                 const remaining = newQuantity % bestPromotion.buyQuantity;
                 discountedTotal =
@@ -908,19 +917,21 @@
                   remaining * item.price;
                 // Round subtotal directly, price per unit is for display only
                 discountedTotal = Math.round(discountedTotal * 100) / 100;
-                item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
+                item.promotionAppliedPrice =
+                  Math.round((discountedTotal / newQuantity) * 100) / 100;
               } else if (
                 bestPromotion.promotionType === "PERCENTAGE_DISCOUNT"
               ) {
                 const discount = bestPromotion.discountPercentage / 100;
                 discountedTotal = originalTotal * (1 - discount);
-                item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
+                item.promotionAppliedPrice =
+                  Math.round((discountedTotal / newQuantity) * 100) / 100;
               } else if (
                 bestPromotion.promotionType === "FIXED_AMOUNT_DISCOUNT"
               ) {
                 const pricePerUnit = Math.max(
                   0,
-                  item.price - bestPromotion.discountAmount
+                  item.price - bestPromotion.discountAmount,
                 );
                 discountedTotal = pricePerUnit * newQuantity;
                 item.promotionAppliedPrice = pricePerUnit;
@@ -942,7 +953,7 @@
             if (item.appliedPromotionId) {
               const promotions = itemPromotionsMap.get(parseInt(item.id)) || [];
               const appliedPromotion = promotions.find(
-                (p) => p.id == item.appliedPromotionId
+                (p) => p.id == item.appliedPromotionId,
               );
 
               if (appliedPromotion) {
@@ -953,7 +964,7 @@
                 if (appliedPromotion.promotionType === "BUY_X_PAY_Y") {
                   // Para 2x1, 3x2, etc.
                   const sets = Math.floor(
-                    newQuantity / appliedPromotion.buyQuantity
+                    newQuantity / appliedPromotion.buyQuantity,
                   );
                   const remaining = newQuantity % appliedPromotion.buyQuantity;
                   discountedTotal =
@@ -961,21 +972,23 @@
                     remaining * item.price;
                   // Round subtotal directly, price per unit is for display only
                   discountedTotal = Math.round(discountedTotal * 100) / 100;
-                  item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
+                  item.promotionAppliedPrice =
+                    Math.round((discountedTotal / newQuantity) * 100) / 100;
                 } else if (
                   appliedPromotion.promotionType === "PERCENTAGE_DISCOUNT"
                 ) {
                   // Para descuentos porcentuales (50%, 30%, etc.)
                   const discount = appliedPromotion.discountPercentage / 100;
                   discountedTotal = originalTotal * (1 - discount);
-                  item.promotionAppliedPrice = Math.round((discountedTotal / newQuantity) * 100) / 100;
+                  item.promotionAppliedPrice =
+                    Math.round((discountedTotal / newQuantity) * 100) / 100;
                 } else if (
                   appliedPromotion.promotionType === "FIXED_AMOUNT_DISCOUNT"
                 ) {
                   // Para descuentos de monto fijo
                   const pricePerUnit = Math.max(
                     0,
-                    item.price - appliedPromotion.discountAmount
+                    item.price - appliedPromotion.discountAmount,
                   );
                   discountedTotal = pricePerUnit * newQuantity;
                   item.promotionAppliedPrice = pricePerUnit;
@@ -1012,7 +1025,7 @@
         const itemPromotions = itemPromotionsMap.get(parseInt(itemId)) || [];
         console.log(
           `Item ${itemId} has ${itemPromotions.length} promotions:`,
-          itemPromotions
+          itemPromotions,
         );
 
         currentItem = {
@@ -1035,8 +1048,8 @@
                 <!-- Imagen del producto - Izquierda -->
                 <div class="md:w-1/2">
                     <img src="${imageUrl}" alt="${itemName}" class="w-full h-64 md:h-full object-cover rounded-xl ${
-            !isAvailable ? "grayscale" : ""
-          }" />
+                      !isAvailable ? "grayscale" : ""
+                    }" />
                 </div>
                 
                 <!-- Detalles del producto - Derecha -->
@@ -1045,7 +1058,7 @@
                       !isAvailable ? "text-red-600" : "text-gray-900"
                     } mb-2">${itemName}</h2>
                     <p class="text-5xl font-black text-primary mb-4">$${itemPrice.toFixed(
-                      2
+                      2,
                     )}</p>
                     <p class="text-gray-600 mb-6 flex-grow">${
                       itemDescription || "Sin descripción disponible"
@@ -1098,7 +1111,7 @@
                                         <div class="font-bold text-xs text-amber-700">${promo.displayLabel}</div>
                                     </div>
                                     <span class="material-symbols-outlined text-primary hidden check-icon absolute top-0.5 right-0.5 text-sm">check_circle</span>
-                                </button>`
+                                </button>`,
                                   )
                                   .join("")}
                             </div>
@@ -1160,7 +1173,7 @@
             const maxFromServer = await fetchMaxQuantity(itemId);
             const availableQty = getAvailableQuantityForItem(
               itemId,
-              maxFromServer
+              maxFromServer,
             );
             window.modalMaxQuantity = availableQty;
 
@@ -1180,7 +1193,7 @@
             const bestPromo = getAutoBestPromotion(itemId, itemPrice, 1);
             if (bestPromo) {
               const promoBtn = document.querySelector(
-                `.promotion-btn[data-promo-id="${bestPromo.id}"]`
+                `.promotion-btn[data-promo-id="${bestPromo.id}"]`,
               );
               if (promoBtn) {
                 selectPromotion(promoBtn, bestPromo.id);
@@ -1208,7 +1221,7 @@
             "border-primary",
             "bg-primary/10",
             "ring-2",
-            "ring-primary"
+            "ring-primary",
           );
           btn.querySelector(".check-icon")?.classList.add("hidden");
         });
@@ -1218,7 +1231,7 @@
           "border-primary",
           "bg-primary/10",
           "ring-2",
-          "ring-primary"
+          "ring-primary",
         );
         const checkIcon = button.querySelector(".check-icon");
         if (checkIcon) {
@@ -1260,7 +1273,7 @@
           const bestPromo = getAutoBestPromotion(
             currentItem.id,
             currentItem.price,
-            window.modalQuantity
+            window.modalQuantity,
           );
 
           // Deseleccionar todas las promociones primero
@@ -1269,7 +1282,7 @@
               "border-primary",
               "bg-primary/10",
               "ring-2",
-              "ring-primary"
+              "ring-primary",
             );
             const checkIcon = btn.querySelector(".check-icon");
             if (checkIcon) {
@@ -1283,7 +1296,7 @@
           // Seleccionar la mejor promoción si existe
           if (bestPromo) {
             const promoBtn = document.querySelector(
-              `.promotion-btn[data-promo-id="${bestPromo.id}"]`
+              `.promotion-btn[data-promo-id="${bestPromo.id}"]`,
             );
             if (promoBtn) {
               // Marcar visualmente el botón
@@ -1291,7 +1304,7 @@
                 "border-primary",
                 "bg-primary/10",
                 "ring-2",
-                "ring-primary"
+                "ring-primary",
               );
               const checkIcon = promoBtn.querySelector(".check-icon");
               if (checkIcon) {
@@ -1341,13 +1354,13 @@
           appliedPromotion = getAutoBestPromotion(
             currentItem.id,
             currentItem.price,
-            qty
+            qty,
           );
           if (appliedPromotion) {
             selectedPromotionId = appliedPromotion.id;
             console.log(
               "Auto-applied best promotion:",
-              appliedPromotion.displayLabel
+              appliedPromotion.displayLabel,
             );
           }
         } else {
@@ -1355,13 +1368,13 @@
           const promotions =
             itemPromotionsMap.get(parseInt(currentItem.id)) || [];
           appliedPromotion = promotions.find(
-            (p) => p.id == selectedPromotionId
+            (p) => p.id == selectedPromotionId,
           );
         }
 
         // Variable to store direct subtotal for BUY_X_PAY_Y promotions
         let directSubtotal = null;
-        
+
         // Si hay promoción aplicable, calcular el precio con descuento
         if (appliedPromotion) {
           console.log("Applied promotion ID:", selectedPromotionId);
@@ -1392,21 +1405,24 @@
             const payQty = appliedPromotion.payQuantity;
             const sets = Math.floor(qty / buyQty);
             const remaining = qty % buyQty;
-            directSubtotal = sets * payQty * currentItem.price + remaining * currentItem.price;
+            directSubtotal =
+              sets * payQty * currentItem.price + remaining * currentItem.price;
             directSubtotal = Math.round(directSubtotal * 100) / 100; // Round to 2 decimals
             // Price per unit is for display only, rounded to 2 decimals
-            promotionAppliedPrice = Math.round((directSubtotal / qty) * 100) / 100;
+            promotionAppliedPrice =
+              Math.round((directSubtotal / qty) * 100) / 100;
           } else if (appliedPromotion.promotionType === "PERCENTAGE_DISCOUNT") {
             const discount = appliedPromotion.discountPercentage / 100;
             const originalTotal = currentItem.price * qty;
             const discountedTotal = originalTotal * (1 - discount);
-            promotionAppliedPrice = Math.round((discountedTotal / qty) * 100) / 100;
+            promotionAppliedPrice =
+              Math.round((discountedTotal / qty) * 100) / 100;
           } else if (
             appliedPromotion.promotionType === "FIXED_AMOUNT_DISCOUNT"
           ) {
             promotionAppliedPrice = Math.max(
               0,
-              currentItem.price - appliedPromotion.discountAmount
+              currentItem.price - appliedPromotion.discountAmount,
             );
           }
 
@@ -1425,7 +1441,7 @@
         } else {
           finalSubtotal = Math.round(currentItem.price * qty * 100) / 100;
         }
-        
+
         const cartItem = {
           id: currentItem.id,
           name: currentItem.name,
@@ -1490,9 +1506,10 @@
         let subtotalOriginalSinIVA = 0;
         let hayPromocion = false;
 
-        cart.forEach(item => {
+        cart.forEach((item) => {
           totalFinal += item.subtotal;
-          subtotalOriginalSinIVA += (item.price / (1 + taxMultiplier)) * item.quantity;
+          subtotalOriginalSinIVA +=
+            (item.price / (1 + taxMultiplier)) * item.quantity;
           if (item.promotionAppliedPrice) {
             hayPromocion = true;
           }
@@ -1506,7 +1523,9 @@
         cartIVAEl.textContent = `$${round2(iva).toFixed(2)}`;
         cartTotalEl.textContent = `$${round2(totalFinal).toFixed(2)}`;
 
-        const discountContainer = document.getElementById("cartDiscountContainer");
+        const discountContainer = document.getElementById(
+          "cartDiscountContainer",
+        );
         const discountElement = document.getElementById("cartDiscount");
         if (discountContainer && discountElement) {
           if (hayPromocion && descuento > 0.001) {
@@ -1572,11 +1591,12 @@
                   ${
                     item.promotionAppliedPrice
                       ? `<span class="line-through text-gray-400 dark:text-gray-600 font-normal mr-1">$${item.price.toFixed(
-                          2
+                          2,
                         )}</span>
                          <span class="text-green-600 dark:text-green-400">$${item.promotionAppliedPrice.toFixed(
-                           2
-                         )}</span>`
+                           2,
+                         )}</span>
+                         <span class="text-xs text-gray-500 dark:text-gray-400 font-normal ml-1">(aproximado)</span>`
                       : `$${item.price.toFixed(2)}`
                   }
                 </p>
@@ -1622,7 +1642,7 @@
                 : ""
             }
           </div>
-        `
+        `,
           )
           .join("");
 
@@ -1764,7 +1784,7 @@
         // Add CSRF
         const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
         const csrfHeader = document.querySelector(
-          'meta[name="_csrf_header"]'
+          'meta[name="_csrf_header"]',
         )?.content;
 
         const headers = {};
@@ -1841,7 +1861,7 @@
           if (itemsToRemove.length > 0) {
             const initialLength = cart.length;
             cart = cart.filter(
-              (cartItem) => !itemsToRemove.includes(cartItem.name)
+              (cartItem) => !itemsToRemove.includes(cartItem.name),
             );
 
             if (cart.length < initialLength) {

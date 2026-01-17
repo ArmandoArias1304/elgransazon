@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
   <head>
     <meta charset="utf-8" />
@@ -861,6 +861,26 @@
                           <i class="fas fa-eye"></i>
                         </a>
 
+                        <!-- Add Items (only for orders that can accept new items) -->
+                        <a
+                          th:if="${order.canAcceptNewItems()}"
+                          th:href="@{/cashier/orders/{id}/add-items(id=${order.idOrder})}"
+                          class="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-all"
+                          title="Agregar items al pedido"
+                        >
+                          <i class="fas fa-plus-circle"></i>
+                        </a>
+
+                        <!-- Edit (disabled for PAID and CANCELLED) -->
+                        <a
+                          th:if="${order.status.name() != 'PAID' && order.status.name() != 'CANCELLED'}"
+                          th:href="@{/cashier/orders/edit/{id}(id=${order.idOrder})}"
+                          class="p-2 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-all"
+                          title="Editar"
+                        >
+                          <i class="fas fa-edit"></i>
+                        </a>
+
                         <!-- Change Status (not CANCELLED, PAID or DELIVERED) -->
                         <button
                           th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'PAID' && order.status.name() != 'DELIVERED'}"
@@ -929,46 +949,56 @@
         const date = document.getElementById("filterDate").value;
 
         const params = new URLSearchParams(window.location.search);
-        
-        if (tableId) params.set('tableId', tableId); else params.delete('tableId');
-        if (status) params.set('status', status); else params.delete('status');
-        if (orderType) params.set('orderType', orderType); else params.delete('orderType');
-        if (date) params.set('date', date); else params.delete('date');
+
+        if (tableId) params.set("tableId", tableId);
+        else params.delete("tableId");
+        if (status) params.set("status", status);
+        else params.delete("status");
+        if (orderType) params.set("orderType", orderType);
+        else params.delete("orderType");
+        if (date) params.set("date", date);
+        else params.delete("date");
 
         window.location.href = `/${currentRole}/orders?${params.toString()}#mainFiltersSection`;
       }
 
       function clearFilters() {
         const params = new URLSearchParams(window.location.search);
-        params.delete('tableId');
-        params.delete('status');
-        params.delete('orderType');
-        params.delete('date');
+        params.delete("tableId");
+        params.delete("status");
+        params.delete("orderType");
+        params.delete("date");
         window.location.href = `/${currentRole}/orders?${params.toString()}#mainFiltersSection`;
       }
 
       function applyGlobalFilters() {
         const tableId = document.getElementById("globalFilterTable").value;
         const status = document.getElementById("globalFilterStatus").value;
-        const orderType = document.getElementById("globalFilterOrderType").value;
+        const orderType = document.getElementById(
+          "globalFilterOrderType",
+        ).value;
         const date = document.getElementById("globalFilterDate").value;
 
         const params = new URLSearchParams(window.location.search);
-        
-        if (tableId) params.set('globalTableId', tableId); else params.delete('globalTableId');
-        if (status) params.set('globalStatus', status); else params.delete('globalStatus');
-        if (orderType) params.set('globalOrderType', orderType); else params.delete('globalOrderType');
-        if (date) params.set('globalDate', date); else params.delete('globalDate');
+
+        if (tableId) params.set("globalTableId", tableId);
+        else params.delete("globalTableId");
+        if (status) params.set("globalStatus", status);
+        else params.delete("globalStatus");
+        if (orderType) params.set("globalOrderType", orderType);
+        else params.delete("globalOrderType");
+        if (date) params.set("globalDate", date);
+        else params.delete("globalDate");
 
         window.location.href = `/${currentRole}/orders?${params.toString()}#globalFiltersSection`;
       }
 
       function clearGlobalFilters() {
         const params = new URLSearchParams(window.location.search);
-        params.delete('globalTableId');
-        params.delete('globalStatus');
-        params.delete('globalOrderType');
-        params.delete('globalDate');
+        params.delete("globalTableId");
+        params.delete("globalStatus");
+        params.delete("globalOrderType");
+        params.delete("globalDate");
         window.location.href = `/${currentRole}/orders?${params.toString()}#globalFiltersSection`;
       }
 
@@ -1072,7 +1102,7 @@
                 headers: {
                   "Content-Type": "application/x-www-form-urlencoded",
                 },
-              }
+              },
             )
               .then((response) => response.json())
               .then((data) => {
@@ -1110,7 +1140,7 @@
         orderId,
         orderNumber,
         currentStatus,
-        paymentMethod
+        paymentMethod,
       ) {
         // First, get valid statuses from backend
         fetch(`/${currentRole}/orders/${orderId}/valid-statuses`)
@@ -1154,8 +1184,8 @@
                       data.orderType === "DELIVERY"
                         ? "Entrega a Domicilio"
                         : data.orderType === "TAKEOUT"
-                        ? "Para Llevar"
-                        : "Para Comer Aquí"
+                          ? "Para Llevar"
+                          : "Para Comer Aquí"
                     }</strong></p>
                     <p class="mb-4 text-gray-700">Estado Actual: <span class="px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-800">${
                       data.currentStatusLabel
@@ -1194,7 +1224,7 @@
                     headers: {
                       "Content-Type": "application/x-www-form-urlencoded",
                     },
-                  }
+                  },
                 )
                   .then((response) => response.json())
                   .then((data) => {
@@ -1310,7 +1340,7 @@
                 headers: {
                   "Content-Type": "application/x-www-form-urlencoded",
                 },
-              }
+              },
             )
               .then((response) => response.json())
               .then((data) => {
@@ -1384,13 +1414,13 @@
       function connectCashierOrdersWebSocket() {
         if (reconnectAttempts >= maxReconnectAttempts) {
           console.warn(
-            "⛔ CASHIER: Máximo de intentos de reconexión alcanzado. Deteniendo..."
+            "⛔ CASHIER: Máximo de intentos de reconexión alcanzado. Deteniendo...",
           );
           return;
         }
 
         console.log(
-          `🔄 CASHIER: Intento de conexión #${reconnectAttempts + 1}`
+          `🔄 CASHIER: Intento de conexión #${reconnectAttempts + 1}`,
         );
         const socket = new SockJS("/ws");
         stompClient = Stomp.over(socket);
@@ -1412,10 +1442,10 @@
                   "📦 CASHIER: Notification:",
                   message.type,
                   "Order ID:",
-                  message.orderId
+                  message.orderId,
                 );
                 handleOrderUpdate(message);
-              }
+              },
             );
           },
           function (error) {
@@ -1427,32 +1457,32 @@
             reconnectAttempts++;
             console.error(
               `❌ CASHIER: WebSocket Error (intento ${reconnectAttempts}/${maxReconnectAttempts}):`,
-              error
+              error,
             );
 
             if (reconnectAttempts < maxReconnectAttempts) {
               // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
               const delay = Math.min(
                 reconnectDelay * Math.pow(2, reconnectAttempts - 1),
-                maxReconnectDelay
+                maxReconnectDelay,
               );
               console.log(
-                `⏱️ CASHIER: Reintentando conexión en ${delay / 1000}s...`
+                `⏱️ CASHIER: Reintentando conexión en ${delay / 1000}s...`,
               );
               setTimeout(connectCashierOrdersWebSocket, delay);
             } else {
               console.error(
-                "⛔ CASHIER: Máximo de reintentos alcanzado. WebSocket deshabilitado."
+                "⛔ CASHIER: Máximo de reintentos alcanzado. WebSocket deshabilitado.",
               );
             }
-          }
+          },
         );
       }
 
       function handleOrderUpdate(notification) {
         console.log(
           "🔧 CASHIER: Iniciando handleOrderUpdate con:",
-          notification
+          notification,
         );
         const orderId = notification.orderId;
         const newStatus = notification.status || notification.newStatus; // FIX: usar 'status'
@@ -1462,7 +1492,7 @@
 
         // Update specific order row badge immediately (buscar en ambas tablas)
         const orderRow = document.querySelector(
-          `tr[data-order-id="${orderId}"]`
+          `tr[data-order-id="${orderId}"]`,
         );
         console.log("🔍 CASHIER: Fila encontrada:", orderRow);
         if (orderRow && newStatus) {
@@ -1471,10 +1501,15 @@
             updateStatusBadge(badge, newStatus);
 
             // Hide change status button if DELIVERED or PAID or CANCELLED
-            if (newStatus === 'DELIVERED' || newStatus === 'PAID' || newStatus === 'CANCELLED') {
-              const changeStatusBtn = orderRow.querySelector(".btn-change-status");
+            if (
+              newStatus === "DELIVERED" ||
+              newStatus === "PAID" ||
+              newStatus === "CANCELLED"
+            ) {
+              const changeStatusBtn =
+                orderRow.querySelector(".btn-change-status");
               if (changeStatusBtn) {
-                changeStatusBtn.style.display = 'none';
+                changeStatusBtn.style.display = "none";
               }
             }
 
@@ -1504,13 +1539,13 @@
       function updateStatusBadge(badge, status) {
         console.log(
           "🎨 CASHIER: updateStatusBadge llamado con estado:",
-          status
+          status,
         );
         console.log(
           "🎨 CASHIER: Badge antes:",
           badge.className,
           "|",
-          badge.textContent
+          badge.textContent,
         );
 
         // Remove all previous classes and set base classes
@@ -1572,7 +1607,7 @@
           "🎨 CASHIER: Badge después:",
           badge.className,
           "|",
-          badge.textContent
+          badge.textContent,
         );
       }
 
@@ -1591,7 +1626,7 @@
 
         // Update stats cards - usando selectores de clase CSS
         const todayCountEl = document.querySelector(
-          ".text-3xl.font-bold.text-blue-500"
+          ".text-3xl.font-bold.text-blue-500",
         );
         console.log("🔍 CASHIER: todayCountEl:", todayCountEl);
         if (todayCountEl && stats.todayCount != null) {
@@ -1601,52 +1636,52 @@
         }
 
         const todayRevenueSpan = document.querySelector(
-          ".text-3xl.font-bold.text-primary span"
+          ".text-3xl.font-bold.text-primary span",
         );
         console.log("🔍 CASHIER: todayRevenueSpan:", todayRevenueSpan);
         if (todayRevenueSpan && stats.todayRevenue != null) {
           console.log(
             "💰 CASHIER: Actualizando todayRevenue:",
-            stats.todayRevenue
+            stats.todayRevenue,
           );
           todayRevenueSpan.textContent = stats.todayRevenue.toFixed(2);
           updatedCount++;
         }
 
         const pendingCountEl = document.querySelector(
-          ".text-3xl.font-bold.text-yellow-500"
+          ".text-3xl.font-bold.text-yellow-500",
         );
         console.log("🔍 CASHIER: pendingCountEl:", pendingCountEl);
         if (pendingCountEl && stats.pendingCount != null) {
           console.log(
             "🟡 CASHIER: Actualizando pendingCount:",
-            stats.pendingCount
+            stats.pendingCount,
           );
           pendingCountEl.textContent = stats.pendingCount;
           updatedCount++;
         }
 
         const inPreparationCountEl = document.querySelector(
-          ".text-3xl.font-bold.text-orange-500"
+          ".text-3xl.font-bold.text-orange-500",
         );
         console.log("🔍 CASHIER: inPreparationCountEl:", inPreparationCountEl);
         if (inPreparationCountEl && stats.inPreparationCount != null) {
           console.log(
             "🟠 CASHIER: Actualizando inPreparationCount:",
-            stats.inPreparationCount
+            stats.inPreparationCount,
           );
           inPreparationCountEl.textContent = stats.inPreparationCount;
           updatedCount++;
         }
 
         const activeCountEl = document.querySelector(
-          ".text-3xl.font-bold.text-purple-500"
+          ".text-3xl.font-bold.text-purple-500",
         );
         console.log("🔍 CASHIER: activeCountEl:", activeCountEl);
         if (activeCountEl && stats.activeCount != null) {
           console.log(
             "🟣 CASHIER: Actualizando activeCount:",
-            stats.activeCount
+            stats.activeCount,
           );
           activeCountEl.textContent = stats.activeCount;
           updatedCount++;
@@ -1655,7 +1690,7 @@
         console.log(
           "✅ CASHIER: Stats actualizadas -",
           updatedCount,
-          "campos cambiados"
+          "campos cambiados",
         );
       }
 
@@ -1664,7 +1699,7 @@
 
         // OLD CODE - mantener por si acaso
         const activeCountEl_old = document.querySelector(
-          '[th\\:text*="activeCount"]'
+          '[th\\:text*="activeCount"]',
         );
         if (activeCountEl && stats.activeCount != null) {
           activeCountEl.textContent = stats.activeCount;
@@ -1679,13 +1714,13 @@
       // Connect on page load
       window.addEventListener(
         "DOMContentLoaded",
-        connectCashierOrdersWebSocket
+        connectCashierOrdersWebSocket,
       );
 
       // Cleanup on page unload
       window.addEventListener("beforeunload", function () {
         console.log(
-          "👋 CASHIER: Página cerrándose, desconectando WebSocket..."
+          "👋 CASHIER: Página cerrándose, desconectando WebSocket...",
         );
         isIntentionalDisconnect = true;
 
@@ -1713,7 +1748,7 @@
             .catch((error) => {
               console.warn(
                 "⚠️ Payment sound playback prevented:",
-                error.message
+                error.message,
               );
             });
 

@@ -104,6 +104,11 @@ public class CustomerOrderServiceImpl implements OrderService {
         throw new UnsupportedOperationException("Los clientes no pueden editar pedidos");
     }
 
+    @Override
+    public Order updateOrderInfo(Long id, Order updatedOrder) {
+        throw new UnsupportedOperationException("Los clientes no pueden editar información de pedidos");
+    }
+
     /**
      * Check if an item can be cancelled/deleted by the customer
      * Rules:

@@ -36,6 +36,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderDetailRepository orderDetailRepository;
     private final RestaurantTableRepository restaurantTableRepository;
     private final ItemMenuRepository itemMenuRepository;
+    private final IngredientStockService ingredientStockService;
     private final SystemConfigurationRepository systemConfigurationRepository;
     private final RestaurantTableService restaurantTableService;
     private final WebSocketNotificationService wsNotificationService;
@@ -323,6 +324,66 @@ public class OrderServiceImpl implements OrderService {
         // Save updated order
         Order savedOrder = orderRepository.save(existingOrder);
         log.info("Order updated successfully: {}", savedOrder.getOrderNumber());
+
+        return savedOrder;
+    }
+
+    @Override
+    public Order updateOrderInfo(Long id, Order updatedOrder) {
+        log.info("Updating order INFO (without items) for ID: {}", id);
+
+        Order existingOrder = findByIdOrThrow(id);
+
+        // Cannot update PAID or CANCELLED orders
+        if (existingOrder.getStatus() == OrderStatus.PAID || existingOrder.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException(
+                "No se pueden modificar pedidos PAGADOS o CANCELADOS. Estado actual: " + 
+                existingOrder.getStatus().getDisplayName()
+            );
+        }
+
+        // Store old references for table handling
+        RestaurantTable oldTable = existingOrder.getTable();
+        RestaurantTable newTable = updatedOrder.getTable();
+        OrderType oldOrderType = existingOrder.getOrderType();
+        OrderType newOrderType = updatedOrder.getOrderType();
+
+        // Validate table requirement for the new order type
+        validateTableRequirement(updatedOrder);
+
+        // Validate new table availability if table is changing
+        if (newTable != null) {
+            if (oldTable == null || !oldTable.getId().equals(newTable.getId())) {
+                if (!isTableAvailableForOrder(newTable.getId())) {
+                    throw new IllegalStateException(
+                        String.format("La mesa #%d no está disponible o ya tiene un pedido activo", 
+                                      newTable.getTableNumber())
+                    );
+                }
+            }
+        }
+
+        // Validate customer information based on order type
+        validateCustomerInformation(updatedOrder);
+
+        // Update basic fields ONLY (NO items, NO stock manipulation)
+        existingOrder.setOrderType(newOrderType);
+        existingOrder.setCustomerName(updatedOrder.getCustomerName());
+        existingOrder.setCustomerPhone(updatedOrder.getCustomerPhone());
+        existingOrder.setDeliveryAddress(updatedOrder.getDeliveryAddress());
+        existingOrder.setDeliveryReferences(updatedOrder.getDeliveryReferences());
+        existingOrder.setDeliveryLatitude(updatedOrder.getDeliveryLatitude());
+        existingOrder.setDeliveryLongitude(updatedOrder.getDeliveryLongitude());
+        existingOrder.setPaymentMethod(updatedOrder.getPaymentMethod());
+        existingOrder.setUpdatedBy(updatedOrder.getUpdatedBy());
+
+        // Handle table changes (release old table, assign new table)
+        handleTableChange(existingOrder, oldTable, newTable, oldOrderType, newOrderType, 
+                         updatedOrder.getUpdatedBy());
+
+        // Save updated order
+        Order savedOrder = orderRepository.save(existingOrder);
+        log.info("Order INFO updated successfully (no items changed): {}", savedOrder.getOrderNumber());
 
         return savedOrder;
     }
@@ -1043,26 +1104,22 @@ public class OrderServiceImpl implements OrderService {
 
     /**
      * Return stock for a menu item
+     * When returning stock from cancelled orders or deleted items:
+     * - If the returned stock would exceed maxStock, update maxStock to match
+     * - This ensures stock is never "lost" when orders are cancelled after manual restocking
+     * - Uses IngredientStockService with REQUIRES_NEW transactions for concurrent updates
      */
     private void returnStockForItem(ItemMenu item, Integer quantity) {
         log.debug("Returning stock for item: {} (quantity: {})", item.getName(), quantity);
 
         for (ItemIngredient itemIngredient : item.getIngredients()) {
-            Ingredient ingredient = itemIngredient.getIngredient();
             BigDecimal quantityToReturn = itemIngredient.getQuantity()
                 .multiply(BigDecimal.valueOf(quantity));
-
-            BigDecimal currentStock = ingredient.getCurrentStock() != null 
-                ? ingredient.getCurrentStock() 
-                : BigDecimal.ZERO;
-
-            BigDecimal newStock = currentStock.add(quantityToReturn);
-            ingredient.setCurrentStock(newStock);
-
-            log.debug("Stock returned for ingredient: {} ({} {})", 
-                     ingredient.getName(),
-                     quantityToReturn.stripTrailingZeros().toPlainString(),
-                     itemIngredient.getUnit());
+            
+            Long ingredientId = itemIngredient.getIngredient().getIdIngredient();
+            
+            // Use dedicated service with REQUIRES_NEW transaction for retry mechanism
+            ingredientStockService.returnStockWithRetry(ingredientId, quantityToReturn, itemIngredient.getUnit());
         }
     }
 

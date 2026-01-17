@@ -855,6 +855,29 @@ public class OrderController {
             .filter(Map.Entry::getValue)
             .map(Map.Entry::getKey)
             .collect(Collectors.toList());
+        
+        // Also pass both payment method sets for dynamic updates as Maps with name and displayName
+        List<Map<String, String>> regularPaymentMethodsDTO = config.getPaymentMethods().entrySet().stream()
+            .filter(Map.Entry::getValue)
+            .map(Map.Entry::getKey)
+            .map(method -> {
+                Map<String, String> dto = new HashMap<>();
+                dto.put("name", method.name());
+                dto.put("displayName", method.getDisplayName());
+                return dto;
+            })
+            .collect(Collectors.toList());
+        
+        List<Map<String, String>> deliveryPaymentMethodsDTO = config.getDeliveryPaymentMethods().entrySet().stream()
+            .filter(Map.Entry::getValue)
+            .map(Map.Entry::getKey)
+            .map(method -> {
+                Map<String, String> dto = new HashMap<>();
+                dto.put("name", method.name());
+                dto.put("displayName", method.getDisplayName());
+                return dto;
+            })
+            .collect(Collectors.toList());
 
         model.addAttribute("order", order);
         model.addAttribute("employee", employee);
@@ -863,6 +886,8 @@ public class OrderController {
         model.addAttribute("availableItems", availableItemsDTO);
         model.addAttribute("orderTypes", OrderType.values());
         model.addAttribute("paymentMethods", enabledPaymentMethods);
+        model.addAttribute("regularPaymentMethods", regularPaymentMethodsDTO);
+        model.addAttribute("deliveryPaymentMethods", deliveryPaymentMethodsDTO);
         model.addAttribute("taxRate", config.getTaxRate());
         model.addAttribute("formAction", "/" + role + "/orders");
         model.addAttribute("currentRole", role);
@@ -1138,6 +1163,29 @@ public class OrderController {
                         .filter(Map.Entry::getValue)
                         .map(Map.Entry::getKey)
                         .collect(Collectors.toList());
+                    
+                    // Also pass both payment method sets for dynamic updates as Maps with name and displayName
+                    List<Map<String, String>> regularPaymentMethodsDTO = config.getPaymentMethods().entrySet().stream()
+                        .filter(Map.Entry::getValue)
+                        .map(Map.Entry::getKey)
+                        .map(method -> {
+                            Map<String, String> dto = new HashMap<>();
+                            dto.put("name", method.name());
+                            dto.put("displayName", method.getDisplayName());
+                            return dto;
+                        })
+                        .collect(Collectors.toList());
+                    
+                    List<Map<String, String>> deliveryPaymentMethodsDTO = config.getDeliveryPaymentMethods().entrySet().stream()
+                        .filter(Map.Entry::getValue)
+                        .map(Map.Entry::getKey)
+                        .map(method -> {
+                            Map<String, String> dto = new HashMap<>();
+                            dto.put("name", method.name());
+                            dto.put("displayName", method.getDisplayName());
+                            return dto;
+                        })
+                        .collect(Collectors.toList());
 
                     // Convert order details to simple DTOs to avoid circular reference issues
                     List<Map<String, Object>> orderDetailsDTO = order.getOrderDetails().stream()
@@ -1164,9 +1212,15 @@ public class OrderController {
                     model.addAttribute("availableItems", availableItemsDTO);
                     model.addAttribute("orderTypes", OrderType.values());
                     model.addAttribute("paymentMethods", enabledPaymentMethods);
+                    model.addAttribute("regularPaymentMethods", regularPaymentMethodsDTO);
+                    model.addAttribute("deliveryPaymentMethods", deliveryPaymentMethodsDTO);
                     model.addAttribute("taxRate", config.getTaxRate());
                     model.addAttribute("formAction", "/" + role + "/orders/" + id);
                     model.addAttribute("currentRole", role);
+                    
+                    // Determine if order type can be changed based on current status
+                    boolean canChangeOrderType = canChangeOrderType(order);
+                    model.addAttribute("canChangeOrderType", canChangeOrderType);
                     
                     return role + "/orders/form";
                 })
@@ -1177,7 +1231,8 @@ public class OrderController {
     }
 
     /**
-     * Update an existing order
+     * Update an existing order (only basic info: customer, order type, payment method)
+     * Does NOT modify order items or stock - those are managed separately via add-items/delete-item
      */
     @PostMapping("/{id}")
     public String updateOrder(
@@ -1187,17 +1242,12 @@ public class OrderController {
             BindingResult bindingResult,
             @RequestParam(value = "employeeId", required = false) Long employeeId,
             @RequestParam(value = "tableId", required = false) Long tableId,
-            @RequestParam(value = "itemIds", required = false) List<Long> itemIds,
-            @RequestParam(value = "quantities", required = false) List<Integer> quantities,
-            @RequestParam(value = "comments", required = false) List<String> comments,
-            @RequestParam(value = "promotionPrices", required = false) List<String> promotionPrices,
-            @RequestParam(value = "promotionIds", required = false) List<String> promotionIds,
             Authentication authentication,
             Model model,
             RedirectAttributes redirectAttributes) {
 
         String username = authentication.getName();
-        log.info("Updating order with ID: {} by user: {} (role: {})", id, username, role);
+        log.info("Updating order INFO (no items) with ID: {} by user: {} (role: {})", id, username, role);
 
         // Validate role
         validateRole(role, authentication);
@@ -1206,6 +1256,36 @@ public class OrderController {
         OrderService orderService = getOrderService(role);
 
         try {
+            // Get existing order to validate order type change
+            Order existingOrder = orderService.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+            
+            // Validate order type change restrictions ONLY if the order type is actually changing
+            if (order.getOrderType() != existingOrder.getOrderType()) {
+                if (!canChangeOrderType(existingOrder)) {
+                    String statusMessage = getOrderTypeChangeRestrictionMessage(existingOrder);
+                    redirectAttributes.addFlashAttribute("errorMessage", statusMessage);
+                    return "redirect:/" + role + "/orders/edit/" + id;
+                }
+            }
+            
+            // Validate PAID status restrictions for customer and payment fields
+            if (existingOrder.getStatus() == OrderStatus.PAID) {
+                // Check if any customer information or payment method is being changed
+                boolean customerInfoChanged = 
+                    !Objects.equals(order.getCustomerName(), existingOrder.getCustomerName()) ||
+                    !Objects.equals(order.getCustomerPhone(), existingOrder.getCustomerPhone()) ||
+                    !Objects.equals(order.getDeliveryAddress(), existingOrder.getDeliveryAddress()) ||
+                    !Objects.equals(order.getDeliveryReferences(), existingOrder.getDeliveryReferences()) ||
+                    !Objects.equals(order.getPaymentMethod(), existingOrder.getPaymentMethod());
+                
+                if (customerInfoChanged) {
+                    redirectAttributes.addFlashAttribute("errorMessage", 
+                        "No se puede modificar la información del cliente o método de pago de un pedido PAGADO");
+                    return "redirect:/" + role + "/orders/edit/" + id;
+                }
+            }
+            
             // Verify payment method is enabled in configuration if it's being set
             if (order.getPaymentMethod() != null) {
                 SystemConfigurationService configService = systemConfigurationService; // Accessed via field
@@ -1218,16 +1298,6 @@ public class OrderController {
                         "El método de pago seleccionado (" + order.getPaymentMethod().getDisplayName() + ") está deshabilitado" + context);
                     return "redirect:/" + role + "/orders/edit/" + id;
                 }
-            }
-
-            // Build order details from form data
-            List<OrderDetail> orderDetails = buildOrderDetails(itemIds, quantities, comments, promotionPrices, promotionIds);
-
-            if (orderDetails.isEmpty()) {
-                model.addAttribute("errorMessage", "Debe agregar al menos un item al pedido");
-                loadFormData(model, order, username, role);
-                model.addAttribute("formAction", "/" + role + "/orders/" + id);
-                return role + "/orders/form";
             }
 
             // Set table from form data
@@ -1244,10 +1314,11 @@ public class OrderController {
             // Set audit fields
             order.setUpdatedBy(username);
 
-            // Update order - the service will handle the table changes
-            Order updated = orderService.update(id, order, orderDetails);
+            // Update ONLY basic order info (no items, no stock manipulation)
+            // Items are managed separately via add-items and delete-item endpoints
+            Order updated = orderService.updateOrderInfo(id, order);
 
-            log.info("Order updated successfully: {}", updated.getOrderNumber());
+            log.info("Order info updated successfully: {}", updated.getOrderNumber());
             redirectAttributes.addFlashAttribute("successMessage",
                     "Pedido " + updated.getOrderNumber() + " actualizado exitosamente");
             return "redirect:/" + role + "/orders";
@@ -2385,6 +2456,73 @@ public class OrderController {
         }
 
         return "ℹ️ Revisar devolución de stock manualmente";
+    }
+    
+    /**
+     * Determine if order type can be changed based on current order status
+     * Rules:
+     * - DELIVERY: Can change if NOT in ON_THE_WAY, DELIVERED, or PAID
+     *   AND if no delivery person has been assigned (deliveredBy is null)
+     * - DINE_IN/TAKE_OUT: Can change if NOT in DELIVERED or PAID
+     */
+    private boolean canChangeOrderType(Order order) {
+        if (order == null || order.getStatus() == null) {
+            return true; // Allow change if no restrictions
+        }
+        
+        OrderStatus status = order.getStatus();
+        OrderType orderType = order.getOrderType();
+        
+        if (orderType == OrderType.DELIVERY) {
+            // DELIVERY: Cannot change if a delivery person has been assigned
+            if (order.getDeliveredBy() != null) {
+                log.warn("Cannot change order type - delivery person already assigned: {}", 
+                         order.getDeliveredBy().getFullName());
+                return false;
+            }
+            
+            // Also cannot change if in certain statuses
+            return status != OrderStatus.ON_THE_WAY && 
+                   status != OrderStatus.DELIVERED && 
+                   status != OrderStatus.PAID;
+        } else {
+            // DINE_IN/TAKE_OUT: Cannot change if DELIVERED or PAID
+            return status != OrderStatus.DELIVERED && 
+                   status != OrderStatus.PAID;
+        }
+    }
+    
+    /**
+     * Get appropriate error message for order type change restriction
+     */
+    private String getOrderTypeChangeRestrictionMessage(Order order) {
+        OrderStatus status = order.getStatus();
+        OrderType orderType = order.getOrderType();
+        
+        if (orderType == OrderType.DELIVERY) {
+            // Check if delivery person is assigned first
+            if (order.getDeliveredBy() != null) {
+                String deliveryPersonName = order.getDeliveredBy().getFullName();
+                return "No se puede cambiar el tipo de pedido porque ya fue aceptado por el repartidor " + 
+                       deliveryPersonName + " para entrega.";
+            }
+            
+            if (status == OrderStatus.ON_THE_WAY) {
+                return "No se puede cambiar el tipo de pedido porque el pedido está en camino.";
+            } else if (status == OrderStatus.DELIVERED) {
+                return "No se puede cambiar el tipo de pedido porque el pedido ya fue entregado.";
+            } else if (status == OrderStatus.PAID) {
+                return "No se puede cambiar el tipo de pedido porque el pedido ya fue pagado.";
+            }
+        } else {
+            if (status == OrderStatus.DELIVERED) {
+                return "No se puede cambiar el tipo de pedido porque el pedido ya fue entregado.";
+            } else if (status == OrderStatus.PAID) {
+                return "No se puede cambiar el tipo de pedido porque el pedido ya fue pagado.";
+            }
+        }
+        
+        return "No se puede cambiar el tipo de pedido en el estado actual.";
     }
     
     /**

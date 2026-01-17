@@ -101,6 +101,11 @@ public class DeliveryOrderServiceImpl implements OrderService {
     }
 
     @Override
+    public Order updateOrderInfo(Long id, Order updatedOrder) {
+        throw new UnsupportedOperationException("El delivery no puede modificar información de pedidos");
+    }
+
+    @Override
     public Order cancel(Long id, String username) {
         throw new UnsupportedOperationException("El delivery no puede cancelar pedidos");
     }

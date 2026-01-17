@@ -26,8 +26,20 @@ public interface OrderService {
 
     /**
      * Update an existing order (only if status is PENDING)
+     * WARNING: This method manipulates stock (returns old stock, deducts new stock)
+     * Use updateOrderInfo for editing order data without touching items/stock
      */
     Order update(Long id, Order order, List<OrderDetail> orderDetails);
+
+    /**
+     * Update only the basic information of an order (customer info, order type, payment method, table)
+     * This method does NOT touch the order items or stock.
+     * Use this when editing order details from the form without changing items.
+     * @param id Order ID
+     * @param updatedOrder Order with updated basic fields
+     * @return Updated order
+     */
+    Order updateOrderInfo(Long id, Order updatedOrder);
 
     /**
      * Cancel an order
